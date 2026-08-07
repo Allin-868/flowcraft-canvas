@@ -1280,6 +1280,88 @@ body {
 }
 .context-toolbar .ct-btn svg { width: 13px; height: 13px; }
 .context-toolbar .ct-sep { width: 1px; height: 16px; background: var(--border-subtle); }
+
+/* ==================== v2.2：浅色主题 / 运行态 / 裁剪 ==================== */
+html[data-theme="light"] {
+  --bg-deepest: #E9ECF1;
+  --bg-input: #FFFFFF;
+  --bg-panel: #FFFFFF;
+  --bg-surface: #FFFFFF;
+  --bg-button: #EDF0F5;
+  --bg-button-hover: #E3E8F0;
+  --bg-button-active: #D8DEE8;
+  --color-primary: #4A7BD6;
+  --color-primary-hover: #5B8DEF;
+  --color-primary-active: #3B67C0;
+  --color-primary-dim: rgba(74, 123, 214, 0.12);
+  --color-accent-start: #9B59F0;
+  --color-accent-end: #C76BF7;
+  --color-accent-solid: #B060F8;
+  --gradient-accent: linear-gradient(135deg, #9B59F0 0%, #C76BF7 100%);
+  --gradient-primary: linear-gradient(180deg, #6B97F0 0%, #5B8DEF 100%);
+  --glow-selected: 0 0 0 2px rgba(74, 123, 214, 0.45), 0 0 20px rgba(74, 123, 214, 0.18);
+  --glow-accent: 0 0 0 2px rgba(155, 89, 240, 0.4), 0 0 20px rgba(155, 89, 240, 0.15);
+  --color-warn: #B8860B;
+  --color-success: #2E9E5B;
+  --color-danger: #D64545;
+  --color-warn-dim: rgba(184, 134, 11, 0.12);
+  --color-success-dim: rgba(46, 158, 91, 0.12);
+  --color-danger-dim: rgba(214, 69, 69, 0.12);
+  --text-1: #1B1F26;
+  --text-2: #4A515C;
+  --text-3: #7A808A;
+  --text-on-primary: #FFFFFF;
+  --text-accent: #8A3FD0;
+  --border-default: #D6DCE4;
+  --border-hover: #B9C2CF;
+  --border-focus: #4A7BD6;
+  --border-selected: #4A7BD6;
+  --border-subtle: #E6EAF0;
+  --grid-line-major: rgba(27, 31, 38, 0.06);
+  --grid-line-minor: rgba(27, 31, 38, 0.03);
+  --grid-origin: rgba(74, 123, 214, 0.18);
+  --canvas-scrim: rgba(233, 236, 241, 0.7);
+  --shadow-card: 0 2px 8px rgba(30, 40, 60, 0.12);
+  --shadow-card-hover: 0 4px 16px rgba(30, 40, 60, 0.18);
+  --shadow-card-drag: 0 8px 32px rgba(30, 40, 60, 0.25);
+  --shadow-selected: 0 0 0 2px var(--color-primary), 0 0 20px rgba(74, 123, 214, 0.2);
+  --shadow-panel: 0 0 0 1px var(--border-default), 0 4px 12px rgba(30, 40, 60, 0.1);
+  --shadow-popover: 0 8px 24px rgba(30, 40, 60, 0.2), 0 0 0 1px var(--border-default);
+  --shadow-statusbar: 0 -1px 0 var(--border-default), 0 -4px 12px rgba(30, 40, 60, 0.08);
+}
+
+/* 运行中画布高亮 */
+#canvasWrap.canvas-running {
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+#canvasWrap.canvas-running #edgeCanvas {
+  filter: drop-shadow(0 0 6px rgba(91, 141, 239, 0.35));
+}
+
+/* 视口裁剪：视野外节点隐藏（拖拽/选中中的节点除外） */
+.node-culled { display: none !important; }
+
+/* 保存节点：下载按钮 */
+.node-thumb { position: relative; }
+.thumb-download {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: rgba(14, 16, 20, 0.72);
+  color: #FFFFFF;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background var(--transition-fast);
+}
+.thumb-download svg { width: 13px; height: 13px; }
+.thumb-download:hover { background: var(--color-primary); }
 </style>
 </head>
 <body>
@@ -2324,7 +2406,7 @@ function buildNodeBody(el, node) {
 
   const def = node.def;
   const hasPrompt = ['aiImage', 'aiVideo'].includes(node.type);
-  const hasThumb = ['image', 'aiImage', 'aiVideo', 'upscale', 'compare'].includes(node.type);
+  const hasThumb = ['image', 'aiImage', 'aiVideo', 'upscale', 'compare', 'save'].includes(node.type);
   const hasControls = ['aiImage', 'aiVideo'].includes(node.type);
   const hasToolbar = ['image', 'aiImage', 'aiVideo', 'upscale'].includes(node.type);
 
@@ -2349,10 +2431,14 @@ function buildNodeBody(el, node) {
         empty.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>';
         empty.onclick = (e) => {
           e.stopPropagation();
-          node.thumb = `https://picsum.photos/seed/${node.id}/36/36`;
-          buildNodeBody(el, node);
-          markEdgesDirty();
-          scheduleAutosave();
+          if (node.type === 'image' || node.type === 'upscale') {
+            openImageUpload(node);
+          } else {
+            node.thumb = makePlaceholder(node.type, node.id);
+            buildNodeBody(el, node);
+            markEdgesDirty();
+            scheduleAutosave();
+          }
         };
         empty.onmousedown = (e) => e.stopPropagation();
         thumbRow.appendChild(empty);
@@ -2487,6 +2573,15 @@ function buildNodeBody(el, node) {
       btn.onmousedown = (e) => e.stopPropagation();
       toolbar.appendChild(btn);
     });
+    if (node.type === 'image' || node.type === 'upscale') {
+      const upBtn = document.createElement('button');
+      upBtn.className = 'tool-btn';
+      upBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10V2M5 5l3-3 3 3M3 14h10"/></svg>';
+      upBtn.title = '上传图片';
+      upBtn.onclick = (e) => { e.stopPropagation(); openImageUpload(node); };
+      upBtn.onmousedown = (e) => e.stopPropagation();
+      toolbar.appendChild(upBtn);
+    }
     el.appendChild(toolbar);
   }
 
@@ -2726,11 +2821,13 @@ function startNodeDrag(e, node) {
 //================ 9b. 节点缩放 ================
 function startNodeResize(e, node) {
   const startX = e.clientX;
+  const startY = e.clientY;
   const origW = node.width;
+  const origH = node.height || 200;
   const minWidth = 200;
   const maxWidth = 600;
   let moved = false;
-  let historyPushed = false; // lazy 压栈标志：首次缩放时才压栈，捕获缩放前状态
+  let historyPushed = false; // lazy 压栈标记：首次缩放时才压栈，捕获缩放前状态
   node.el.classList.add('dragging');
 
   const onMove = (e2) => {
@@ -2738,14 +2835,26 @@ function startNodeResize(e, node) {
     const newWidth = Math.max(minWidth, Math.min(maxWidth, origW + dx));
     if (newWidth !== node.width) {
       if (!historyPushed) {
-        pushHistory();       // 首次实际变化时压栈（此时 node.width 仍是缩放前值）
+        pushHistory();
         historyPushed = true;
       }
       moved = true;
     }
     node.width = newWidth;
     node.el.style.width = node.width + 'px';
-    // 更新节点高度（供 fitToContent 使用）
+    // 垂直方向同时调整高度（右下角拖拽）
+    const dy = (e2.clientY - startY) / workflow.camera.zoom;
+    const newHeight = Math.max(80, Math.min(900, origH + dy));
+    if (Math.abs(newHeight - (node.height || origH)) > 0.5) {
+      if (!historyPushed) {
+        pushHistory();
+        historyPushed = true;
+      }
+      moved = true;
+    }
+    node.height = newHeight;
+    node.el.style.minHeight = newHeight + 'px';
+    // 同步实际高度（内容更高时取内容高度，供 fitToContent 使用）
     node.height = node.el.offsetHeight;
     markEdgesDirty();
   };
@@ -2817,6 +2926,11 @@ window.addEventListener('keydown', (e) => {
     workflow.selection.forEach(id => deleteNode(id));
     e.preventDefault();
   }
+  // F 适应内容 / 0 重置缩放 / T 切换主题 / Ctrl+Enter 运行全部
+  if (e.code === 'KeyF' && !e.target.closest('input, textarea, select')) { e.preventDefault(); fitToContent(); return; }
+  if (e.code === 'Digit0' && !e.target.closest('input, textarea, select')) { e.preventDefault(); resetZoom(); return; }
+  if (e.code === 'KeyT' && !e.target.closest('input, textarea, select')) { e.preventDefault(); toggleTheme(); return; }
+  if (e.code === 'Enter' && (e.ctrlKey || e.metaKey) && !e.target.closest('input, textarea, select')) { e.preventDefault(); runAllNodes(); return; }
   // Ctrl+A 全选节点
   if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey) && !e.target.closest('input, textarea, select')) {
     e.preventDefault();
@@ -2898,6 +3012,7 @@ function applyTransform() {
   document.getElementById('zoomDisplay').textContent = pct;
   drawGrid();
   drawMinimap();
+  updateVisibleNodes();
 }
 
 // 缩放控件
@@ -2967,7 +3082,7 @@ function drawGrid() {
   const cam = workflow.camera;
 
   // 深色背景
-  ctx.fillStyle = COLORS.bgDeepest;
+  ctx.fillStyle = getCSSVar('--bg-deepest') || COLORS.bgDeepest;
   ctx.fillRect(0, 0, w, h);
 
   // 网点网格 — LOD 策略
@@ -2981,7 +3096,7 @@ function drawGrid() {
 
   // 网点颜色：基于 CSS 变量 --grid-line-minor 的 RGB 分量，动态调节透明度
   const alpha = cam.zoom > 1 ? 0.06 : 0.04;
-  const c = COLORS.gridDotRGB;
+  const c = parseRGB(getCSSVar('--grid-line-minor'));
   ctx.fillStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
 
   for (let x = offsetX; x < w; x += spacing) {
@@ -2993,7 +3108,7 @@ function drawGrid() {
   // 原点标记（世界原点 0,0 处的十字）
   const origin = cam.worldToScreen(0, 0);
   if (origin.x > -20 && origin.x < w + 20 && origin.y > -20 && origin.y < h + 20) {
-    ctx.strokeStyle = COLORS.gridOrigin;
+    ctx.strokeStyle = getCSSVar('--grid-origin') || COLORS.gridOrigin;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(origin.x - 10, origin.y);
@@ -3038,11 +3153,11 @@ function drawEdges() {
     const tp = getPortScreenPos(tn, 'input', edge.to.port);
 
     // 贝塞尔曲线 — 颜色读取自 CSS 变量, 线宽 2px
-    drawBezier(ctx, fp.x, fp.y, tp.x, tp.y, COLORS.primary, 2);
+    drawBezier(ctx, fp.x, fp.y, tp.x, tp.y, getCSSVar('--color-primary') || COLORS.primary, 2);
 
     // 端点实心圆填充
-    drawPortDot(ctx, fp.x, fp.y, COLORS.primary);
-    drawPortDot(ctx, tp.x, tp.y, COLORS.primary);
+    drawPortDot(ctx, fp.x, fp.y, getCSSVar('--color-primary') || COLORS.primary);
+    drawPortDot(ctx, tp.x, tp.y, getCSSVar('--color-primary') || COLORS.primary);
 
     // 标记端口为 connected
     updatePortConnected(fn, 'output', edge.from.port, true);
@@ -3054,7 +3169,7 @@ function drawEdges() {
     const pc = workflow.pendingConnection;
     const fp = getPortScreenPos(pc.fromNode, pc.fromKind, pc.fromIdx);
     const valid = pc.valid;
-    const color = valid ? COLORS.primary : COLORS.danger;
+    const color = valid ? (getCSSVar('--color-primary') || COLORS.primary) : (getCSSVar('--color-danger') || COLORS.danger);
 
     // 草稿线：虚线
     drawBezierDashed(ctx, fp.x, fp.y, pc.toX, pc.toY, color, 2);
@@ -3063,7 +3178,7 @@ function drawEdges() {
     // hover 端口高亮
     if (workflow.hoveredPort) {
       const hp = getPortScreenPos(workflow.hoveredPort.node, workflow.hoveredPort.kind, workflow.hoveredPort.idx);
-      drawPortDot(ctx, hp.x, hp.y, valid ? COLORS.primary : COLORS.danger, 6);
+      drawPortDot(ctx, hp.x, hp.y, valid ? (getCSSVar('--color-primary') || COLORS.primary) : (getCSSVar('--color-danger') || COLORS.danger), 6);
     }
   }
 }
@@ -3280,22 +3395,11 @@ document.getElementById('libSearch').addEventListener('input', (e) => {
 
 //================ 16. 模拟执行 ================
 function runNode(node) {
-  if (node.status === 'running') return;
-  node.status = 'running';
-  updateNodeStatus(node);
-  markEdgesDirty();
-
-  setTimeout(() => {
-    node.status = 'done';
-    // 填充缩略图
-    if (!node.thumb) {
-      node.thumb = `https://picsum.photos/seed/${node.id}-result/36/36`;
-    }
-    buildNodeBody(node.el, node);
-    updateNodeStatus(node);
-    markEdgesDirty();
-    scheduleAutosave();
-  }, 1800);
+  if (runningFlow) {
+    showToast('工作流正在运行中…', 'info');
+    return;
+  }
+  runFlow(topoOrderFrom(node.id));
 }
 
 //================ 17. 状态栏更新 ================
@@ -3354,6 +3458,7 @@ function showContextMenu(x, y, node) {
     }
   } else {
     // —— 画布上下文菜单 ——
+    addMenuItem('适应内容', MENU_ICONS.run, 'Ctrl+Enter', () => runAllNodes());
     addMenuItem('适应内容', MENU_ICONS.fit, 'F', () => fitToContent());
     addMenuItem('重置缩放', MENU_ICONS.zoom, '0', () => resetZoom());
     addMenuSeparator();
@@ -3889,6 +3994,244 @@ if (workflow.nodes.size === 0) minimapEl.style.display = 'none';
 
 // ---------- 钩子（供旧代码调用） ----------
 function updateSelectionUI() { /* 选中样式由 selectNode/setNodeSelected 维护 */ }
+
+//=============================================================================
+// v2.2 新增：运行引擎 / 主题切换 / 视口裁剪 / 图片上传
+//=============================================================================
+let runningFlow = false;
+
+const RUN_DELAYS = {
+  image: 600, text: 600, aiImage: 1200, aiVideo: 1200,
+  upscale: 900, compare: 900, save: 600
+};
+
+// ---------- 运行引擎 ----------
+function runAllNodes() {
+  if (runningFlow) { showToast('工作流正在运行中…', 'info'); return; }
+  const order = [];
+  const visited = new Set();
+  const visit = (id) => {
+    if (visited.has(id)) return;
+    visited.add(id);
+    workflow.edges.forEach(e => { if (e.from.node.id === id) visit(e.to.node.id); });
+    order.push(id);
+  };
+  workflow.nodes.forEach(n => visit(n.id));
+  runFlow(order);
+}
+
+// 从指定节点出发，沿连线做拓扑排序（先依赖后依赖者）
+function topoOrderFrom(startId) {
+  const start = workflow.nodes.get(startId);
+  if (!start) return [];
+  const order = [];
+  const visited = new Set();
+  const visit = (id) => {
+    if (visited.has(id)) return;
+    visited.add(id);
+    workflow.edges.forEach(e => { if (e.from.node.id === id) visit(e.to.node.id); });
+    order.push(id);
+  };
+  visit(startId);
+  return order;
+}
+
+// 顺序执行引擎
+function runFlow(order) {
+  if (runningFlow) return;
+  const nodes = order.map(id => workflow.nodes.get(id)).filter(Boolean);
+  if (!nodes.length) { showToast('没有可运行的节点', 'info'); return; }
+  runningFlow = true;
+  canvasWrap.classList.add('canvas-running');
+  nodes.forEach(n => { n.status = 'idle'; updateNodeStatus(n); });
+  let i = 0;
+  const runNext = () => {
+    if (i >= nodes.length) {
+      runningFlow = false;
+      canvasWrap.classList.remove('canvas-running');
+      showToast('运行完成（' + nodes.length + ' 个节点）', 'success');
+      scheduleAutosave();
+      return;
+    }
+    const node = nodes[i++];
+    node.status = 'running';
+    updateNodeStatus(node);
+    const delay = RUN_DELAYS[node.type] || 800;
+    setTimeout(() => {
+      try {
+        executeNode(node);
+        node.status = 'done';
+      } catch (err) {
+        node.status = 'error';
+        showToast(node.title + ' 运行失败', 'error');
+      }
+      updateNodeStatus(node);
+      runNext();
+    }, delay);
+  };
+  runNext();
+}
+
+// 单节点执行逻辑：AI 生成占位图；处理/保存类取上游图片
+function executeNode(node) {
+  let src = null;
+  workflow.edges.forEach(e => {
+    if (!src && e.to.node.id === node.id) src = e.from.node;
+  });
+  if (node.type === 'aiImage' || node.type === 'aiVideo') {
+    node.thumb = makePlaceholder(node.type, node.id);
+    rebuildNodeBody(node);
+    return;
+  }
+  if (node.type === 'upscale' || node.type === 'compare' || node.type === 'save') {
+    if (src && src.thumb) {
+      node.thumb = src.thumb;
+      rebuildNodeBody(node);
+      if (node.type === 'save') {
+        addSaveDownloadBtn(node);
+        downloadImage(node.thumb, 'flowcraft-' + node.id + '.png');
+      }
+    } else if (node.type === 'save') {
+      showToast('保存节点未收到上游图片', 'info');
+    }
+  }
+}
+
+function rebuildNodeBody(node) {
+  if (node.el) {
+    buildNodeBody(node.el, node);
+    markEdgesDirty();
+  }
+}
+
+// 保存节点：收到图片后提供下载按钮
+function addSaveDownloadBtn(node) {
+  if (node.type !== 'save' || !node.el) return;
+  const thumb = node.el.querySelector('.node-thumb');
+  if (!thumb || thumb.querySelector('.thumb-download')) return;
+  const btn = document.createElement('button');
+  btn.className = 'thumb-download';
+  btn.title = '下载图片';
+  btn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3 13h10"/></svg>';
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    downloadImage(node.thumb, 'flowcraft-' + node.id + '.png');
+  };
+  btn.onmousedown = (e) => e.stopPropagation();
+  thumb.appendChild(btn);
+}
+
+async function downloadImage(url, filename) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('fetch failed');
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+    return true;
+  } catch (err) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return false;
+  }
+}
+
+// ---------- 图片上传 ----------
+function openImageUpload(node) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.addEventListener('change', () => {
+    const file = input.files && input.files[0];
+    input.remove();
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      node.uploadedImage = reader.result;
+      node.thumb = reader.result;
+      if (node.el) {
+        buildNodeBody(node.el, node);
+        markEdgesDirty();
+      }
+      scheduleAutosave();
+      showToast('图片已上传', 'success');
+    };
+    reader.readAsDataURL(file);
+  });
+  input.click();
+}
+
+// ---------- 占位图 ----------
+function makePlaceholder(type, id) {
+  const seed = 'flowcraft-' + type + '-' + id;
+  const w = 48;
+  const h = type === 'aiVideo' ? 32 : 48;
+  return 'https://picsum.photos/seed/' + seed + '/' + w + '/' + h;
+}
+
+// ---------- 主题切换 ----------
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if (isLight) {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('flowcraft:theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('flowcraft:theme', 'light');
+  }
+  applyTransform();
+  markEdgesDirty();
+  showToast(isLight ? '已切换深色主题' : '已切换浅色主题', 'info');
+}
+
+// ---------- 视口裁剪 ----------
+function updateVisibleNodes() {
+  if (!workflow || !workflow.nodes) return;
+  const cam = workflow.camera;
+  const cw = canvasWrap.clientWidth;
+  const ch = canvasWrap.clientHeight;
+  const wl = (0 - cam.x) / cam.zoom;
+  const wt = (0 - cam.y) / cam.zoom;
+  const wr = (cw - cam.x) / cam.zoom;
+  const wb = (ch - cam.y) / cam.zoom;
+  const pad = 120;
+  workflow.nodes.forEach(n => {
+    if (!n.el) return;
+    // 拖拽/选中中的节点始终保留，避免操作中断
+    if (n.el.classList.contains('dragging') || n.el.classList.contains('selected')) {
+      n.el.classList.remove('node-culled');
+      return;
+    }
+    const nx = n.x, ny = n.y;
+    const nw = n.width || 280, nh = n.height || 200;
+    const visible = (nx + nw > wl - pad) && (nx < wr + pad) && (ny + nh > wt - pad) && (ny < wb + pad);
+    n.el.classList.toggle('node-culled', !visible);
+  });
+}
+
+// 选中状态变化时同步裁剪（选中节点必须可见）
+updateSelectionUI = () => { updateVisibleNodes(); };
+// 拖拽结束后重新计算裁剪
+window.addEventListener('mouseup', () => { updateVisibleNodes(); });
+
+// 恢复上次主题
+if (localStorage.getItem('flowcraft:theme') === 'light') {
+  document.documentElement.setAttribute('data-theme', 'light');
+  applyTransform();
+  markEdgesDirty();
+}
 </script>
 </body>
 </html>
