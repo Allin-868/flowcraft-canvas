@@ -82,6 +82,7 @@
   --node-material: #8D6E63;
   --node-light: #FFD54F;
   --node-layout: #26A69A;
+  --node-loop: #3FB8AF;
   --node-script: #7F77DD;
   --node-footage: #378ADD;
   --node-voiceover: #1D9E75;
@@ -200,6 +201,7 @@ body[data-theme="light"] {
   --node-material: #6E5548;
   --node-light: #B8860B;
   --node-layout: #1F8A80;
+  --node-loop: #2F9E94;
   --node-script: #6359B8;
   --node-footage: #2A6FBE;
   --node-voiceover: #17815D;
@@ -268,6 +270,7 @@ body[data-theme="eye-care"] {
   --node-material: #6B5548;
   --node-light: #8A6D1F;
   --node-layout: #3E7A70;
+  --node-loop: #3E8E82;
   --node-script: #6A63A0;
   --node-footage: #3D6FA0;
   --node-voiceover: #3E7A5C;
@@ -2556,6 +2559,54 @@ body {
   margin-right: 2px;
 }
 
+/* 循环节点 body */
+.node-body-loop { display: flex; flex-direction: column; gap: 6px; padding: 2px 2px 4px; }
+.loop-param-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+}
+.loop-param-label {
+  font-size: var(--text-micro);
+  color: var(--text-2);
+  flex: 0 0 auto;
+}
+.loop-param-input, .loop-param-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 92px;
+  height: 26px;
+  padding: 0 6px;
+  font-size: var(--text-micro);
+  color: var(--text-1);
+  background: var(--bg-input, #fff);
+  border: 1px solid var(--border-soft, #d7dce3);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+.loop-param-select { cursor: pointer; }
+.loop-param-input:focus, .loop-param-select:focus { border-color: var(--color-primary); }
+.loop-progress {
+  font-size: var(--text-micro);
+  color: var(--text-3);
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-chip, rgba(0,0,0,0.04));
+  text-align: center;
+}
+.loop-progress.active {
+  color: var(--node-loop);
+  background: color-mix(in srgb, var(--node-loop) 14%, transparent);
+  font-weight: 600;
+}
+.loop-hint {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-3);
+  opacity: 0.8;
+}
+
 /* 让 textarea 在节点内更融入 */
 .node-prompt-area {
   display: flex;
@@ -3456,6 +3507,50 @@ body {
 }
 .asset-btn:hover { background: var(--bg-button-hover); color: var(--text-1); }
 
+/* 素材分类筛选 + 引用令牌（Hell Grind 蒸馏） */
+.asset-filters { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 10px 8px; border-bottom: 1px solid var(--border-subtle); }
+.asset-filter-chip {
+  padding: 3px 9px; font-size: var(--text-meta, 12px); border-radius: 999px;
+  border: 1px solid var(--border-subtle); background: var(--bg-button);
+  color: var(--text-2); cursor: pointer;
+}
+.asset-filter-chip.active { background: var(--accent, #8B5CF6); color: #fff; border-color: var(--accent, #8B5CF6); }
+.asset-cat-select {
+  width: 100%; margin-top: 3px; padding: 2px 4px;
+  font-size: var(--text-micro, 11px); background: var(--bg-input); color: var(--text-1);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm, 6px);
+}
+.asset-ref-btn {
+  flex: 0 0 auto; padding: 3px 8px;
+  border: 1px solid var(--accent, #8B5CF6); background: transparent; color: var(--accent, #8B5CF6);
+  border-radius: var(--radius-sm, 6px); cursor: pointer; font-size: var(--text-micro, 11px);
+  font-family: var(--font-sans);
+}
+.asset-ref-btn:hover { background: var(--accent, #8B5CF6); color: #fff; }
+
+/* 导演模板表单（多镜头序列提示词生成器） */
+.dir-form { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.dir-form .df-label { font-size: var(--text-meta, 12px); color: var(--text-2); margin-bottom: 2px; }
+.dir-form .df-input, .dir-form .df-select, .dir-form .df-textarea {
+  width: 100%; box-sizing: border-box; padding: 6px 8px;
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm, 6px);
+  background: var(--bg-input); color: var(--text-1);
+  font-size: var(--text-sm, 13px); font-family: var(--font-sans); outline: none;
+}
+.dir-form .df-input:focus, .dir-form .df-textarea:focus, .dir-form .df-select:focus { border-color: var(--accent, #8B5CF6); }
+.dir-form .df-textarea { resize: vertical; min-height: 46px; line-height: 1.45; }
+.dir-form .df-row { display: flex; gap: 6px; }
+.dir-form .df-row > div { flex: 1; min-width: 0; }
+.dir-form .df-actions { display: flex; gap: 6px; }
+.dir-form .df-btn {
+  flex: 1; padding: 7px 0;
+  border: 1px solid var(--accent, #8B5CF6); border-radius: var(--radius-sm, 6px);
+  background: var(--accent, #8B5CF6); color: #fff; cursor: pointer;
+  font-size: var(--text-label, 12px); font-family: var(--font-sans);
+}
+.dir-form .df-btn.ghost { background: transparent; color: var(--accent, #8B5CF6); }
+.dir-form .df-btn:hover { filter: brightness(1.08); }
+
 /* 节点定位高亮（闪烁） */
 @keyframes nodeFlash {
   0%   { box-shadow: 0 0 0 0 rgba(99,102,241,0); }
@@ -3467,6 +3562,33 @@ body {
   outline-offset: 2px;
   animation: nodeFlash 1.3s ease-out;
 }
+
+
+/* —— 运行日志面板（生成历史） —— */
+.run-log-panel {
+  position: absolute; top: 56px; right: 12px; bottom: 40px; width: 344px;
+  background: var(--bg-panel); border: 1px solid var(--border-subtle);
+  border-radius: 12px; box-shadow: 0 14px 44px rgba(0,0,0,.28);
+  display: flex; flex-direction: column; z-index: 70;
+  transform: translateX(calc(100% + 24px)); transition: transform .22s ease; overflow: hidden;
+}
+.run-log-panel.show { transform: translateX(0); }
+.run-log-header { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border-subtle); gap:8px; }
+.run-log-title { font-size:13px; font-weight:600; color:var(--text-1); }
+.run-log-actions { display:flex; align-items:center; gap:6px; }
+.run-log-filter { background:var(--bg-input); color:var(--text-1); border:1px solid var(--border-subtle); border-radius:6px; font-size:12px; padding:2px 4px; }
+.run-log-list { flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:6px; }
+.run-log-empty { position:absolute; inset:48px 0 0 0; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--text-3); font-size:12px; line-height:1.6; padding:0 24px; }
+.rl-item { background:var(--bg-surface); border:1px solid var(--border-subtle); border-left:3px solid var(--color-success); border-radius:8px; padding:8px 10px; }
+.rl-item.error { border-left-color: var(--color-danger); }
+.rl-row1 { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.rl-title { font-size:12.5px; color:var(--text-1); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rl-status { font-size:11px; padding:1px 7px; border-radius:10px; flex:none; }
+.rl-status.success { background:rgba(46,160,67,.16); color:var(--color-success); }
+.rl-status.error { background:rgba(225,83,83,.16); color:var(--color-danger); }
+.rl-row2 { font-size:11.5px; color:var(--text-2); margin-top:3px; word-break:break-all; }
+.rl-err { font-size:11px; color:var(--color-danger); margin-top:3px; word-break:break-all; }
+.rl-row3 { display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-3); margin-top:4px; }
 
 </style>
 </head>
@@ -3645,6 +3767,9 @@ body {
       <button class="tb-btn" id="btnAssets" title="素材库（图片资产管理）">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>
       </button>
+      <button class="tb-btn" id="btnRunLog" title="运行日志（生成历史）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h6"/></svg>
+      </button>
       <div class="tb-divider"></div>
       <button class="tb-btn" id="btnExport" title="导出 JSON">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3 14h10"/></svg>
@@ -3817,6 +3942,13 @@ body {
     </button>
   </div>
   <div class="recycle-list" id="assetList">
+  <div class="asset-filters" id="assetFilters">
+    <button class="asset-filter-chip active" data-cat="" type="button">全部</button>
+    <button class="asset-filter-chip" data-cat="角色" type="button">角色</button>
+    <button class="asset-filter-chip" data-cat="道具" type="button">道具</button>
+    <button class="asset-filter-chip" data-cat="场景" type="button">场景</button>
+    <button class="asset-filter-chip" data-cat="通用" type="button">通用</button>
+  </div>
     <div class="asset-grid" id="assetGrid"></div>
     <div class="recycle-empty" id="assetEmpty">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>
@@ -3876,6 +4008,26 @@ body {
   </div>
 </div>
 
+  <!-- 运行日志面板（生成历史） -->
+  <div class="run-log-panel" id="runLogPanel">
+    <div class="run-log-header">
+      <div class="run-log-title">运行日志</div>
+      <div class="run-log-actions">
+        <select id="runLogFilter" class="run-log-filter" title="筛选">
+          <option value="all">全部</option>
+          <option value="success">成功</option>
+          <option value="error">失败</option>
+        </select>
+        <button class="ai-btn small" id="runLogClear" title="清空日志">清空</button>
+        <button class="ai-btn" id="runLogClose" title="收起面板">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="run-log-list" id="runLogList"></div>
+    <div class="run-log-empty" id="runLogEmpty">暂无运行记录<br>运行工作流后，这里会自动记录每次生成的<br>模型 · 参数 · 耗时 · 错误</div>
+  </div>
+
 <script>
 //=============================================================================
 // FlowCraft v2 — AI 工作流编辑器
@@ -3888,7 +4040,7 @@ const NODE_TYPES = {
   videoInput: { label: '视频输入', desc: '上传或选择视频',   color: 'var(--node-video-input)', colorRaw: '#E0533D', inputs: [], outputs: [{type:'video',label:'视频'}], defaultParams: { name: '示例视频.mp4', duration: '00:12' } },
   text:     { label: '文本输入', desc: '输入提示词文本',     color: 'var(--node-text)',     colorRaw: '#5BC07A', inputs: [], outputs: [{type:'text',label:'文本'}] },
   aiImage:  { label: 'AI 绘图',  desc: '文生图 / 图生图',    color: 'var(--node-ai-image)', colorRaw: '#9B59F0', inputs: [{type:'image',label:'图片'},{type:'text',label:'提示词'}], outputs: [{type:'image',label:'图片'}] },
-  aiVideo:  { label: 'AI 视频',  desc: '图生视频 / 文生视频', color: 'var(--node-ai-video)', colorRaw: '#C76BF7', inputs: [{type:'image',label:'图片'},{type:'text',label:'提示词'}], outputs: [{type:'video',label:'视频'}] },
+  aiVideo:  { label: 'AI 视频',  desc: '图生视频 / 文生视频', color: 'var(--node-ai-video)', colorRaw: '#C76BF7', inputs: [{type:'image',label:'图片'},{type:'text',label:'提示词'}], outputs: [{type:'video',label:'视频'}], defaultParams: { model: 'Sora 2', aspect: '9:16', duration: '5秒', resolution: '高清1K', mode: '异步' } },
   upscale:  { label: '智能超清', desc: '图片无损放大',       color: 'var(--node-upscale)',  colorRaw: '#F2C66B', inputs: [{type:'image',label:'图片'}], outputs: [{type:'image',label:'图片'}] },
   compare:  { label: '对比',     desc: '左右对比展示',       color: 'var(--node-compare)',  colorRaw: '#E15353', inputs: [{type:'image',label:'原图'},{type:'image',label:'结果'}], outputs: [{type:'image',label:'对比图'}] },
   videoBreak: { label: '视频拆解', desc: '拆解视频为关键帧/片段', color: 'var(--node-video-break)', colorRaw: '#3DA5E0', inputs: [{type:'video',label:'视频'}], outputs: [{type:'image',label:'关键帧'},{type:'video',label:'片段'}], defaultParams: { frames: 6, segments: 3 } },
@@ -3898,6 +4050,7 @@ const NODE_TYPES = {
   material: { label: '材质',     desc: '材质贴图与参数',     color: 'var(--node-material)', colorRaw: '#8D6E63', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'材质'}] },
   light:    { label: '灯光',     desc: '灯光效果与氛围',     color: 'var(--node-light)',    colorRaw: '#FFD54F', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'效果图'}] },
   layout:   { label: '布局方案', desc: '生成平面布局方案',   color: 'var(--node-layout)',   colorRaw: '#26A69A', inputs: [{type:'image',label:'参考图'},{type:'text',label:'需求'}], outputs: [{type:'image',label:'布局'}] },
+  loop:     { label: '循环',     desc: '批量重复执行下游',   color: 'var(--node-loop)',     colorRaw: '#3FB8AF', inputs: [{type:'image',label:'图片'},{type:'text',label:'提示词'}], outputs: [{type:'image',label:'图集'}], defaultParams: { count: 4, start: 1, step: 1, mode: 'serial' } },
 
   // —— 视频生成管线节点 (MoneyPrinterTurbo 画布化) ——
   script:    { label: '脚本',  desc: 'AI 写稿',        color: 'var(--node-script)',    colorRaw: '#7F77DD', inputs: [{type:'text',label:'主题'}], outputs: [{type:'text',label:'脚本'}], defaultParams: { script: '在这个 AI 改变一切的时代，有一种职业正在悄然消失。它曾是人类最古老的技艺之一，如今正面临着前所未有的挑战。从清晨到日暮，那些熟悉的声音和画面，正在被一行行代码所替代。但也许，这正是重新定义创造力的开始。', wordCount: 234 } },
@@ -3931,7 +4084,8 @@ const NODE_ICONS = {
   subtitle:  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="8" rx="1.5"/><path d="M4 10h3M9 10h3M4 7.5h8"/></svg>',
   bgm:       '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 11V3l6-1v8"/><circle cx="4.5" cy="11" r="1.5"/><circle cx="10.5" cy="10" r="1.5"/></svg>',
   compose:   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="5" height="5" rx="1"/><rect x="9" y="3" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="4" rx="1"/><path d="M9 9h5v4H9z"/><path d="M11 6l2 2M11 11l2-2"/></svg>',
-  publish:   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 12V3M5 6l3-3 3 3M3 12v2h10v-2"/></svg>'
+  publish:   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 12V3M5 6l3-3 3 3M3 12v2h10v-2"/></svg>',
+  loop:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8a5 5 0 1 1 1.6 3.7"/><path d="M4 12V8h4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 };
 
 // 底部工具栏图标
@@ -4223,6 +4377,9 @@ function updateUndoRedoButtons() {
 
 //================ 4d. 自动保存 (localStorage 持久化) ================
 const AUTOSAVE_KEY = 'flowcraft:autosave:v1';
+// 自动保存数据结构版本。每次改变节点/工作流存储结构时 +1，
+// 旧版本数据在 restoreFromStorage 中经 migrateAutosave 平滑迁移，避免整页崩溃或用户数据丢失。
+const CURRENT_AUTOSAVE_VERSION = 2;
 let autosaveTimer = null;
 
 // 序列化当前工作流为 JSON
@@ -4246,7 +4403,7 @@ function serializeWorkflow() {
     });
   });
   return JSON.stringify({
-    version: 1,
+    version: CURRENT_AUTOSAVE_VERSION,
     savedAt: new Date().toISOString(),
     nodes: nodesData,
     edges: edgesData,
@@ -4280,6 +4437,33 @@ function doAutosave() {
   }
 }
 
+// 版本迁移：把旧版自动保存数据平滑升级到当前结构，保证「升级不丢数据、旧档不崩页」。
+// 旧版本缺失的字段在此补齐；结构性的不兼容改动也在此做转换。
+// fromVersion：数据自带的版本号（缺失时按 1 处理）。
+function migrateAutosave(parsed, fromVersion) {
+  const v = fromVersion || 1;
+  // v1 → v2：节点结构归一化（早期版本可能缺少 params / inputsData / outputsData / status）
+  if (v < 2) {
+    if (!Array.isArray(parsed.nodes)) parsed.nodes = [];
+    parsed.nodes.forEach(nd => {
+      if (!nd) return;
+      nd.type = nd.type || 'image';
+      nd.title = nd.title || '';
+      nd.thumb = nd.thumb || null;
+      nd.prompt = nd.prompt || '';
+      nd.width = nd.width || 280;
+      nd.height = nd.height || 200;
+      nd.status = nd.status || 'idle';
+      nd.params = Object.assign({}, DEFAULT_NODE_PARAMS, nd.params || {});
+      if (!Array.isArray(nd.inputsData)) nd.inputsData = null; // 重建阶段统一按 def 兜底
+      if (!Array.isArray(nd.outputsData)) nd.outputsData = null;
+    });
+  }
+  // 未来版本：此处继续追加 v2 → v3 … 的分支；当前版本即视为最新
+  parsed.version = CURRENT_AUTOSAVE_VERSION;
+  return parsed;
+}
+
 // 从 localStorage 恢复工作流
 function restoreFromStorage() {
   let data = null;
@@ -4290,9 +4474,29 @@ function restoreFromStorage() {
     return false;
   }
   if (!data) return false;
+  let parsed;
   try {
-    const parsed = JSON.parse(data);
-    if (!parsed || !parsed.nodes) return false;
+    parsed = JSON.parse(data);
+  } catch (err) {
+    // 数据损坏（被截断 / 非法 JSON）→ 清除损坏档，干净启动，避免反复崩溃
+    console.warn('[FlowCraft] 自动保存数据已损坏，已丢弃并重新初始化:', err.message);
+    try { localStorage.removeItem(AUTOSAVE_KEY); } catch (_) {}
+    return false;
+  }
+  if (!parsed || !parsed.nodes) return false;
+
+  // 版本判断 + 迁移
+  const v = typeof parsed.version === 'number' ? parsed.version : 1;
+  if (v < CURRENT_AUTOSAVE_VERSION) {
+    console.info('[FlowCraft] 检测到旧版自动保存 (v' + v + ')，正在迁移到 v' + CURRENT_AUTOSAVE_VERSION + '…');
+    parsed = migrateAutosave(parsed, v);
+  } else if (v > CURRENT_AUTOSAVE_VERSION) {
+    // 数据来自更新的版本：尽力兼容，不阻断启动
+    console.warn('[FlowCraft] 自动保存版本 (v' + v + ') 高于当前程序 (v' + CURRENT_AUTOSAVE_VERSION + ')，将尽力兼容加载。');
+  }
+
+  try {
+    if (!parsed.nodes) return false;
 
     // 恢复 ID 序列号
     if (parsed.nodeIdSeq) nodeIdSeq = parsed.nodeIdSeq;
@@ -4655,38 +4859,53 @@ function updateAssetPanel() {
   const empty = document.getElementById('assetEmpty');
   const count = document.getElementById('assetCount');
   if (!grid) return;
-  const assets = collectAssets();
-  if (count) count.textContent = assets.length;
+  const catsMap = loadAssetCats();
+  const all = collectAssets();
+  const assets = _assetCatFilter ? all.filter(a => catsMap[assetKey(a)] === _assetCatFilter) : all;
+  if (count) count.textContent = assets.length + (_assetCatFilter ? ' / ' + all.length : '');
   grid.innerHTML = '';
   if (assets.length === 0) {
     if (empty) empty.style.display = '';
-    return;
+  } else {
+    if (empty) empty.style.display = 'none';
+    assets.forEach((a, idx) => {
+      const safeTitle = escapeHtml(a.nodeTitle || '节点');
+      const safeLabel = escapeHtml(a.label);
+      const key = assetKey(a);
+      const cell = document.createElement('div');
+      cell.className = 'asset-card';
+      cell.innerHTML =
+        '<div class="asset-thumb" title="' + safeTitle + ' · ' + safeLabel + '">' +
+          '<img src="' + a.src + '" alt="' + safeTitle + '" />' +
+        '</div>' +
+        '<div class="asset-info">' +
+          '<div class="asset-title" title="' + safeTitle + '">' + safeTitle + '</div>' +
+          '<div class="asset-cap">' + safeLabel + '</div>' +
+          '<select class="asset-cat-select" title="分类（角色/道具/场景/通用）">' +
+            '<option value="">通用</option>' +
+            '<option value="角色">角色</option>' +
+            '<option value="道具">道具</option>' +
+            '<option value="场景">场景</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="asset-actions">' +
+          '<button class="asset-btn" data-act="view">查看</button>' +
+          '<button class="asset-btn" data-act="locate">定位</button>' +
+          '<button class="asset-btn" data-act="download">下载</button>' +
+          '<button class="asset-ref-btn" data-act="ref" title="复制 <<<名称>>> 引用令牌到提示词">引用</button>' +
+        '</div>';
+      cell.querySelector('.asset-thumb').onclick = () => openImageLightbox(a.src);
+      cell.querySelector('[data-act="view"]').onclick = () => openImageLightbox(a.src);
+      cell.querySelector('[data-act="locate"]').onclick = () => { locateNode(a.nodeId); toggleAssetPanel(false); };
+      cell.querySelector('[data-act="download"]').onclick = () => downloadDataUrl(a.src, 'asset_' + (idx + 1) + '.png');
+      const sel = cell.querySelector('.asset-cat-select');
+      sel.value = catsMap[key] || '';
+      sel.onchange = () => { saveAssetCat(key, sel.value); updateAssetPanel(); };
+      cell.querySelector('[data-act="ref"]').onclick = () => copyRefToken(a.label);
+      grid.appendChild(cell);
+    });
   }
-  if (empty) empty.style.display = 'none';
-  assets.forEach((a, idx) => {
-    const safeTitle = escapeHtml(a.nodeTitle || '节点');
-    const safeLabel = escapeHtml(a.label);
-    const cell = document.createElement('div');
-    cell.className = 'asset-card';
-    cell.innerHTML =
-      '<div class="asset-thumb" title="' + safeTitle + ' · ' + safeLabel + '">' +
-        '<img src="' + a.src + '" alt="' + safeTitle + '" />' +
-      '</div>' +
-      '<div class="asset-info">' +
-        '<div class="asset-title" title="' + safeTitle + '">' + safeTitle + '</div>' +
-        '<div class="asset-cap">' + safeLabel + '</div>' +
-      '</div>' +
-      '<div class="asset-actions">' +
-        '<button class="asset-btn" data-act="view">查看</button>' +
-        '<button class="asset-btn" data-act="locate">定位</button>' +
-        '<button class="asset-btn" data-act="download">下载</button>' +
-      '</div>';
-    cell.querySelector('.asset-thumb').onclick = () => openImageLightbox(a.src);
-    cell.querySelector('[data-act="view"]').onclick = () => openImageLightbox(a.src);
-    cell.querySelector('[data-act="locate"]').onclick = () => { locateNode(a.nodeId); toggleAssetPanel(false); };
-    cell.querySelector('[data-act="download"]').onclick = () => downloadDataUrl(a.src, 'asset_' + (idx + 1) + '.png');
-    grid.appendChild(cell);
-  });
+  renderAssetFilterChips();
 }
 
 function locateNode(nodeId) {
@@ -4727,6 +4946,40 @@ function refreshAssetPanelIfOpen() {
   if (panel && panel.classList.contains('show')) updateAssetPanel();
 }
 
+// —— 素材分类（角色/道具/场景/通用）+ 引用令牌（蒸馏自 Hell Grind）——
+const ASSET_CATS_KEY = 'flowcraft:assetCats:v1';
+let _assetCatFilter = '';
+
+function loadAssetCats() {
+  try { return JSON.parse(localStorage.getItem(ASSET_CATS_KEY)) || {}; } catch (e) { return {}; }
+}
+
+function saveAssetCat(key, cat) {
+  const m = loadAssetCats();
+  if (cat) m[key] = cat; else delete m[key];
+  try { localStorage.setItem(ASSET_CATS_KEY, JSON.stringify(m)); } catch (e) {}
+}
+
+function assetKey(a) {
+  return String(a.nodeId || '') + '|' + String(a.kind || '') + '|' + String(a.label || '');
+}
+
+function copyRefToken(label) {
+  const token = '<<<' + label + '>>>';
+  const ok = () => showToast('已复制引用令牌 ' + token, 'success');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(token).then(ok).catch(() => { fallbackCopyText(token); ok(); });
+  } else { fallbackCopyText(token); ok(); }
+}
+
+function renderAssetFilterChips() {
+  const wrap = document.getElementById('assetFilters');
+  if (!wrap) return;
+  wrap.querySelectorAll('.asset-filter-chip').forEach(ch => {
+    ch.classList.toggle('active', ch.getAttribute('data-cat') === _assetCatFilter);
+  });
+}
+
 //================ 4e. Toast 轻提示 ================
 function showToast(message, type = 'info', duration = 2500) {
   const container = document.getElementById('toastContainer');
@@ -4745,6 +4998,95 @@ function showToast(message, type = 'info', duration = 2500) {
     toast.classList.add('removing');
     setTimeout(() => toast.remove(), 200);
   }, duration);
+}
+
+//================ 4g. 运行日志（生成历史） ================
+// 记录每次节点运行的模型 / 参数 / 耗时 / 错误，存 localStorage，支持筛选与清空
+const RUN_LOG_KEY = 'flowcraft:runlog:v1';
+const RUN_LOG_MAX = 200;
+
+function loadRunLog() {
+  try {
+    const raw = localStorage.getItem(RUN_LOG_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+function saveRunLog(list) {
+  try { localStorage.setItem(RUN_LOG_KEY, JSON.stringify(list.slice(0, RUN_LOG_MAX))); }
+  catch (e) {}
+}
+function describeNodeParams(node) {
+  const p = node.params || {};
+  const parts = [];
+  if (p.model) parts.push('模型:' + p.model);
+  if (p.aspect) parts.push('比例:' + p.aspect);
+  if (p.resolution) parts.push(p.resolution);
+  if (p.duration) parts.push('时长:' + p.duration);
+  if (p.count) parts.push(p.count);
+  const prompt = node.effectivePrompt || node.prompt;
+  if (prompt) {
+    const s = String(prompt);
+    parts.push('提示:' + (s.length > 16 ? s.slice(0, 16) + '…' : s));
+  }
+  return parts.join(' · ');
+}
+function logRun(node, success, durationMs, errorMsg) {
+  const def = NODE_TYPES[node.type] || {};
+  const entry = {
+    t: Date.now(),
+    type: node.type,
+    title: node.title || def.label || node.type,
+    model: (node.params && node.params.model) || '',
+    desc: describeNodeParams(node),
+    duration: Math.max(0, Math.round(durationMs || 0)),
+    status: success ? 'success' : 'error',
+    error: success ? '' : (errorMsg || '未知错误')
+  };
+  const list = loadRunLog();
+  list.unshift(entry);
+  saveRunLog(list);
+  if (typeof renderRunLog === 'function') renderRunLog();
+}
+function renderRunLog() {
+  const list = document.getElementById('runLogList');
+  const empty = document.getElementById('runLogEmpty');
+  if (!list) return;
+  const filter = (document.getElementById('runLogFilter') || {}).value || 'all';
+  const data = loadRunLog().filter(e => filter === 'all' || e.status === filter);
+  if (!data.length) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  list.innerHTML = data.map(function(e) {
+    const time = new Date(e.t);
+    const hh = String(time.getHours()).padStart(2, '0');
+    const mm = String(time.getMinutes()).padStart(2, '0');
+    const ss = String(time.getSeconds()).padStart(2, '0');
+    const dur = e.duration >= 1000 ? (e.duration / 1000).toFixed(1) + 's' : e.duration + 'ms';
+    const errHtml = e.status === 'error' ? '<div class="rl-err">' + escapeHtml(e.error || '失败') + '</div>' : '';
+    return '<div class="rl-item ' + e.status + '">' +
+      '<div class="rl-row1"><span class="rl-title">' + escapeHtml(e.title) + '</span>' +
+      '<span class="rl-status ' + e.status + '">' + (e.status === 'success' ? '成功' : '失败') + '</span></div>' +
+      '<div class="rl-row2">' + escapeHtml(e.desc || '') + '</div>' + errHtml +
+      '<div class="rl-row3"><span>' + hh + ':' + mm + ':' + ss + '</span><span>' + dur + '</span></div>' +
+      '</div>';
+  }).join('');
+}
+function clearRunLog() {
+  try { localStorage.removeItem(RUN_LOG_KEY); } catch (e) {}
+  renderRunLog();
+  showToast('运行日志已清空', 'info');
+}
+function toggleRunLogPanel(show) {
+  const panel = document.getElementById('runLogPanel');
+  if (!panel) return;
+  const open = show === undefined ? !panel.classList.contains('show') : show;
+  panel.classList.toggle('show', open);
+  if (open) renderRunLog();
 }
 
 //================ 4f. 回收站 UI ================
@@ -5032,7 +5374,7 @@ function buildSidebar() {
   processLabel.textContent = '处理';
   list.appendChild(processLabel);
 
-  ['upscale', 'compare', 'videoBreak', 'material', 'light', 'layout'].forEach(type => {
+  ['upscale', 'compare', 'videoBreak', 'material', 'light', 'layout', 'loop'].forEach(type => {
     list.appendChild(createLibraryItem(type));
   });
 
@@ -5338,7 +5680,7 @@ function runSaveNode(node) {
   [...workflow.edges.values()].forEach(e => {
     if (e.to.node === node) {
       const src = e.from.node;
-      if (src && src.type === 'aiImage' && Array.isArray(src._galleryImages) && src._galleryImages.length > 0) {
+      if (src && Array.isArray(src._galleryImages) && src._galleryImages.length > 0) {
         galleryImgs = src._galleryImages;
       }
     }
@@ -5405,7 +5747,7 @@ function closePromptLibrary() {
 
 function openPromptLibrary(node, el, btn) {
   closePromptLibrary();
-  const cats = Object.keys(PROMPT_LIBRARY);
+  const cats = ['🎬 导演模板'].concat(Object.keys(PROMPT_LIBRARY));
   const pop = document.createElement('div');
   pop.className = 'prompt-lib-pop';
   pop.innerHTML =
@@ -5422,8 +5764,11 @@ function openPromptLibrary(node, el, btn) {
   const countEl = pop.querySelector('.prompt-lib-count');
 
   _promptLibState = { node: node, el: el, cat: cats[0], pop: pop, items: [] };
+  searchInput.style.display = 'none';
 
   function renderList(q) {
+    if (_promptLibState.cat === '🎬 导演模板') { renderDirectorForm(); return; }
+    listEl.style.display = '';
     const kw = (q || '').trim();
     let words;
     if (kw) {
@@ -5467,6 +5812,7 @@ function openPromptLibrary(node, el, btn) {
       _promptLibState.cat = c;
       tabsEl.querySelectorAll('.prompt-lib-tab').forEach(x => x.classList.remove('active'));
       t.classList.add('active');
+      searchInput.style.display = (c === '🎬 导演模板') ? 'none' : '';
       renderList(searchInput.value);
     };
     tabsEl.appendChild(t);
@@ -5504,6 +5850,114 @@ function openPromptLibrary(node, el, btn) {
 
   renderList('');
   setTimeout(() => searchInput.focus(), 0);
+}
+
+// —— 导演模板：多镜头序列提示词生成器（蒸馏自 Hell Grind 方法论）——
+function buildDirectorPrompt(v) {
+  const dur = (v && v.duration) || '15 SECONDS';
+  const aspect = (v && v.aspect) || '21:9';
+  const res = (v && v.resolution) || '8K';
+  const fps = (v && v.fps) || '60fps';
+  const cuts = (v && v.cuts) || 'hard cuts only';
+  const n = (v && v.shots) || 6;
+  const style = ((v && v.style) || '').trim();
+  const title = ((v && v.title) || '').trim();
+  const summary = ((v && v.summary) || '').trim();
+  const rules = ((v && v.rules) || '').split('\n').map(s => s.trim()).filter(Boolean);
+  const shots = ((v && v.shotsText) || '').split('\n').map(s => s.trim()).filter(Boolean);
+  const anchor = ((v && v.anchor) || '').trim();
+  const refs = ((v && v.refs) || '').trim();
+  const L = [];
+  L.push('multishot sequence — ' + dur + ' · ' + aspect + ' · ' + res + ' · ' + fps + ' · ' + cuts + ' · exactly ' + n + ' numbered shots');
+  if (style) L.push(style);
+  if (title) L.push('Title: ' + title);
+  if (summary) L.push(summary);
+  if (rules.length) {
+    L.push('⚠️ KEY RULES:');
+    rules.forEach(r => L.push('- ' + r));
+  }
+  if (shots.length) L.push(shots.join('\n'));
+  if (anchor) L.push('HARD CUT — [' + anchor + ']');
+  if (refs) L.push('References: ' + refs);
+  return L.join('\n');
+}
+
+function directorRefsFromAssets() {
+  const cats = loadAssetCats();
+  return collectAssets()
+    .filter(a => { const c = cats[assetKey(a)]; return c === '角色' || c === '道具'; })
+    .map(a => '<<<' + a.label + '>>>');
+}
+
+function renderDirectorForm() {
+  const listEl = _promptLibState.pop.querySelector('.prompt-lib-list');
+  const countEl = _promptLibState.pop.querySelector('.prompt-lib-count');
+  listEl.style.display = 'block';
+  const refs = directorRefsFromAssets().join(' ');
+  listEl.innerHTML =
+    '<div class="dir-form">' +
+      '<div><div class="df-label">场景标题</div><input class="df-input" id="dir-title" placeholder="例如：THE STUCK CHOP — 终结一击" /></div>' +
+      '<div><div class="df-label">风格参考</div><input class="df-input" id="dir-style" placeholder="Photoreal cinematic, anime-final-battle..." /></div>' +
+      '<div class="df-row">' +
+        '<div><div class="df-label">时长</div><select class="df-select" id="dir-duration"><option>10 SECONDS</option><option selected>15 SECONDS</option><option>20 SECONDS</option><option>30 SECONDS</option></select></div>' +
+        '<div><div class="df-label">画幅</div><select class="df-select" id="dir-aspect"><option selected>21:9</option><option>16:9</option><option>9:16</option><option>1:1</option></select></div>' +
+      '</div>' +
+      '<div class="df-row">' +
+        '<div><div class="df-label">清晰度</div><select class="df-select" id="dir-res"><option selected>8K</option><option>4K</option></select></div>' +
+        '<div><div class="df-label">帧率</div><select class="df-select" id="dir-fps"><option>24fps</option><option>30fps</option><option selected>60fps</option></select></div>' +
+        '<div><div class="df-label">剪辑</div><select class="df-select" id="dir-cuts"><option selected>hard cuts only</option><option>soft transitions</option></select></div>' +
+      '</div>' +
+      '<div><div class="df-label">镜头数</div><select class="df-select" id="dir-shots"><option>3</option><option>4</option><option selected>6</option><option>8</option><option>10</option></select></div>' +
+      '<div><div class="df-label">情节摘要</div><textarea class="df-textarea" id="dir-summary" rows="2" placeholder="整个镜头序列的一句话概括"></textarea></div>' +
+      '<div><div class="df-label">⚠️ KEY RULES 铁律（每行一条）</div><textarea class="df-textarea" id="dir-rules" rows="4" placeholder="NO SUN. 每一帧必须有暴风雪。"></textarea></div>' +
+      '<div><div class="df-label">逐镜清单（每行一条，格式：SHOT N — 时间 — 节拍: 镜头+动作）</div><textarea class="df-textarea" id="dir-shots-text" rows="6" placeholder="SHOT 1 — 0.0-2.5s — 节拍名: 24mm wide low. 动作...&#10;SHOT 2 — 2.5-5.5s — 节拍名: 35mm tracking. 动作..."></textarea></div>' +
+      '<div><div class="df-label">连续性锚点（HARD CUT 后锁定场景观感，留空则不生成）</div><textarea class="df-textarea" id="dir-anchor" rows="2" placeholder="OVERCAST · NO SUN · FOG ≤2-4m · deep shadows"></textarea></div>' +
+      '<div><div class="df-label">资产引用（自动填充角色/道具素材，可编辑）</div><textarea class="df-textarea" id="dir-refs" rows="2" placeholder="<<<ROCO>>> <<<crystal_sword>>>"></textarea></div>' +
+      '<div class="df-actions">' +
+        '<button class="df-btn" id="dir-insert" type="button">生成并插入</button>' +
+        '<button class="df-btn ghost" id="dir-copy" type="button">复制</button>' +
+      '</div>' +
+    '</div>';
+  const refsTa = listEl.querySelector('#dir-refs');
+  if (refsTa) refsTa.value = refs;
+  function val(id) { const el = listEl.querySelector(id); return el ? el.value : ''; }
+  const read = () => ({
+    duration: val('#dir-duration'), aspect: val('#dir-aspect'), resolution: val('#dir-res'),
+    fps: val('#dir-fps'), cuts: val('#dir-cuts'), shots: val('#dir-shots'),
+    title: val('#dir-title'), style: val('#dir-style'), summary: val('#dir-summary'),
+    rules: val('#dir-rules'), shotsText: val('#dir-shots-text'), anchor: val('#dir-anchor'), refs: val('#dir-refs')
+  });
+  listEl.querySelector('#dir-insert').onclick = () => insertDirectorPrompt(buildDirectorPrompt(read()));
+  listEl.querySelector('#dir-copy').onclick = () => copyDirectorPrompt(buildDirectorPrompt(read()));
+  if (countEl) countEl.textContent = '导演模板 · 多镜头序列';
+}
+
+function insertDirectorPrompt(text) {
+  const n = _promptLibState.node;
+  if (!n) return;
+  n.prompt = text;
+  const ta = _promptLibState.el.querySelector('.node-textarea');
+  if (ta) ta.value = text;
+  scheduleAutosave();
+  showToast('已插入导演模板提示词', 'success');
+}
+
+function copyDirectorPrompt(text) {
+  const ok = () => showToast('已复制导演模板提示词', 'success');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(ok).catch(() => { fallbackCopyText(text); ok(); });
+  } else { fallbackCopyText(text); ok(); }
+}
+
+function fallbackCopyText(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  ta.remove();
 }
 
 // 点击外部 / Esc 关闭
@@ -5735,6 +6189,80 @@ function buildNodeBody(el, node) {
     setTimeout(autoResize, 0);
 
     body = textBody;
+  } else if (node.type === 'loop') {
+    // 循环节点：批量重复执行下游节点（计数 / 起始 / 步长 / 模式）
+    const loopBody = document.createElement('div');
+    loopBody.className = 'node-body node-body-loop';
+
+    const mkRow = (label, key, defVal, min, max) => {
+      const row = document.createElement('div');
+      row.className = 'loop-param-row';
+      const lab = document.createElement('span');
+      lab.className = 'loop-param-label';
+      lab.textContent = label;
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.className = 'loop-param-input';
+      inp.min = String(min);
+      if (max != null) inp.max = String(max);
+      inp.value = (node.params[key] != null ? node.params[key] : defVal);
+      inp.oninput = (e) => {
+        let v = parseInt(e.target.value);
+        if (isNaN(v)) v = defVal;
+        if (min != null) v = Math.max(min, v);
+        if (max != null) v = Math.min(max, v);
+        node.params[key] = v;
+        scheduleAutosave();
+      };
+      inp.onmousedown = (e) => e.stopPropagation();
+      row.appendChild(lab);
+      row.appendChild(inp);
+      return row;
+    };
+
+    loopBody.appendChild(mkRow('次数', 'count', 4, 1, 100));
+    loopBody.appendChild(mkRow('起始', 'start', 1, 0, 99999));
+    loopBody.appendChild(mkRow('步长', 'step', 1, 1, 99999));
+
+    // 模式：串行 / 并行
+    const modeRow = document.createElement('div');
+    modeRow.className = 'loop-param-row';
+    const modeLab = document.createElement('span');
+    modeLab.className = 'loop-param-label';
+    modeLab.textContent = '模式';
+    const modeSel = document.createElement('select');
+    modeSel.className = 'loop-param-select';
+    [['serial', '串行'], ['parallel', '并行']].forEach(([v, t]) => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = t;
+      if ((node.params.mode || 'serial') === v) o.selected = true;
+      modeSel.appendChild(o);
+    });
+    modeSel.onchange = (e) => { node.params.mode = e.target.value; scheduleAutosave(); };
+    modeSel.onmousedown = (e) => e.stopPropagation();
+    modeRow.appendChild(modeLab);
+    modeRow.appendChild(modeSel);
+    loopBody.appendChild(modeRow);
+
+    // 进度显示
+    const progress = document.createElement('div');
+    progress.className = 'loop-progress';
+    const lp = node.loopProgress || { iter: 0, total: (node.params.count || 0) };
+    if (lp.iter > 0 && lp.total > 0) {
+      progress.innerHTML = '已完成 ' + lp.iter + ' / ' + lp.total + ' 轮 · 共 ' + (node._galleryImages ? node._galleryImages.length : 0) + ' 张';
+      progress.classList.add('active');
+    } else {
+      progress.textContent = '将批量执行下游 ' + (node.params.count || 0) + ' 次';
+    }
+    loopBody.appendChild(progress);
+
+    // 变量提示
+    const hint = document.createElement('div');
+    hint.className = 'loop-hint';
+    hint.textContent = '提示词可用变量： 《计数》 《总数》 《轮次》 《进度》';
+    loopBody.appendChild(hint);
+
+    body = loopBody;
   } else if (node.type === 'save') {
     // 保存节点：预览输入内容 + 填写文件名 + 触发本地下载
     const saveBody = document.createElement('div');
@@ -6099,7 +6627,7 @@ function buildNodeBody(el, node) {
     modelSel.className = 'model-select';
     const models = node.type === 'aiImage'
       ? ['Nano Banana Pro', 'FLUX.1', 'Stable Diffusion XL', 'GPT Image 2']
-      : ['Sora 2', 'Veo 3', '可灵 2.0'];
+      : ['Sora 2', 'Veo 3', '可灵 2.0', 'Runway Gen-4', '即梦 3.0'];
     models.forEach(m => {
       const opt = document.createElement('option');
       opt.value = m;
@@ -6107,15 +6635,24 @@ function buildNodeBody(el, node) {
       modelSel.appendChild(opt);
     });
     modelSel.value = node.params.model;
+    // 旧存档或默认 model 与当前类型模型列表不匹配时，归正到第一个可用模型
+    if (!models.includes(node.params.model)) {
+      node.params.model = models[0];
+    }
+    modelSel.value = node.params.model;
     modelSel.onchange = (e) => { node.params.model = e.target.value; scheduleAutosave(); };
     modelSel.onmousedown = (e) => e.stopPropagation();
     controls.appendChild(modelSel);
 
-    // 参数下拉选择：比例 / 分辨率 / 张数 / 模式
+    // 参数下拉选择：比例 / 分辨率 / (张数 | 时长) / 模式
+    const isVideoNode = node.type === 'aiVideo';
     const paramSelects = [
       { key: 'aspect',     label: '比例',   options: ['1:1', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'] },
       { key: 'resolution', label: '分辨率', options: ['高清1K', '超清2K', '原画4K'] },
-      { key: 'count',      label: '张数',   options: ['1张', '2张', '4张', '6张', '8张'] },
+      // 视频节点用「时长」替代图片节点的「张数」
+      isVideoNode
+        ? { key: 'duration', label: '时长', options: ['3秒', '5秒', '10秒', '15秒', '30秒'] }
+        : { key: 'count',    label: '张数', options: ['1张', '2张', '4张', '6张', '8张'] },
       { key: 'mode',       label: '模式',   options: ['同步', '异步'] }
     ];
     paramSelects.forEach(({ key, label, options }) => {
@@ -8036,7 +8573,7 @@ function computeNodeOutput(node) {
       } };
       break;
     case 'text':
-      out[0] = { type: 'text', value: (node.prompt || '').trim() || '(空文本)' };
+      out[0] = { type: 'text', value: applyLoopVars((node.prompt || '').trim()) || '(空文本)' };
       break;
     case 'bgm':
       out[0] = { type: 'audio', value: { name: node.params.name, duration: node.params.duration } };
@@ -8099,6 +8636,10 @@ function computeNodeOutput(node) {
     case 'publish':
       // 终止节点，无输出
       break;
+    case 'loop':
+      // 输出由 runLoopNode 在执行时写入 node.outputsData，这里兜底返回
+      out[0] = { type: 'image', value: (node._galleryImages && node._galleryImages[0]) || node.thumb || '' };
+      break;
   }
   return out;
 }
@@ -8111,15 +8652,29 @@ function executeNodeAsync(node, delay) {
     updateNodeStatus(node);
     markEdgesDirty();
 
-    setTimeout(async () => {
+        setTimeout(async () => {
+          const _t0 = Date.now();
       try {
         gatherInputs(node);
+
+        // 循环节点：批量驱动下游节点重复执行，聚合产出入图集
+        if (node.type === 'loop') {
+          await runLoopNode(node);
+          node.status = 'done';
+          logRun(node, true, Date.now() - _t0);
+          if (node.el) buildNodeBody(node.el, node);
+          updateNodeStatus(node);
+          markEdgesDirty();
+          scheduleAutosave();
+          resolve();
+          return;
+        }
 
         // 上游文本输入 → 生成提示词（连线传词优先于节点内手输）
         if (node.type === 'aiImage' || node.type === 'aiVideo') {
           const textIn = (node.inputsData || []).find(d => d && d.type === 'text');
           const upText = textIn && textIn.value && textIn.value !== '(空文本)' ? String(textIn.value).trim() : '';
-          node.effectivePrompt = upText || (node.prompt || '').trim();
+          node.effectivePrompt = applyLoopVars(upText || (node.prompt || '').trim());
         }
 
         // 保存节点：实际触发本地下载
@@ -8131,6 +8686,34 @@ function executeNodeAsync(node, delay) {
           scheduleAutosave();
           resolve();
           return;
+        }
+
+        // 智能超清 / 线稿：基于上游真实图片做图生图（img2img）
+        // 有上游图且配置了 OpenAI Key 时调用 images/edits；否则 / 失败时回退到下方 computeNodeOutput（保留原图透传）。
+        if (node.type === 'upscale' || node.type === 'lineart') {
+          const upImg = getNodeInputImage(node);
+          const editKey = localStorage.getItem(OPENAI_KEY_STORAGE);
+          if (upImg && editKey) {
+            try {
+              const edited = await generateOpenAIImageEdit(node, upImg);
+              if (edited) {
+                node.thumb = edited;
+                node.outputsData = [{ type: 'image', value: edited }];
+                node._galleryImages = [edited];
+                node.status = 'done';
+                logRun(node, true, Date.now() - _t0);
+                if (node.el) buildNodeBody(node.el, node);
+                updateNodeStatus(node);
+                markEdgesDirty();
+                scheduleAutosave();
+                resolve();
+                return;
+              }
+            } catch (err) {
+              showToast(node.title + ' 真实图生图失败，已回退为原图：' + describeOpenAIError(err), 'warn');
+            }
+          }
+          // 无上游图 / 未配置 Key / 接口不支持 → 走下方 computeNodeOutput 回退（保留原图 / 占位）
         }
 
         const isGptImage = node.type === 'aiImage' && node.params && node.params.model === 'GPT Image 2';
@@ -8153,8 +8736,10 @@ function executeNodeAsync(node, delay) {
           }
         }
         node.status = 'done';
+        logRun(node, true, Date.now() - _t0);
       } catch (err) {
         node.status = 'error';
+        logRun(node, false, Date.now() - _t0, (err && err.message) || String(err));
         showToast(node.title + ' 运行失败：' + (err && err.message || err), 'danger');
       }
       if (node.el) buildNodeBody(node.el, node);
@@ -8435,6 +9020,206 @@ function generateOpenAIImage(node) {
     });
 }
 
+//================ 图生图（img2img）：智能超清 / 线稿 接真实图片变换 ================
+// 基于上游真实图片，调用 OpenAI images/edits 接口生成新图（超清放大 / 线稿提取）。
+// 接口不支持或缺少配置时，调用方回退为原图透传，保证不崩。
+
+function dataURLtoBlob(dataURL) {
+  const parts = String(dataURL).split(',');
+  if (parts.length < 2 || !/^data:/i.test(parts[0] || '')) return null;
+  const mime = (/data:(.*?);base64/i.exec(parts[0]) || [])[1] || 'image/png';
+  const bin = atob(parts[1]);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+// 单次 edits 调用（multipart/form-data）
+function openAIImageEditSingle(base, key, model, prompt, imageDataUrl, size) {
+  const blob = dataURLtoBlob(imageDataUrl);
+  if (!blob) return Promise.reject(new Error('输入图片格式不支持（需 data: 图片）'));
+  const fd = new FormData();
+  fd.append('image', blob, 'input.png');
+  fd.append('prompt', prompt);
+  fd.append('size', size || '1024x1024');
+  fd.append('n', '1');
+  fd.append('model', model);
+  return fetch(base + '/images/edits', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + key }, // 注意：FormData 不能手动设 Content-Type，由浏览器补 boundary
+    body: fd
+  }).then(function(resp) {
+    if (!resp.ok) {
+      return resp.text().then(function(t) {
+        const e = new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 200) : ''));
+        e.status = resp.status; e.bodyText = t || '';
+        throw e;
+      });
+    }
+    return resp.json();
+  }).then(function(data) {
+    const it = (data && data.data && data.data[0]) || null;
+    if (!it) throw new Error('编辑接口返回为空');
+    const img = it.b64_json ? 'data:image/png;base64,' + it.b64_json : (it.url || null);
+    if (!img) throw new Error('未获取到图片');
+    return img;
+  });
+}
+
+// 根据节点类型构造图生图提示词
+function buildImg2ImgPrompt(node) {
+  const extra = (node.prompt || '').trim();
+  const base = extra ? extra + '. ' : '';
+  if (node.type === 'upscale') {
+    return base + 'Upscale this image to higher resolution (2x), enhance sharpness and fine details, ' +
+      'preserve the original composition, subjects, colors and artistic style. Clean, photorealistic, no distortion.';
+  }
+  // lineart：提取为干净黑白线稿
+  return base + 'Convert this image into clean black-and-white line art / sketch on a white background. ' +
+    'Use smooth, continuous outlines in an anime illustration line-drawing style. ' +
+    'Remove all colors and shading. Keep all structural and detail lines.';
+}
+
+// 图生图主入口：依次尝试候选模型，全部失败则抛出（调用方捕获并回退）
+function generateOpenAIImageEdit(node, imageDataUrl) {
+  const key = localStorage.getItem(OPENAI_KEY_STORAGE);
+  if (!key) return Promise.resolve(null);
+  const base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
+  const prompt = buildImg2ImgPrompt(node);
+  const aspect = node.params.aspect || '1:1';
+  const resolution = node.type === 'upscale' ? '超清2K' : '高清1K';
+  const size = pickOpenAISize(aspect, resolution);
+  const models = ['gpt-image-1', 'gpt-image-2', 'dall-e-2'];
+  let lastErr = null;
+  function attempt(ms) {
+    if (!ms.length) {
+      const e = new Error((lastErr && lastErr.message) || '图生图接口不支持当前模型');
+      e.tried = models.join(' / ');
+      throw e;
+    }
+    const m = ms[0];
+    return openAIImageEditSingle(base, key, m, prompt, imageDataUrl, size)
+      .catch(function(err) {
+        lastErr = err;
+        // 接口不存在 / 模型不支持 → 尝试下一模型；鉴权/其它错误直接抛出
+        if (shouldFallbackToResponses(err) || (err && err.status === 400)) {
+          return attempt(ms.slice(1));
+        }
+        throw err;
+      });
+  }
+  return attempt(models.slice());
+}
+
+// 收集节点上游传入的真实图片（data: 图片），没有则返回 null
+function getNodeInputImage(node) {
+  const inData = node.inputsData || [];
+  const img = inData.find(function(d) {
+    return d && d.type === 'image' && typeof d.value === 'string' && /^data:image/.test(d.value);
+  });
+  return img ? img.value : null;
+}
+
+//================ 16b. 循环节点驱动逻辑 ================
+// 当前循环迭代上下文（仅循环运行期间有效，循环外为 null）
+let LOOP_STATE = null;
+
+// 判断值是否为 data: 图片
+function isDataImage(v) {
+  return typeof v === 'string' && v.indexOf('data:image') === 0;
+}
+
+// 收集某节点的全部下游（后代）
+function getDescendants(node) {
+  const seen = new Set();
+  const stack = [node];
+  while (stack.length) {
+    const cur = stack.pop();
+    [...workflow.edges.values()].forEach(e => {
+      if (e.from.node === cur && !seen.has(e.to.node)) {
+        seen.add(e.to.node);
+        stack.push(e.to.node);
+      }
+    });
+  }
+  return seen;
+}
+
+// 将提示词中的循环变量替换为当前迭代值
+//   《计数》/《序号》→ 当前索引（起始+步长递进）
+//   《总数》        → 总次数
+//   《轮次》/《迭代》→ 第几轮（1-based）
+//   《进度》        → 百分比
+//   《起始》        → 起始值
+function applyLoopVars(text) {
+  if (!text || !LOOP_STATE) return text;
+  const st = LOOP_STATE;
+  const progress = st.total > 1 ? Math.round((st.iter / st.total) * 100) : 100;
+  return String(text)
+    .replace(/《计数》|《序号》|\{index\}/g, String(st.index))
+    .replace(/《总数》|\{total\}/g, String(st.total))
+    .replace(/《轮次》|《迭代》|\{iter\}/g, String(st.iter))
+    .replace(/《进度》|\{progress\}/g, progress + '%')
+    .replace(/《起始》|\{start\}/g, String(st.start));
+}
+
+// 收集某节点产出的全部图片（含多图原图 / 单图输出 / 缩略图）
+function collectNodeImages(node) {
+  const imgs = [];
+  if (Array.isArray(node._galleryImages)) {
+    node._galleryImages.forEach(im => { if (isDataImage(im)) imgs.push(im); });
+  }
+  (node.outputsData || []).forEach(o => {
+    if (o && o.type === 'image' && isDataImage(o.value)) imgs.push(o.value);
+  });
+  if (isDataImage(node.thumb)) imgs.push(node.thumb);
+  // 去重（保留顺序）
+  const seen = new Set();
+  return imgs.filter(v => { if (seen.has(v)) return false; seen.add(v); return true; });
+}
+
+// 循环节点执行：重复驱动下游节点 count 次，聚合每次产出的图片
+async function runLoopNode(node) {
+  const count = Math.max(1, parseInt(node.params.count) || 1);
+  let start = parseInt(node.params.start);
+  if (isNaN(start)) start = 1;
+  const step = Math.max(1, parseInt(node.params.step) || 1);
+  const mode = node.params.mode === 'parallel' ? 'parallel' : 'serial';
+
+  node._galleryImages = [];
+  node.loopProgress = { iter: 0, total: count };
+  if (node.el) buildNodeBody(node.el, node);
+
+  const desc = getDescendants(node);
+  if (desc.size === 0) {
+    node.outputsData = [{ type: 'image', value: node.thumb || '' }];
+    return;
+  }
+
+  const order = topoSortNodes(desc);
+  const baseDelay = mode === 'parallel' ? 120 : 380; // 串行稍慢，给接口留出余量
+
+  for (let k = 1; k <= count; k++) {
+    const index = start + (k - 1) * step;
+    LOOP_STATE = { index: index, total: count, iter: k, start: start, step: step };
+    try {
+      await runInOrder(order, baseDelay, new Set()); // 本轮驱动下游，跳过逻辑不生效
+    } catch (err) {
+      showToast('循环第 ' + k + ' 轮执行出错：' + (err && err.message || err), 'warn');
+    }
+    // 收集本轮所有下游产出的图片
+    desc.forEach(d => {
+      collectNodeImages(d).forEach(im => node._galleryImages.push(im));
+    });
+    node.loopProgress = { iter: k, total: count };
+    if (node.el) buildNodeBody(node.el, node);
+  }
+
+  LOOP_STATE = null;
+  node.thumb = node._galleryImages[0] || node.thumb || '';
+  node.outputsData = [{ type: 'image', value: node.thumb }];
+}
+
 // 收集某节点的全部祖先（上游）
 function collectAncestors(node, acc) {
   acc = acc || new Set();
@@ -8472,12 +9257,18 @@ function topoSortNodes(seedSet) {
   return order;
 }
 
-// 按拓扑顺序逐个执行
-async function runInOrder(order, delay) {
+// 按拓扑顺序逐个执行；skipSet 中的节点（循环节点的下游）由循环节点自行驱动
+async function runInOrder(order, delay, skipSet) {
+  skipSet = skipSet || new Set();
   // 并行执行：每个节点只等待它的直接上游完成；互不依赖的分支同时运行
   const done = new Map();
   const pending = [];
   for (const node of order) {
+    if (skipSet.has(node)) {
+      // 该节点属于某循环节点的下游，跳过全局执行（由循环节点驱动）
+      done.set(node, Promise.resolve());
+      continue;
+    }
     const upstream = [];
     workflow.edges.forEach(e => {
       if (e.to.node === node && order.includes(e.from.node)) upstream.push(e.from.node);
@@ -8492,13 +9283,26 @@ async function runInOrder(order, delay) {
   await Promise.all(pending);
 }
 
+// 计算循环节点下游集合（用于全局运行跳过，避免重复执行）
+function computeLoopSkip() {
+  const skip = new Set();
+  [...workflow.nodes.values()].forEach(n => {
+    if (n.type === 'loop') getDescendants(n).forEach(d => skip.add(d));
+  });
+  return skip;
+}
+
 // 单节点运行：先运行其全部上游，再运行自身（保证输入数据是最新的）
 function runNode(node) {
   if (node.status === 'running') return;
   const set = collectAncestors(node);
   set.add(node);
   const order = topoSortNodes(set);
-  runInOrder(order, 550);
+  // 仅跳过本次运行集合内循环节点的下游，避免误伤其它分支
+  const skip = new Set();
+  set.forEach(n => { if (n.type === 'loop') getDescendants(n).forEach(d => skip.add(d)); });
+  window.__loopSkip = skip;
+  runInOrder(order, 550, skip);
 }
 
 // 全局运行：整张画布按拓扑顺序流动执行
@@ -8512,7 +9316,9 @@ async function runWorkflow() {
   order.forEach(n => {
     if (n.el) { n.status = 'idle'; updateNodeStatus(n); }
   });
-  await runInOrder(order, 550);
+  window.__loopSkip = computeLoopSkip();
+  await runInOrder(order, 550, window.__loopSkip);
+  window.__loopSkip = new Set();
   markEdgesDirty();
   refreshAssetPanelIfOpen();
   showToast('工作流执行完成 · 数据已沿连线流动', 'success');
@@ -8699,6 +9505,10 @@ function init() {
     }
   };
   document.getElementById('btnRunAll').onclick = () => runWorkflow();
+  document.getElementById('btnRunLog').onclick = () => toggleRunLogPanel();
+  document.getElementById('runLogClose').onclick = () => toggleRunLogPanel(false);
+  document.getElementById('runLogClear').onclick = () => clearRunLog();
+  document.getElementById('runLogFilter').onchange = () => renderRunLog();
   document.getElementById('btnShortcuts').onclick = () => openShortcutsPanel();
 
   // 工作流管理 / 素材库 面板
@@ -8719,6 +9529,15 @@ function init() {
   document.getElementById('assetClose').onclick = () => toggleAssetPanel(false);
   document.getElementById('assetOverlay').onclick = () => toggleAssetPanel(false);
   document.getElementById('btnRefreshAssets').onclick = () => updateAssetPanel();
+  const assetFilters = document.getElementById('assetFilters');
+  if (assetFilters) {
+    assetFilters.addEventListener('click', (e) => {
+      const chip = e.target.closest('.asset-filter-chip');
+      if (!chip) return;
+      _assetCatFilter = chip.getAttribute('data-cat') || '';
+      updateAssetPanel();
+    });
+  }
 
   // 回收站面板事件
   document.getElementById('recycleClose').onclick = () => toggleRecyclePanel(false);
@@ -9420,30 +10239,11 @@ function runPromptEnhance(text, opts) {
       { role: 'user', content: '请扩写以下提示词，只输出扩写后的提示词文本：\n' + t }
     ];
 
-    fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + apiKey
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: messages,
-        temperature: 0.7,
-        stream: false
-      })
+    streamDeepseek(apiKey, messages, function(text) {
+      if (opts.onToken) { try { opts.onToken(text); } catch (_) {} }
     })
-    .then(function(resp) {
-      if (!resp.ok) {
-        return resp.text().then(function(t) {
-          throw new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 120) : ''));
-        });
-      }
-      return resp.json();
-    })
-    .then(function(data) {
-      var reply = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-      reply = reply.replace(/^```[\s\S]*?\n/, '').replace(/```$/, '').trim();
+    .then(function(reply) {
+      reply = (reply || '').replace(/^```[\s\S]*?\n/, '').replace(/```$/, '').trim();
       resolve(reply);
     })
     .catch(reject);
@@ -9480,7 +10280,16 @@ function expandPromptWithAI() {
     return;
   }
 
-  runPromptEnhance(userText, { apiKey: apiKey, useLibrary: true })
+  runPromptEnhance(userText, {
+    apiKey: apiKey,
+    useLibrary: true,
+    onToken: function(t) {
+      if (t) {
+        bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(t).replace(/\n/g, '<br>') + '</div>';
+        scrollAIToBottom();
+      }
+    }
+  })
     .then(function(reply) {
       if (reply) {
         bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(reply).replace(/\n/g, '<br>') + '</div>';
@@ -9630,11 +10439,10 @@ function callRelayChat(model, bubble) {
   });
 }
 
-// --- Deepseek 真实 API 调用（非流式，带错误处理）---
-function callDeepseek(apiKey, bubble) {
-  var messages = [{ role: 'system', content: SYSTEM_PROMPT }].concat(aiConversation);
-
-  fetch('https://api.deepseek.com/chat/completions', {
+// --- Deepseek SSE 流式调用（逐字增量输出）---
+// 返回 Promise<string>（完整文本）；onText(accumulated) 在每收到一段增量时回调，用于实时渲染。
+function streamDeepseek(apiKey, messages, onText) {
+  return fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -9644,21 +10452,69 @@ function callDeepseek(apiKey, bubble) {
       model: 'deepseek-chat',
       messages: messages,
       temperature: 0.7,
-      stream: false
+      stream: true
     })
   })
   .then(function(resp) {
     if (!resp.ok) {
       return resp.text().then(function(t) {
-        throw new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 120) : ''));
+        throw new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 200) : ''));
       });
     }
-    return resp.json();
+    // 环境不支持流式读取（无 body/reader）→ 回退一次性 JSON
+    if (!resp.body || !resp.body.getReader) {
+      return resp.json().then(function(data) {
+        var t = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+        if (onText) onText(t);
+        return t;
+      });
+    }
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder('utf-8');
+    var buffer = '';
+    var full = '';
+    function pump() {
+      return reader.read().then(function(step) {
+        if (step.done) return full;
+        buffer += decoder.decode(step.value, { stream: true });
+        var lines = buffer.split('\n');
+        buffer = lines.pop(); // 保留可能未完整的一行
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (!line || line.indexOf('data:') !== 0) continue;
+          var payload = line.slice(5).trim();
+          if (payload === '[DONE]') continue;
+          try {
+            var json = JSON.parse(payload);
+            var delta = json.choices && json.choices[0] && json.choices[0].delta;
+            var piece = delta && delta.content;
+            if (piece) { full += piece; if (onText) onText(full); }
+          } catch (e) { /* 跳过不完整的片段 */ }
+        }
+        return pump();
+      });
+    }
+    return pump();
+  });
+}
+
+// --- Deepseek 真实 API 调用（流式，带错误处理）---
+function callDeepseek(apiKey, bubble) {
+  var messages = [{ role: 'system', content: SYSTEM_PROMPT }].concat(aiConversation);
+  aiIsGenerating = true;
+  aiSendBtn.disabled = true;
+
+  streamDeepseek(apiKey, messages, function(text) {
+    // 实时把已生成的部分渲染到气泡，首字到达即替换「正在生成」
+    if (text) {
+      bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>';
+      scrollAIToBottom();
+    }
   })
-  .then(function(data) {
-    var reply = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '（Deepseek 返回内容为空）';
-    aiConversation.push({ role: 'assistant', content: reply });
-    bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(reply).replace(/\n/g, '<br>') + '</div>';
+  .then(function(reply) {
+    var finalText = reply || '（Deepseek 返回内容为空）';
+    aiConversation.push({ role: 'assistant', content: finalText });
+    bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(finalText).replace(/\n/g, '<br>') + '</div>';
     scrollAIToBottom();
   })
   .catch(function(err) {
@@ -9826,5 +10682,6 @@ aiClearBtn.addEventListener('click', function() {
 
 init();
 </script>
+
 </body>
 </html>
