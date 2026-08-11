@@ -1519,6 +1519,49 @@ body {
   font-family: var(--font-mono);
 }
 
+.context-menu.wide {
+  min-width: 236px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+.context-menu-section {
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 7px 12px 3px;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+.context-menu-item .ctx-node-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--type-color, var(--text-2));
+}
+
+/* —— 右键节点面板：二级子菜单 —— */
+.context-menu-item.has-sub { position: relative; }
+.context-menu-item.has-sub:hover > .ctx-submenu,
+.context-menu-item.has-sub.open > .ctx-submenu { display: block; }
+.ctx-submenu {
+  position: absolute;
+  left: calc(100% - 4px);
+  top: -4px;
+  min-width: 176px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  padding: 4px 0;
+  display: none;
+  z-index: 10;
+}
+.ctx-submenu .context-menu-item { white-space: nowrap; }
+
 /* ================================================================
    连线节点快捷组合菜单 — HUD 科幻环形面板
    ================================================================ */
@@ -11587,6 +11630,130 @@ function addMenuItem(label, icon, shortcut, onClick, isDanger) {
   contextMenu.appendChild(item);
 }
 
+// —— 空白处右键：添加节点面板（最近使用 + 分类，画布操作保留在底部）——
+const RECENT_NODES_KEY = 'flowcraft:recentNodes:v1';
+function loadRecentNodes() {
+  try {
+    const v = JSON.parse(localStorage.getItem(RECENT_NODES_KEY));
+    return Array.isArray(v) ? v.filter(t => NODE_TYPES[t]) : [];
+  } catch (e) { return []; }
+}
+function saveRecentNodes(list) {
+  try { localStorage.setItem(RECENT_NODES_KEY, JSON.stringify(list.slice(0, 6))); } catch (e) {}
+}
+function recordRecentNode(type) {
+  const list = loadRecentNodes().filter(t => t !== type);
+  list.unshift(type);
+  saveRecentNodes(list);
+}
+const CTX_NODE_SECTIONS = [
+  { label: 'AI 生成', types: ['aiImage', 'aiVideo', 'aiSet'] },
+  { label: '文本 / 提示词', types: ['text', 'script'] },
+  { label: '素材 / 处理', types: ['image', 'videoInput', 'lineart', 'upscale', 'compare', 'material', 'light', 'layout'] },
+  { label: '视频成片', types: ['videoBreak', 'footage', 'voiceover', 'subtitle', 'bgm', 'compose', 'publish'] },
+  { label: '高级 / 本地', types: ['loop', 'comfyui'] },
+  { label: '输出', types: ['save'] },
+];
+let _ctxWorld = { x: 0, y: 0 };
+
+const CTX_COMMON_TYPES = ['aiImage', 'aiVideo', 'text', 'image', 'upscale', 'save'];
+
+function addCtxSubmenu(title, types) {
+  const row = document.createElement('div');
+  row.className = 'context-menu-item has-sub';
+  row.innerHTML = '<span class="ctx-node-icon"></span><span>' + title + '</span><span class="shortcut">▸</span>';
+  const sub = document.createElement('div');
+  sub.className = 'ctx-submenu';
+  types.forEach(type => {
+    const def = NODE_TYPES[type];
+    if (!def) return;
+    const item = document.createElement('div');
+    item.className = 'context-menu-item';
+    item.style.setProperty('--type-color', def.color);
+    item.innerHTML = '<span class="ctx-node-icon">' + (NODE_ICONS[type] || '') + '</span><span>' + def.label + '</span>';
+    item.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      hideContextMenu();
+      recordRecentNode(type);
+      addNode(type, _ctxWorld.x - 140, _ctxWorld.y - 90);
+      showToast('已添加节点：' + def.label, 'info', 1600);
+    });
+    sub.appendChild(item);
+  });
+  row.appendChild(sub);
+  const open = () => {
+    contextMenu.querySelectorAll('.has-sub.open').forEach(o => { if (o !== row) o.classList.remove('open'); });
+    row.classList.add('open');
+    const r = sub.getBoundingClientRect();
+    if (r.right > window.innerWidth - 8) {
+      sub.style.left = 'auto';
+      sub.style.right = 'calc(100% - 4px)';
+    } else {
+      sub.style.left = 'calc(100% - 4px)';
+      sub.style.right = 'auto';
+    }
+    if (r.bottom > window.innerHeight - 8) {
+      sub.style.top = (-4 - (r.bottom - (window.innerHeight - 8))) + 'px';
+    } else {
+      sub.style.top = '-4px';
+    }
+  };
+  const close = () => row.classList.remove('open');
+  row.addEventListener('mouseenter', open);
+  row.addEventListener('click', (ev) => {
+    if (ev.target.closest('.ctx-submenu')) return;
+    open();
+  });
+  row.addEventListener('mouseleave', close);
+  contextMenu.appendChild(row);
+}
+
+function addCtxNodeSection(title, types) {
+  const h = document.createElement('div');
+  h.className = 'context-menu-section';
+  h.textContent = title;
+  contextMenu.appendChild(h);
+  types.forEach(type => {
+    const def = NODE_TYPES[type];
+    if (!def) return;
+    const item = document.createElement('div');
+    item.className = 'context-menu-item';
+    item.style.setProperty('--type-color', def.color);
+    item.innerHTML = '<span class="ctx-node-icon">' + (NODE_ICONS[type] || '') + '</span><span>' + def.label + '</span>';
+    item.addEventListener('click', () => {
+      hideContextMenu();
+      recordRecentNode(type);
+      addNode(type, _ctxWorld.x - 140, _ctxWorld.y - 90);
+      showToast('已添加节点：' + def.label, 'info', 1600);
+    });
+    contextMenu.appendChild(item);
+  });
+}
+function showCanvasAddMenu(e) {
+  const rect = canvasWrap.getBoundingClientRect();
+  _ctxWorld = workflow.camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+  contextMenu.innerHTML = '';
+  contextMenu.classList.add('wide');
+  const recent = loadRecentNodes();
+  if (recent.length) addCtxNodeSection('最近使用', recent);
+  addCtxNodeSection('常用', CTX_COMMON_TYPES.filter(t => !recent.includes(t)));
+  CTX_NODE_SECTIONS.forEach(s => addCtxSubmenu(s.label, s.types));
+  addMenuSeparator();
+  addMenuItem('适应内容', MENU_ICONS.fit, getShortcutDisplay(keybindings.fitContent), () => fitToContent());
+  addMenuItem('重置缩放', MENU_ICONS.zoom, getShortcutDisplay(keybindings.resetZoom), () => resetZoom());
+  addMenuItem('全选节点', MENU_ICONS.selectAll, getShortcutDisplay(keybindings.selectAll), () => selectAllNodes());
+  let h = 8;
+  for (const child of contextMenu.children) {
+    h += child.classList.contains('context-menu-section') ? 22 : (child.classList.contains('context-menu-separator') ? 9 : 34);
+  }
+  let mx = e.clientX, my = e.clientY;
+  if (mx + 236 > window.innerWidth) mx = e.clientX - 236;
+  if (my + h > window.innerHeight) my = e.clientY - h;
+  contextMenu.style.left = Math.max(4, mx) + 'px';
+  contextMenu.style.top = Math.max(4, my) + 'px';
+  contextMenu.classList.add('show');
+}
+
 function addMenuSeparator() {
   const sep = document.createElement('div');
   sep.className = 'context-menu-separator';
@@ -11595,6 +11762,7 @@ function addMenuSeparator() {
 
 function showContextMenu(x, y, node) {
   contextMenu.innerHTML = '';
+  contextMenu.classList.remove('wide');
 
   if (node) {
     // —— 节点上下文菜单 ——
@@ -11638,7 +11806,8 @@ canvasWrap.addEventListener('contextmenu', (e) => {
   const nodeEl = e.target.closest('.node');
   const node = nodeEl ? workflow.nodes.get(nodeEl.dataset.id) : null;
   if (node) selectNode(node);
-  showContextMenu(e.clientX, e.clientY, node);
+  if (node) showContextMenu(e.clientX, e.clientY, node);
+  else showCanvasAddMenu(e);
 });
 
 // 点击其他地方 / 滚动 / 失焦 → 关闭菜单
