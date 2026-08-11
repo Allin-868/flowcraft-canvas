@@ -6627,8 +6627,11 @@ function createNodeElement(node) {
   el.addEventListener('mousedown', (e) => {
     if (e.target.closest('button, input, textarea, select, .node-port')) return;
     if (e.button !== 0) return;
+    // 已处于多选中的节点：保持多选，整体拖动（不再自动收敛为单选）
+    if (!workflow.selection.has(node.id)) {
+      selectNode(node); // 未选中 → 先单选再拖动
+    }
     startNodeDrag(e, node);
-    selectNode(node);
   });
 
   node.el = el;
@@ -8238,12 +8241,20 @@ function startNodeDrag(e, node) {
 
   const startX = e.clientX;
   const startY = e.clientY;
-  const origX = node.x;
-  const origY = node.y;
   let moved = false;
   let historyPushed = false; // lazy 压栈标志：首次移动时才压栈，捕获拖拽前状态
-  node.el.classList.add('dragging');
 
+  // 多选整体拖动：若被拖节点已是多选中的一员，则整组一起移动，保持相对位置
+  const group = [];
+  if (workflow.selection.size > 1 && workflow.selection.has(node.id)) {
+    workflow.selection.forEach(id => {
+      const n = workflow.nodes.get(id);
+      if (n && n.el) group.push({ n, ox: n.x, oy: n.y });
+    });
+  } else {
+    group.push({ n: node, ox: node.x, oy: node.y });
+  }
+  group.forEach(g => g.n.el.classList.add('dragging'));
   dragContext = { type: 'node', nodeId: node.id };
 
   const onMove = (e2) => {
@@ -8251,27 +8262,34 @@ function startNodeDrag(e, node) {
     const dy = (e2.clientY - startY) / workflow.camera.zoom;
     if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
       if (!historyPushed) {
-        pushHistory();       // 首次移动时压栈（此时 node.x/y 仍是拖拽前值）
+        pushHistory();       // 首次移动时压栈（此时各节点 x/y 仍是拖拽前值）
         historyPushed = true;
       }
       moved = true;
     }
-    let rawX = origX + dx;
-    let rawY = origY + dy;
+    // 以主键计算吸附后的有效位移，整组共用，保持相对位置不变
+    let rawX = group[0].ox + dx;
+    let rawY = group[0].oy + dy;
     if (!e2.shiftKey) {
-      const snapped = snapNodePosition(node, rawX, rawY);
+      const snapped = snapNodePosition(group[0].n, rawX, rawY);
       rawX = snapped.x;
       rawY = snapped.y;
     }
-    node.x = rawX;
-    node.y = rawY;
-    node.el.style.left = node.x + 'px';
-    node.el.style.top = node.y + 'px';
+    const effDx = rawX - group[0].ox;
+    const effDy = rawY - group[0].oy;
+    group.forEach(g => {
+      const nx = g.ox + effDx;
+      const ny = g.oy + effDy;
+      g.n.x = nx;
+      g.n.y = ny;
+      g.n.el.style.left = nx + 'px';
+      g.n.el.style.top = ny + 'px';
+    });
     markEdgesDirty();
     renderMinimap();
   };
   const onUp = () => {
-    node.el.classList.remove('dragging');
+    group.forEach(g => g.n.el && g.n.el.classList.remove('dragging'));
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
     if (moved) {
