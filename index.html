@@ -71,6 +71,7 @@
 
   /* 节点类型色 */
   --node-image: #5B8DEF;
+  --node-comfyui: #6C5CE7;
   --node-text: #5BC07A;
   --node-ai-image: #9B59F0;
   --node-ai-video: #C76BF7;
@@ -190,6 +191,7 @@ body[data-theme="light"] {
   --text-accent: #8E4FD8;
   --grid-origin: rgba(74, 123, 214, 0.18);
   --node-image: #4A7BD6;
+  --node-comfyui: #6C5CE7;
   --node-text: #2E9E5B;
   --node-ai-image: #8E4FD8;
   --node-ai-video: #B060F0;
@@ -259,6 +261,7 @@ body[data-theme="eye-care"] {
   --text-accent: #9B6B4F;
   --grid-origin: rgba(140, 123, 88, 0.2);
   --node-image: #5B7DB8;
+  --node-comfyui: #6C5CE7;
   --node-text: #4E8A5A;
   --node-ai-image: #8A5FB5;
   --node-ai-video: #A76FB0;
@@ -471,6 +474,8 @@ body {
   width: 100%;
   height: 100%;
   display: block;
+  /* 纯绘制层，不参与命中测试，避免覆盖在面板/节点之上拦截点击 */
+  pointer-events: none;
 }
 .canvas-wrap > .node-layer {
   position: absolute;
@@ -522,6 +527,13 @@ body {
 .node.selected {
   border-color: var(--border-selected);
   box-shadow: var(--shadow-selected);
+}
+.rubber-band {
+  position: fixed;
+  pointer-events: none;
+  border: 1px dashed #5B8DEF;
+  background: rgba(91, 141, 239, 0.12);
+  z-index: 150;
 }
 .node.dragging {
   cursor: grabbing;
@@ -2004,6 +2016,302 @@ body {
 }
 .recycle-panel.show {
   transform: translateX(0);
+}
+/* —— 镜头清单面板（场景表 / 分镜管理） —— */
+.shot-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
+}
+.shot-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* —— ComfyUI 节点体 —— */
+.node-body-comfy { padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+.comfy-addr-row, .comfy-wf-row, .comfy-act-row { display: flex; gap: 6px; }
+.comfy-addr {
+  flex: 1; min-width: 0; background: var(--bg-input); color: var(--text-1);
+  border: 1px solid var(--border-subtle); border-radius: 6px; font-size: 11px; padding: 4px 6px;
+}
+.comfy-wf {
+  flex: 1; min-width: 0; background: var(--bg-input); color: var(--text-1);
+  border: 1px solid var(--border-subtle); border-radius: 6px; font-size: 12px; padding: 4px 6px;
+}
+.comfy-fields { display: flex; flex-direction: column; gap: 6px; }
+.comfy-field { display: flex; flex-direction: column; gap: 2px; }
+.comfy-field-label { font-size: 11px; color: var(--text-3); }
+.comfy-ta, .comfy-inp, .comfy-sel {
+  width: 100%; box-sizing: border-box; background: var(--bg-input); color: var(--text-1);
+  border: 1px solid var(--border-subtle); border-radius: 6px; font-size: 12px; padding: 4px 6px;
+  font-family: inherit; resize: vertical;
+}
+.comfy-ta { min-height: 38px; }
+.comfy-range-val { font-size: 11px; color: var(--text-3); margin-left: 6px; }
+.comfy-act-row .run-btn { flex: 1; }
+.comfy-hint { font-size: 11px; color: var(--text-3); line-height: 1.4; }
+
+/* —— 场景分组面板 —— */
+.scene-panel { position: fixed; top:0; right:0; bottom:0; width:340px; max-width:92vw; background:var(--bg-panel); border-left:1px solid var(--border-subtle); transform: translateX(100%); transition: transform .2s ease; z-index:160; display:flex; flex-direction:column; }
+.scene-panel.show { transform: translateX(0); }
+.scene-header { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border-subtle); gap:8px; }
+.scene-title { font-size:13px; font-weight:600; color:var(--text-1); }
+.scene-count { background:var(--bg-input); color:var(--text-2); border-radius:10px; padding:1px 7px; font-size:11px; margin-left:4px; }
+.scene-actions { display:flex; align-items:center; gap:6px; }
+.scene-list { flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:8px; }
+.scene-empty { position:absolute; inset:48px 0 0 0; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--text-3); font-size:12px; line-height:1.6; padding:0 24px; }
+.scene-card { background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:8px; padding:8px 10px; }
+.scene-card-head { display:flex; align-items:center; gap:8px; }
+.scene-dot { width:12px; height:12px; border-radius:50%; flex:none; }
+.scene-name { font-size:13px; font-weight:600; color:var(--text-1); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.scene-member { font-size:11px; color:var(--text-3); margin-top:2px; }
+.scene-card-actions { display:flex; gap:6px; margin-top:8px; }
+.node.scene-tint { box-shadow: 0 0 0 2px var(--scene-color, #5B8DEF), 0 2px 8px rgba(0,0,0,.18); }
+
+/* 开箱模板面板 */
+.template-panel { position: fixed; top:0; right:0; bottom:0; width:380px; max-width:94vw; background:var(--bg-panel); border-left:1px solid var(--border-subtle); transform: translateX(100%); transition: transform .2s ease; z-index:160; display:flex; flex-direction:column; }
+.template-panel.show { transform: translateX(0); }
+.template-header { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border-subtle); }
+.template-title { font-size:13px; font-weight:600; color:var(--text-1); }
+.template-tip { font-size:11.5px; color:var(--text-3); padding:8px 12px 4px; line-height:1.5; }
+.template-list { flex:1; overflow-y:auto; padding:8px 12px 16px; display:flex; flex-direction:column; gap:12px; }
+.template-card { background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:8px; }
+.template-card-head { display:flex; align-items:center; gap:8px; }
+.template-badge { width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; flex:none; }
+.template-name { font-size:13.5px; font-weight:600; color:var(--text-1); }
+.template-desc { font-size:11.5px; color:var(--text-3); line-height:1.5; }
+.template-flow { display:flex; flex-wrap:wrap; gap:5px; }
+.template-chip { font-size:10.5px; color:var(--text-2); background:var(--bg-input); border-radius:6px; padding:2px 7px; }
+.template-actions { display:flex; gap:8px; margin-top:2px; }
+
+.shot-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  max-width: 92vw;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-default);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.4);
+  z-index: 501;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform var(--transition-normal);
+}
+.shot-panel.show {
+  transform: translateX(0);
+}
+.shot-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+.shot-header .shot-icon {
+  color: var(--color-primary);
+  display: flex;
+}
+.shot-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+.shot-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  min-width: 22px;
+  text-align: center;
+}
+.shot-close {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+}
+.shot-close:hover { background: var(--bg-elevated); color: var(--text-default); }
+.shot-actions {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+.shot-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.shot-card {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.shot-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.shot-no {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: rgba(91, 141, 239, 0.14);
+  border-radius: var(--radius-sm);
+  padding: 1px 7px;
+  flex-shrink: 0;
+}
+.shot-name {
+  font-weight: 600;
+  font-size: 14px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shot-pill {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.shot-pill.idle { background: var(--bg-panel); color: var(--text-muted); border: 1px solid var(--border-default); }
+.shot-pill.running { background: rgba(245, 158, 11, 0.16); color: #f59e0b; }
+.shot-pill.done { background: var(--color-success-dim); color: var(--color-success); }
+.shot-pill.error { background: rgba(239, 68, 68, 0.16); color: var(--color-danger); }
+.shot-scene {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.shot-scene .tag {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0 6px;
+  margin-right: 4px;
+}
+.shot-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-height: 48px;
+  overflow: hidden;
+}
+.shot-prompt {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-panel);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  max-height: 52px;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.shot-card-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.shot-card-actions .mini-btn {
+  flex: 1;
+  min-width: 56px;
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--bg-panel);
+  color: var(--text-default);
+  cursor: pointer;
+}
+.shot-card-actions .mini-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.shot-card-actions .mini-btn.primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.shot-card-actions .mini-btn.primary:hover { opacity: 0.9; }
+.shot-card-actions .mini-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.shot-empty {
+  margin: auto;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 40px 20px;
+}
+/* 镜头编辑弹窗 */
+.shot-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
+}
+.shot-modal-overlay.show { opacity: 1; pointer-events: auto; }
+.shot-modal {
+  width: 460px;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  padding: var(--space-xl);
+}
+.shot-modal h3 {
+  margin: 0 0 var(--space-lg);
+  font-size: 16px;
+}
+.shot-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+.shot-form-row label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.shot-form-row input,
+.shot-form-row textarea {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-default);
+  padding: 7px 9px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.shot-form-row textarea { resize: vertical; min-height: 60px; }
+.shot-form-row.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
+.shot-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
 }
 .recycle-header {
   display: flex;
@@ -3528,6 +3836,39 @@ body {
 }
 .asset-ref-btn:hover { background: var(--accent, #8B5CF6); color: #fff; }
 
+/* 资产先行：名称 / 锁定描述 / 设为资产 */
+.asset-name-input, .asset-lock-input {
+  width: 100%; box-sizing: border-box; margin-top: 3px; padding: 2px 4px;
+  font-size: var(--text-micro, 11px); background: var(--bg-input); color: var(--text-1);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm, 6px);
+  font-family: var(--font-sans);
+}
+.asset-lock-input { resize: vertical; min-height: 26px; max-height: 90px; line-height: 1.35; }
+.asset-set-btn {
+  flex: 1; padding: 3px 0; margin-top: 2px;
+  border: 1px solid var(--accent, #8B5CF6); background: var(--accent, #8B5CF6); color: #fff;
+  border-radius: var(--radius-sm, 6px); cursor: pointer; font-size: var(--text-micro, 11px);
+  font-family: var(--font-sans);
+}
+.asset-set-btn:hover { filter: brightness(1.12); }
+.asset-card.is-asset { border-color: var(--accent, #8B5CF6); box-shadow: 0 0 0 1px var(--accent, #8B5CF6) inset; }
+.asset-badge {
+  display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 999px;
+  font-size: 10px; line-height: 15px; background: var(--accent, #8B5CF6); color: #fff; vertical-align: middle;
+}
+
+/* 节点上的资产引用徽标（已引用 N 个资产） */
+.node-ref-badge {
+  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
+  margin-bottom: 3px; padding: 1px 7px; border-radius: 999px;
+  font-size: var(--text-micro, 11px); line-height: 17px;
+  background: color-mix(in srgb, var(--accent, #8B5CF6) 16%, transparent);
+  color: var(--accent, #8B5CF6);
+  border: 1px solid color-mix(in srgb, var(--accent, #8B5CF6) 40%, transparent);
+  cursor: default;
+}
+.node-ref-badge.has-missing { background: rgba(239,68,68,.14); color: #ef4444; border-color: rgba(239,68,68,.42); }
+
 /* 导演模板表单（多镜头序列提示词生成器） */
 .dir-form { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .dir-form .df-label { font-size: var(--text-meta, 12px); color: var(--text-2); margin-bottom: 2px; }
@@ -3588,7 +3929,12 @@ body {
 .rl-status.error { background:rgba(225,83,83,.16); color:var(--color-danger); }
 .rl-row2 { font-size:11.5px; color:var(--text-2); margin-top:3px; word-break:break-all; }
 .rl-err { font-size:11px; color:var(--color-danger); margin-top:3px; word-break:break-all; }
-.rl-row3 { display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-3); margin-top:4px; }
+.rl-row3 { display:flex; justify-content:space-between; align-items:center; font-size:10.5px; color:var(--text-3); margin-top:4px; }
+.rl-thumb-wrap { margin-bottom:6px; }
+.rl-thumb { width:100%; max-height:120px; object-fit:cover; border-radius:6px; border:1px solid var(--border-subtle); display:block; background:var(--bg-input); }
+.rl-save-wrap { margin-left:auto; }
+.rl-save { background:var(--color-primary); color:#fff; border:none; border-radius:6px; padding:2px 8px; font-size:10.5px; cursor:pointer; font-family:inherit; }
+.rl-save:hover { filter:brightness(1.08); }
 
 </style>
 </head>
@@ -3770,6 +4116,15 @@ body {
       <button class="tb-btn" id="btnRunLog" title="运行日志（生成历史）">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h6"/></svg>
       </button>
+      <button class="tb-btn" id="btnShots" title="镜头清单（场景表 / 分镜管理）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12M6 3v3M10 3v3"/></svg>
+      </button>
+      <button class="tb-btn" id="btnScenes" title="场景分组（把节点归类管理）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h5v5H2zM9 4h5v5H9zM2 11h5v3H2zM9 11h5v3H9z"/></svg>
+      </button>
+      <button class="tb-btn" id="btnTemplates" title="开箱模板（一键加载预置工作流）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h5v5H2zM9 3h5v5H9zM2 10h5v4H2zM9 10h5v4H9z"/></svg>
+      </button>
       <div class="tb-divider"></div>
       <button class="tb-btn" id="btnExport" title="导出 JSON">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3 14h10"/></svg>
@@ -3829,7 +4184,7 @@ body {
       <div class="statusbar-right">
         <div class="stat-item">
           <span class="stat-label">FlowCraft</span>
-          <span class="stat-value">v2.0</span>
+          <span class="stat-value" id="statVersion">v3.0</span>
         </div>
       </div>
     </div>
@@ -3957,6 +4312,32 @@ body {
   </div>
 </div>
 
+<!-- 镜头清单面板（场景表 / 分镜管理） -->
+<div class="shot-overlay" id="shotOverlay"></div>
+<div class="shot-panel" id="shotPanel">
+  <div class="shot-header">
+    <div class="shot-icon">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12M6 3v3M10 3v3"/></svg>
+    </div>
+    <div class="shot-title">镜头清单</div>
+    <div class="shot-count" id="shotCount">0</div>
+    <button class="shot-close" id="shotClose" title="关闭">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  </div>
+  <div class="shot-actions">
+    <button class="ra-btn" id="btnAddShot">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
+      新增镜头
+    </button>
+    <button class="ra-btn" id="btnGenerateAllShots" title="依次生成全部镜头">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l4 3-4 3M9 11h4"/></svg>
+      全部生成
+    </button>
+  </div>
+  <div class="shot-list" id="shotList"></div>
+</div>
+
 <!-- 图片大图查看器 (点击空白关闭，滚轮缩放，拖拽平移，双击还原) -->
 <div class="image-lightbox" id="imageLightbox">
   <button class="lb-close" id="imageLightboxClose" title="关闭 (Esc)">
@@ -4028,6 +4409,33 @@ body {
     <div class="run-log-empty" id="runLogEmpty">暂无运行记录<br>运行工作流后，这里会自动记录每次生成的<br>模型 · 参数 · 耗时 · 错误</div>
   </div>
 
+  <!-- 场景分组面板 -->
+  <div class="scene-panel" id="scenePanel">
+    <div class="scene-header">
+      <div class="scene-title">场景分组 <span class="scene-count" id="sceneCount">0</span></div>
+      <div class="scene-actions">
+        <button class="ai-btn small" id="sceneNew" title="新建场景">新建</button>
+        <button class="ai-btn" id="sceneClose" title="收起面板">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="scene-list" id="sceneList"></div>
+    <div class="scene-empty" id="sceneEmpty">暂无场景<br>点击「新建」创建分组，再把节点归入其中</div>
+  </div>
+
+  <!-- 开箱模板面板 -->
+  <div class="template-panel" id="templatePanel">
+    <div class="template-header">
+      <div class="template-title">开箱模板</div>
+      <button class="ai-btn" id="templateClose" title="收起面板">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="template-tip">选择模板后，可「追加」到当前画布，或「清空并加载」。</div>
+    <div class="template-list" id="templateList"></div>
+  </div>
+
 <script>
 //=============================================================================
 // FlowCraft v2 — AI 工作流编辑器
@@ -4035,6 +4443,8 @@ body {
 //=============================================================================
 
 //================ 1. 节点类型定义 (匹配设计系统规范) ================
+const APP_VERSION = '3.0';
+
 const NODE_TYPES = {
   image:    { label: '图片输入', desc: '上传或拖入图片',     color: 'var(--node-image)',    colorRaw: '#5B8DEF', inputs: [], outputs: [{type:'image',label:'图片'}] },
   videoInput: { label: '视频输入', desc: '上传或选择视频',   color: 'var(--node-video-input)', colorRaw: '#E0533D', inputs: [], outputs: [{type:'video',label:'视频'}], defaultParams: { name: '示例视频.mp4', duration: '00:12' } },
@@ -4051,6 +4461,7 @@ const NODE_TYPES = {
   light:    { label: '灯光',     desc: '灯光效果与氛围',     color: 'var(--node-light)',    colorRaw: '#FFD54F', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'效果图'}] },
   layout:   { label: '布局方案', desc: '生成平面布局方案',   color: 'var(--node-layout)',   colorRaw: '#26A69A', inputs: [{type:'image',label:'参考图'},{type:'text',label:'需求'}], outputs: [{type:'image',label:'布局'}] },
   loop:     { label: '循环',     desc: '批量重复执行下游',   color: 'var(--node-loop)',     colorRaw: '#3FB8AF', inputs: [{type:'image',label:'图片'},{type:'text',label:'提示词'}], outputs: [{type:'image',label:'图集'}], defaultParams: { count: 4, start: 1, step: 1, mode: 'serial' } },
+  comfyui:  { label: 'ComfyUI',  desc: '本地 ComfyUI 文生图 / 图生图', color: 'var(--node-comfyui)', colorRaw: '#6C5CE7', inputs: [{type:'image',label:'输入图'}], outputs: [{type:'image',label:'图片'}], defaultParams: { addr: 'http://127.0.0.1:8188', wf: 'txt2img', fields: {}, customJson: '' } },
 
   // —— 视频生成管线节点 (MoneyPrinterTurbo 画布化) ——
   script:    { label: '脚本',  desc: 'AI 写稿',        color: 'var(--node-script)',    colorRaw: '#7F77DD', inputs: [{type:'text',label:'主题'}], outputs: [{type:'text',label:'脚本'}], defaultParams: { script: '在这个 AI 改变一切的时代，有一种职业正在悄然消失。它曾是人类最古老的技艺之一，如今正面临着前所未有的挑战。从清晨到日暮，那些熟悉的声音和画面，正在被一行行代码所替代。但也许，这正是重新定义创造力的开始。', wordCount: 234 } },
@@ -4085,7 +4496,8 @@ const NODE_ICONS = {
   bgm:       '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 11V3l6-1v8"/><circle cx="4.5" cy="11" r="1.5"/><circle cx="10.5" cy="10" r="1.5"/></svg>',
   compose:   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="5" height="5" rx="1"/><rect x="9" y="3" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="4" rx="1"/><path d="M9 9h5v4H9z"/><path d="M11 6l2 2M11 11l2-2"/></svg>',
   publish:   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 12V3M5 6l3-3 3 3M3 12v2h10v-2"/></svg>',
-  loop:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8a5 5 0 1 1 1.6 3.7"/><path d="M4 12V8h4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  loop:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8a5 5 0 1 1 1.6 3.7"/><path d="M4 12V8h4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  comfyui:   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6" stroke-linecap="round"/><circle cx="8" cy="8" r="1.4"/></svg>'
 };
 
 // 底部工具栏图标
@@ -4207,6 +4619,8 @@ const workflow = {
   order: [],
   nextZ: 1,
   selection: new Set(),
+  shots: [], // 镜头清单：{ id, name, scene, shotNo, desc, prompt, status, nodeId }
+  scenes: [], // 场景分组：{ id, name, color, nodeIds:[] }
   hoveredPort: null,
   pendingConnection: null,
 };
@@ -4379,7 +4793,7 @@ function updateUndoRedoButtons() {
 const AUTOSAVE_KEY = 'flowcraft:autosave:v1';
 // 自动保存数据结构版本。每次改变节点/工作流存储结构时 +1，
 // 旧版本数据在 restoreFromStorage 中经 migrateAutosave 平滑迁移，避免整页崩溃或用户数据丢失。
-const CURRENT_AUTOSAVE_VERSION = 2;
+const CURRENT_AUTOSAVE_VERSION = 3;
 let autosaveTimer = null;
 
 // 序列化当前工作流为 JSON
@@ -4412,6 +4826,8 @@ function serializeWorkflow() {
     nextZ: workflow.nextZ,
     nodeIdSeq,
     edgeIdSeq,
+    shots: (workflow.shots || []).map(s => ({ ...s })),
+    scenes: (workflow.scenes || []).map(s => ({ id: s.id, name: s.name, color: s.color, nodeIds: [...(s.nodeIds || [])] })),
     recycleBin: recycleBin.map(item => ({
       node: { ...item.node, params: { ...item.node.params } },
       edges: item.edges.map(e => ({ ...e })),
@@ -4460,6 +4876,7 @@ function migrateAutosave(parsed, fromVersion) {
     });
   }
   // 未来版本：此处继续追加 v2 → v3 … 的分支；当前版本即视为最新
+  if (!Array.isArray(parsed.scenes)) parsed.scenes = [];
   parsed.version = CURRENT_AUTOSAVE_VERSION;
   return parsed;
 }
@@ -4560,6 +4977,34 @@ function restoreFromStorage() {
       });
     }
 
+    // 恢复镜头清单（场景表 / 分镜）
+    if (Array.isArray(parsed.shots)) {
+      workflow.shots = parsed.shots.map(s => ({
+        id: s.id || ('shot_' + Math.random().toString(36).slice(2, 9)),
+        name: s.name || '',
+        scene: s.scene || '',
+        shotNo: s.shotNo || '',
+        desc: s.desc || '',
+        prompt: s.prompt || '',
+        status: s.status || 'idle',
+        nodeId: s.nodeId || null,
+      }));
+    }
+
+    // 恢复场景分组
+    if (Array.isArray(parsed.scenes)) {
+      const validIds = new Set(workflow.nodes.keys());
+      workflow.scenes = parsed.scenes.map(s => ({
+        id: s.id || ('scene_' + Math.random().toString(36).slice(2, 9)),
+        name: s.name || '未命名场景',
+        color: s.color || '#5B8DEF',
+        nodeIds: Array.isArray(s.nodeIds) ? s.nodeIds.filter(id => validIds.has(id)) : [],
+      }));
+    } else {
+      workflow.scenes = [];
+    }
+
+    applySceneTints();
     return parsed.nodes.length;
   } catch (err) {
     console.warn('[FlowCraft] 恢复数据解析失败:', err.message);
@@ -4827,7 +5272,7 @@ function newWorkflow() {
 }
 
 //================ 4h. 资产管理 (素材库) ================
-const ASSET_IMAGE_TYPES = ['image', 'aiImage', 'aiVideo', 'upscale', 'compare', 'aiSet', 'material', 'light', 'layout', 'lineart'];
+const ASSET_IMAGE_TYPES = ['image', 'aiImage', 'aiVideo', 'upscale', 'compare', 'aiSet', 'material', 'light', 'layout', 'lineart', 'comfyui'];
 
 function collectAssets() {
   const assets = [];
@@ -4859,8 +5304,10 @@ function updateAssetPanel() {
   const empty = document.getElementById('assetEmpty');
   const count = document.getElementById('assetCount');
   if (!grid) return;
+  const metaMap = loadAssetMeta();
   const catsMap = loadAssetCats();
   const all = collectAssets();
+  const nameMap = assetNameMap(all);
   const assets = _assetCatFilter ? all.filter(a => catsMap[assetKey(a)] === _assetCatFilter) : all;
   if (count) count.textContent = assets.length + (_assetCatFilter ? ' / ' + all.length : '');
   grid.innerHTML = '';
@@ -4872,21 +5319,30 @@ function updateAssetPanel() {
       const safeTitle = escapeHtml(a.nodeTitle || '节点');
       const safeLabel = escapeHtml(a.label);
       const key = assetKey(a);
+      const meta = metaMap[key] || { name: '', cat: '', lock: '' };
+      const refName = nameMap[key] || (a.nodeTitle || a.label || '资产');
+      const isAsset = !!(meta.name || meta.cat === '角色' || meta.cat === '道具');
       const cell = document.createElement('div');
-      cell.className = 'asset-card';
+      cell.className = 'asset-card' + (isAsset ? ' is-asset' : '');
       cell.innerHTML =
         '<div class="asset-thumb" title="' + safeTitle + ' · ' + safeLabel + '">' +
           '<img src="' + a.src + '" alt="' + safeTitle + '" />' +
         '</div>' +
         '<div class="asset-info">' +
-          '<div class="asset-title" title="' + safeTitle + '">' + safeTitle + '</div>' +
-          '<div class="asset-cap">' + safeLabel + '</div>' +
+          '<div class="asset-title" title="' + safeTitle + '">' + safeTitle +
+            (isAsset ? '<span class="asset-badge">资产</span>' : '') + '</div>' +
+          '<div class="asset-cap">' + safeLabel + ' · 令牌 &lt;&lt;&lt;' + escapeHtml(refName) + '&gt;&gt;&gt;</div>' +
+          '<input class="asset-name-input" type="text" placeholder="资产名称（即引用令牌）" />' +
           '<select class="asset-cat-select" title="分类（角色/道具/场景/通用）">' +
             '<option value="">通用</option>' +
             '<option value="角色">角色</option>' +
             '<option value="道具">道具</option>' +
             '<option value="场景">场景</option>' +
           '</select>' +
+          '<textarea class="asset-lock-input" rows="1" placeholder="锁定描述：外观/服装/配色，生成时自动附加"></textarea>' +
+        '</div>' +
+        '<div class="asset-actions">' +
+          '<button class="asset-set-btn" data-act="setasset" title="保存名称 + 分类 + 锁定描述，成为可引用资产">设为资产</button>' +
         '</div>' +
         '<div class="asset-actions">' +
           '<button class="asset-btn" data-act="view">查看</button>' +
@@ -4898,10 +5354,20 @@ function updateAssetPanel() {
       cell.querySelector('[data-act="view"]').onclick = () => openImageLightbox(a.src);
       cell.querySelector('[data-act="locate"]').onclick = () => { locateNode(a.nodeId); toggleAssetPanel(false); };
       cell.querySelector('[data-act="download"]').onclick = () => downloadDataUrl(a.src, 'asset_' + (idx + 1) + '.png');
+      const nameInput = cell.querySelector('.asset-name-input');
+      const lockInput = cell.querySelector('.asset-lock-input');
+      nameInput.value = meta.name || '';
+      lockInput.value = meta.lock || '';
       const sel = cell.querySelector('.asset-cat-select');
       sel.value = catsMap[key] || '';
       sel.onchange = () => { saveAssetCat(key, sel.value); updateAssetPanel(); };
-      cell.querySelector('[data-act="ref"]').onclick = () => copyRefToken(a.label);
+      cell.querySelector('[data-act="setasset"]').onclick = () => {
+        const nm = (nameInput.value || '').trim();
+        setAssetMeta(key, { name: nm, cat: sel.value, lock: (lockInput.value || '').trim() });
+        showToast('已设为资产 <<<' + (nm || refName) + '>>>' + (sel.value ? ' · ' + sel.value : ''), 'success');
+        updateAssetPanel();
+      };
+      cell.querySelector('[data-act="ref"]').onclick = () => copyRefToken((nameInput.value || '').trim() || refName);
       grid.appendChild(cell);
     });
   }
@@ -4946,27 +5412,559 @@ function refreshAssetPanelIfOpen() {
   if (panel && panel.classList.contains('show')) updateAssetPanel();
 }
 
+// —— 镜头清单（场景表 / 分镜管理）—— v3.0 第 3 项
+let _shotSeq = 0;
+let _shotModalOpen = false;
+
+function toggleShotPanel(show) {
+  const panel = document.getElementById('shotPanel');
+  const overlay = document.getElementById('shotOverlay');
+  if (!panel) return;
+  const open = show === undefined ? !panel.classList.contains('show') : show;
+  panel.classList.toggle('show', open);
+  overlay.classList.toggle('show', open);
+  if (open) renderShotPanel();
+}
+
+function refreshShotPanelIfOpen() {
+  const panel = document.getElementById('shotPanel');
+  if (panel && panel.classList.contains('show') && !_shotModalOpen) renderShotPanel();
+}
+
+//================ 4j. 场景分组 ================
+const SCENE_COLORS = ['#5B8DEF', '#9B59F0', '#3FB8AF', '#F2C66B', '#E0533D', '#26A69A', '#FF8A65', '#639922'];
+
+function toggleScenePanel(show) {
+  const panel = document.getElementById('scenePanel');
+  if (!panel) return;
+  const open = show === undefined ? !panel.classList.contains('show') : show;
+  panel.classList.toggle('show', open);
+  if (open) renderScenePanel();
+}
+
+function createScene(name, color) {
+  const id = 'scene_' + Math.random().toString(36).slice(2, 9);
+  const c = color || SCENE_COLORS[workflow.scenes.length % SCENE_COLORS.length];
+  const scene = { id: id, name: name || ('场景 ' + (workflow.scenes.length + 1)), color: c, nodeIds: [] };
+  workflow.scenes.push(scene);
+  scheduleAutosave();
+  renderScenePanel();
+  applySceneTints();
+  return scene;
+}
+
+function deleteScene(id) {
+  workflow.scenes = workflow.scenes.filter(s => s.id !== id);
+  scheduleAutosave();
+  renderScenePanel();
+  applySceneTints();
+}
+
+function addNodesToScene(sceneId, ids) {
+  const scene = workflow.scenes.find(s => s.id === sceneId);
+  if (!scene) return;
+  const set = new Set(scene.nodeIds);
+  ids.forEach(id => set.add(id));
+  scene.nodeIds = [...set];
+  scheduleAutosave();
+  renderScenePanel();
+  applySceneTints();
+}
+
+function focusScene(id) {
+  const scene = workflow.scenes.find(s => s.id === id);
+  if (!scene) return;
+  workflow.selection.clear();
+  scene.nodeIds.forEach(nid => {
+    const n = workflow.nodes.get(nid);
+    if (n) {
+      workflow.selection.add(n.id);
+      if (n.el) { n.el.classList.add('selected'); n.el.style.zIndex = (++workflow.nextZ).toString(); }
+    }
+  });
+  if (scene.nodeIds.length) fitToContent();
+  showToast('已聚焦场景「' + scene.name + '」· ' + scene.nodeIds.length + ' 个节点', 'info');
+}
+
+// 把选中节点染上所属场景颜色（支持一个节点归属多个场景时取第一个）
+function applySceneTints() {
+  // 清除旧染色
+  workflow.nodes.forEach(n => { if (n.el) { n.el.classList.remove('scene-tint'); n.el.style.removeProperty('--scene-color'); } });
+  (workflow.scenes || []).forEach(scene => {
+    (scene.nodeIds || []).forEach(nid => {
+      const n = workflow.nodes.get(nid);
+      if (n && n.el) {
+        n.el.classList.add('scene-tint');
+        n.el.style.setProperty('--scene-color', scene.color);
+      }
+    });
+  });
+}
+
+//================ 场景分组：模板（开箱即用） ================
+// 每个模板是一组预置节点 + 连线，支持「追加」到当前画布或「清空并加载」。
+const TEMPLATES = [
+  {
+    id: 'ai-draw',
+    name: 'AI 绘图流水线',
+    icon: '🎨', color: '#9B59F0',
+    desc: '参考图 → 线稿 → 文生图 → 超清放大 → 保存，一条龙出图。',
+    nodes: [
+      { type: 'image', x: -900, y: -120, title: '参考图', params: {} },
+      { type: 'lineart', x: -540, y: -120, title: '提取线稿', params: {} },
+      { type: 'aiImage', x: -180, y: -120, title: '文生图', params: { model: 'GPT Image 2', prompt: '基于参考图与线稿，生成一张高质量的商业插画' } },
+      { type: 'upscale', x: 180, y: -120, title: '智能超清', params: {} },
+      { type: 'save', x: 540, y: -120, title: '保存到本地', params: {} }
+    ],
+    edges: [[0,1],[1,2],[2,3],[3,4]]
+  },
+  {
+    id: 'video-gen',
+    name: '短视频生成',
+    icon: '🎬', color: '#C76BF7',
+    desc: '脚本 → 素材 → 配音 → 字幕 → 配乐 → 合成 → 发布，全自动产出短视频。',
+    nodes: [
+      { type: 'script', x: -1080, y: 120, title: '写脚本', params: {} },
+      { type: 'footage', x: -780, y: 120, title: '匹配素材', params: {} },
+      { type: 'voiceover', x: -480, y: 120, title: 'AI 配音', params: {} },
+      { type: 'subtitle', x: -180, y: 120, title: '生成字幕', params: {} },
+      { type: 'bgm', x: 120, y: 120, title: '添加配乐', params: {} },
+      { type: 'compose', x: 420, y: 120, title: '合成视频', params: {} },
+      { type: 'publish', x: 720, y: 120, title: '多平台发布', params: {} }
+    ],
+    edges: [[0,1],[0,2],[2,3],[4,5],[1,5],[3,5],[5,6]]
+  },
+  {
+    id: 'comfy-txt2img',
+    name: 'ComfyUI 文生图',
+    icon: '⚙️', color: '#6C5CE7',
+    desc: '本地 ComfyUI 直连：文生图工作流，连上 127.0.0.1:8188 即可批量出图。',
+    nodes: [
+      { type: 'text', x: -540, y: -120, title: '正向提示词', params: { text: 'masterpiece, best quality, 1girl, silver hair, cinematic lighting' } },
+      { type: 'comfyui', x: -180, y: -120, title: 'ComfyUI 文生图', params: { addr: 'http://127.0.0.1:8188', wf: 'txt2img', fields: {} } },
+      { type: 'upscale', x: 180, y: -120, title: '超清放大', params: {} },
+      { type: 'save', x: 540, y: -120, title: '保存', params: {} }
+    ],
+    edges: [[0,1],[1,2],[2,3]]
+  },
+  {
+    id: 'character-sheet',
+    name: '角色设定三视图',
+    icon: '👤', color: '#FF8A65',
+    desc: '角色参考 → 三视图（正/侧/背）→ 设定集，适合 IP 孵化与立绘设计。',
+    nodes: [
+      { type: 'image', x: -900, y: 180, title: '角色参考图', params: {} },
+      { type: 'aiImage', x: -540, y: 180, title: '正面视图', params: { model: 'GPT Image 2', prompt: '同一角色的严格正面全身视图，平视，双臂自然下垂，纯色背景' } },
+      { type: 'aiImage', x: -180, y: 180, title: '侧面视图', params: { model: 'GPT Image 2', prompt: '同一角色的正侧面视图，保持服装与发型一致' } },
+      { type: 'aiImage', x: 180, y: 180, title: '背面视图', params: { model: 'GPT Image 2', prompt: '同一角色的正背面视图，保持服装与发型一致' } },
+      { type: 'aiSet', x: 540, y: 180, title: '角色设定集', params: {} }
+    ],
+    edges: [[0,1],[0,2],[0,3],[1,4],[2,4],[3,4]]
+  }
+];
+
+function openTemplatePanel() {
+  const panel = document.getElementById('templatePanel');
+  if (panel) { panel.classList.add('show'); renderTemplateList(); }
+}
+function closeTemplatePanel() {
+  const panel = document.getElementById('templatePanel');
+  if (panel) panel.classList.remove('show');
+}
+
+function renderTemplateList() {
+  const list = document.getElementById('templateList');
+  if (!list) return;
+  list.innerHTML = TEMPLATES.map(t => {
+    const chips = t.nodes.map(n => {
+      const def = NODE_TYPES[n.type] || NODE_TYPES.image;
+      return '<span class="template-chip">' + esc(def.label) + '</span>';
+    }).join('');
+    return '<div class="template-card">' +
+      '<div class="template-card-head">' +
+        '<span class="template-badge" style="background:' + t.color + '">' + t.icon + '</span>' +
+        '<span class="template-name">' + esc(t.name) + '</span>' +
+      '</div>' +
+      '<div class="template-desc">' + esc(t.desc) + '</div>' +
+      '<div class="template-flow">' + chips + '</div>' +
+      '<div class="template-actions">' +
+        '<button class="ai-btn small" data-act="append" data-id="' + t.id + '">追加</button>' +
+        '<button class="ai-btn small" data-act="replace" data-id="' + t.id + '">清空并加载</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function clearGraph() {
+  // 直接清空画布（不压历史，保证模板加载干净）
+  [...workflow.nodes.values()].forEach(n => { if (n.el && n.el.parentNode) n.el.parentNode.removeChild(n.el); });
+  workflow.nodes.clear();
+  workflow.edges.clear();
+  workflow.order = [];
+  workflow.selection.clear();
+  markEdgesDirty();
+  updateStatusbar();
+}
+
+function loadTemplate(id, mode) {
+  const t = TEMPLATES.find(x => x.id === id);
+  if (!t) return;
+  if (mode === 'replace') clearGraph();
+  pushHistory();
+  const created = [];
+  const offX = mode === 'append' ? 60 : 0;
+  const offY = mode === 'append' ? 60 : 0;
+  t.nodes.forEach(spec => {
+    const x = spec.x + offX, y = spec.y + offY;
+    const node = new WorkflowNode(spec.type, x, y);
+    node.title = spec.title || node.def.label;
+    if (spec.params) node.params = Object.assign({}, node.params, spec.params);
+    const el = createNodeElement(node);
+    nodeLayer.appendChild(el);
+    workflow.nodes.set(node.id, node);
+    workflow.order.push(node.id);
+    if (node.el) node.el.classList.add('selected');
+    buildNodeBody(node.el, node);
+    created.push(node);
+  });
+  // 清空旧选中（追加模式下不强制，但保持单选直觉）
+  workflow.selection.clear();
+  created.forEach(n => workflow.selection.add(n.id));
+  // 连线：output[0] → input[0]
+  (t.edges || []).forEach(([a, b]) => {
+    const from = created[a], to = created[b];
+    if (from && to) {
+      const e = new Edge(from, 0, to, 0);
+      workflow.edges.set(e.id, e);
+    }
+  });
+  markEdgesDirty();
+  updateStatusbar();
+  renderMinimap();
+  scheduleAutosave();
+  setTimeout(() => fitToContent(), 60);
+  showToast('已加载模板「' + t.name + '」· ' + created.length + ' 个节点', 'success');
+}
+
+// 模板列表事件委托
+function bindTemplateEvents() {
+  const list = document.getElementById('templateList');
+  if (!list) return;
+  list.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    loadTemplate(btn.getAttribute('data-id'), btn.getAttribute('data-act'));
+  });
+}
+
+function renderScenePanel() {
+  const list = document.getElementById('sceneList');
+  const count = document.getElementById('sceneCount');
+  const empty = document.getElementById('sceneEmpty');
+  if (!list) return;
+  const scenes = workflow.scenes || [];
+  count.textContent = scenes.length;
+  if (empty) empty.style.display = scenes.length ? 'none' : '';
+  list.innerHTML = scenes.map(s => {
+    const members = (s.nodeIds || []).filter(id => workflow.nodes.has(id)).length;
+    const addSel = workflow.selection.size
+      ? '<button class="mini-btn" data-act="add" data-id="' + s.id + '">加入选中(' + workflow.selection.size + ')</button>' : '';
+    return '<div class="scene-card">' +
+      '<div class="scene-card-head">' +
+        '<span class="scene-dot" style="background:' + esc(s.color) + '"></span>' +
+        '<span class="scene-name" title="' + esc(s.name) + '">' + esc(s.name) + '</span>' +
+      '</div>' +
+      '<div class="scene-member">成员：' + members + ' 个节点</div>' +
+      '<div class="scene-card-actions">' +
+        '<button class="mini-btn primary" data-act="focus" data-id="' + s.id + '">聚焦</button>' +
+        addSel +
+        '<button class="mini-btn" data-act="del" data-id="' + s.id + '">删除</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function assignSelectedToScenePrompt() {
+  if (workflow.scenes.length === 0) { showToast('请先在场景面板新建一个场景', 'info'); return; }
+  const sel = [...workflow.selection].map(n => n.id);
+  if (sel.length === 0) { showToast('请先选中要归入场景的节点', 'info'); return; }
+  const lines = workflow.scenes.map((s, i) => (i + 1) + '. ' + s.name).join('\n');
+  const ans = prompt('把这 ' + sel.length + ' 个节点加入哪个场景？\n输入序号：\n' + lines);
+  if (!ans) return;
+  const idx = parseInt(ans) - 1;
+  if (isNaN(idx) || !workflow.scenes[idx]) { showToast('无效的选择', 'danger'); return; }
+  addNodesToScene(workflow.scenes[idx].id, sel);
+  showToast('已加入场景「' + workflow.scenes[idx].name + '」', 'success');
+}
+
+function renderShotPanel() {
+  const list = document.getElementById('shotList');
+  const count = document.getElementById('shotCount');
+  if (!list) return;
+  const shots = workflow.shots || [];
+  count.textContent = shots.length;
+  if (shots.length === 0) {
+    list.innerHTML = '<div class="shot-empty">暂无镜头<br>点击「新增镜头」建立你的第一组分镜</div>';
+    return;
+  }
+  const labelMap = { idle: '待生成', running: '生成中', done: '已完成', error: '失败' };
+  list.innerHTML = shots.map(s => {
+    const canGen = s.status !== 'running';
+    const locate = s.nodeId ? '<button class="mini-btn" data-act="locate" data-id="' + s.id + '">定位</button>' : '';
+    return '<div class="shot-card">' +
+      '<div class="shot-card-head">' +
+        '<span class="shot-no">' + esc(s.shotNo || '—') + '</span>' +
+        '<span class="shot-name" title="' + esc(s.name) + '">' + esc(s.name || '未命名镜头') + '</span>' +
+        '<span class="shot-pill ' + s.status + '">' + (labelMap[s.status] || s.status) + '</span>' +
+      '</div>' +
+      (s.scene ? '<div class="shot-scene"><span class="tag">场景</span>' + esc(s.scene) + '</div>' : '') +
+      (s.desc ? '<div class="shot-desc">' + esc(s.desc) + '</div>' : '') +
+      (s.prompt ? '<div class="shot-prompt">' + esc(s.prompt) + '</div>' : '') +
+      '<div class="shot-card-actions">' +
+        '<button class="mini-btn primary" data-act="gen" data-id="' + s.id + '"' + (canGen ? '' : ' disabled') + '>' + (s.status === 'running' ? '生成中…' : '生成') + '</button>' +
+        '<button class="mini-btn" data-act="edit" data-id="' + s.id + '">编辑</button>' +
+        '<button class="mini-btn" data-act="del" data-id="' + s.id + '">删除</button>' +
+        locate +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function esc(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function addShot() { openShotModal(null); }
+
+function openShotModal(shot) {
+  _shotModalOpen = true;
+  const isEdit = !!shot;
+  const cur = shot || { id: '', name: '', scene: '', shotNo: '', desc: '', prompt: '' };
+  let overlay = document.getElementById('shotModalOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'shot-modal-overlay';
+    overlay.id = 'shotModalOverlay';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML =
+    '<div class="shot-modal">' +
+      '<h3>' + (isEdit ? '编辑镜头' : '新增镜头') + '</h3>' +
+      '<div class="shot-form-row g2">' +
+        '<div><label>镜头号</label><input id="smShotNo" value="' + esc(cur.shotNo) + '" placeholder="如 001 / S1-03"></div>' +
+        '<div><label>场景</label><input id="smScene" value="' + esc(cur.scene) + '" placeholder="如 室内 / 森林"></div>' +
+      '</div>' +
+      '<div class="shot-form-row"><label>镜头名称</label><input id="smName" value="' + esc(cur.name) + '" placeholder="镜头标题"></div>' +
+      '<div class="shot-form-row"><label>画面描述</label><textarea id="smDesc" placeholder="镜头内容 / 动作 / 构图">' + esc(cur.desc) + '</textarea></div>' +
+      '<div class="shot-form-row"><label>生成提示词（Prompt）</label><textarea id="smPrompt" placeholder="送给 AI 生图的完整提示词，支持 <<<资产>> 引用令牌">' + esc(cur.prompt) + '</textarea></div>' +
+      '<div class="shot-modal-actions">' +
+        '<button class="wf-btn" id="smCancel">取消</button>' +
+        '<button class="wf-btn primary" id="smSave">' + (isEdit ? '保存' : '添加') + '</button>' +
+      '</div>' +
+    '</div>';
+  overlay.classList.add('show');
+  const close = () => { overlay.classList.remove('show'); _shotModalOpen = false; };
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  overlay.querySelector('#smCancel').onclick = close;
+  overlay.querySelector('#smSave').onclick = () => {
+    const data = {
+      shotNo: overlay.querySelector('#smShotNo').value.trim(),
+      scene: overlay.querySelector('#smScene').value.trim(),
+      name: overlay.querySelector('#smName').value.trim(),
+      desc: overlay.querySelector('#smDesc').value.trim(),
+      prompt: overlay.querySelector('#smPrompt').value.trim(),
+    };
+    if (!data.name && !data.prompt) { showToast('请至少填写镜头名称或提示词', 'info'); return; }
+    if (!data.name) data.name = (data.shotNo ? data.shotNo + ' ' : '') + (data.scene || '镜头');
+    if (isEdit) {
+      Object.assign(shot, data);
+    } else {
+      workflow.shots.push({ id: 'shot_' + (++_shotSeq) + '_' + Date.now().toString(36), status: 'idle', nodeId: null, ...data });
+    }
+    scheduleAutosave();
+    close();
+    renderShotPanel();
+    showToast(isEdit ? '镜头已更新' : '镜头已添加', 'success');
+  };
+}
+
+function editShot(id) {
+  const s = (workflow.shots || []).find(x => x.id === id);
+  if (s) openShotModal(s);
+}
+
+function deleteShot(id) {
+  const s = (workflow.shots || []).find(x => x.id === id);
+  if (!s) return;
+  if (!confirm('确定删除镜头「' + (s.name || s.shotNo || '未命名') + '」？')) return;
+  workflow.shots = workflow.shots.filter(x => x.id !== id);
+  scheduleAutosave();
+  renderShotPanel();
+}
+
+function generateShot(id) {
+  const s = (workflow.shots || []).find(x => x.id === id);
+  if (!s) return;
+  if (!s.prompt || !s.prompt.trim()) { showToast('请先在「编辑」中填写生成提示词', 'info'); return; }
+  let node = s.nodeId ? workflow.nodes.get(s.nodeId) : null;
+  if (!node) {
+    const idx = workflow.shots.indexOf(s);
+    node = addNode('aiImage', 120 + (idx % 5) * 40, 120 + Math.floor(idx / 5) * 40);
+  }
+  s.nodeId = node.id;
+  node.title = s.name || ('镜头 ' + (s.shotNo || ''));
+  node.type = 'aiImage';
+  node.prompt = s.prompt;
+  buildNodeBody(node.el, node);
+  s.status = 'running';
+  renderShotPanel();
+  scheduleAutosave();
+  runNode(node);
+}
+
+function generateAllShots() {
+  const shots = (workflow.shots || []).filter(s => s.status !== 'running');
+  if (shots.length === 0) { showToast('没有可生成的镜头', 'info'); return; }
+  showToast('开始依次生成 ' + shots.length + ' 个镜头', 'success');
+  shots.forEach((s, i) => setTimeout(() => generateShot(s.id), i * 700));
+}
+
+function locateShotNode(id) {
+  const s = (workflow.shots || []).find(x => x.id === id);
+  if (!s || !s.nodeId) return;
+  const n = workflow.nodes.get(s.nodeId);
+  if (!n) { showToast('该镜头对应的节点已不存在', 'info'); return; }
+  selectNode(n);
+  const z = workflow.camera.zoom || 1;
+  workflow.camera.x = (window.innerWidth / 2) - (n.x + n.width / 2) * z;
+  workflow.camera.y = (window.innerHeight / 2) - (n.y + n.height / 2) * z;
+  applyTransform();
+}
+
+function syncShotStatus(node) {
+  if (!node || !workflow.shots) return;
+  let changed = false;
+  for (const s of workflow.shots) {
+    if (s.nodeId === node.id && s.status !== node.status) { s.status = node.status; changed = true; }
+  }
+  if (changed) scheduleAutosave();
+}
+
+(function wireShots() {
+  const list = document.getElementById('shotList');
+  if (list) {
+    list.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-id');
+      const act = btn.getAttribute('data-act');
+      if (act === 'gen') generateShot(id);
+      else if (act === 'edit') editShot(id);
+      else if (act === 'del') deleteShot(id);
+      else if (act === 'locate') locateShotNode(id);
+    });
+  }
+  const add = document.getElementById('btnAddShot'); if (add) add.onclick = addShot;
+  const all = document.getElementById('btnGenerateAllShots'); if (all) all.onclick = generateAllShots;
+  const closeBtn = document.getElementById('shotClose'); if (closeBtn) closeBtn.onclick = () => toggleShotPanel(false);
+  const ov = document.getElementById('shotOverlay'); if (ov) ov.onclick = () => toggleShotPanel(false);
+  const tb = document.getElementById('btnShots'); if (tb) tb.onclick = () => toggleShotPanel();
+})();
+
+
 // —— 素材分类（角色/道具/场景/通用）+ 引用令牌（蒸馏自 Hell Grind）——
 const ASSET_CATS_KEY = 'flowcraft:assetCats:v1';
+// 资产元数据：{ [assetKey]: { name, cat, lock } } —— 名称即引用令牌 <<<name>>>
+const ASSET_META_KEY = 'flowcraft:assetMeta:v1';
 let _assetCatFilter = '';
 
+function loadAssetMeta() {
+  let meta = {};
+  try { meta = JSON.parse(localStorage.getItem(ASSET_META_KEY)) || {}; } catch (e) { meta = {}; }
+  // 兼容迁移：旧版仅存分类，首次读取时并入元数据
+  let cats = {};
+  try { cats = JSON.parse(localStorage.getItem(ASSET_CATS_KEY)) || {}; } catch (e) { cats = {}; }
+  let changed = false;
+  Object.keys(cats).forEach(k => {
+    if (!meta[k]) { meta[k] = { name: '', cat: cats[k] || '', lock: '' }; changed = true; }
+    else if (!meta[k].cat && cats[k]) { meta[k].cat = cats[k]; changed = true; }
+  });
+  if (changed) { try { localStorage.setItem(ASSET_META_KEY, JSON.stringify(meta)); } catch (e) {} }
+  return meta;
+}
+
+function persistAssetMeta(meta) {
+  try { localStorage.setItem(ASSET_META_KEY, JSON.stringify(meta)); } catch (e) {}
+  // 双写分类表，保持旧数据/旧校验脚本可读
+  const cats = {};
+  Object.keys(meta).forEach(k => { if (meta[k] && meta[k].cat) cats[k] = meta[k].cat; });
+  try { localStorage.setItem(ASSET_CATS_KEY, JSON.stringify(cats)); } catch (e) {}
+}
+
+function getAssetMeta(key) {
+  const m = loadAssetMeta()[key];
+  return { name: (m && m.name) || '', cat: (m && m.cat) || '', lock: (m && m.lock) || '' };
+}
+
+// 写入资产元数据（patch 合并；三项全空则删除该条目）
+function setAssetMeta(key, patch) {
+  const meta = loadAssetMeta();
+  const cur = meta[key] || { name: '', cat: '', lock: '' };
+  const next = {
+    name: patch.name !== undefined ? String(patch.name || '').trim() : cur.name,
+    cat: patch.cat !== undefined ? String(patch.cat || '') : cur.cat,
+    lock: patch.lock !== undefined ? String(patch.lock || '').trim() : cur.lock
+  };
+  if (!next.name && !next.cat && !next.lock) delete meta[key];
+  else meta[key] = next;
+  persistAssetMeta(meta);
+  return next;
+}
+
+// 旧接口保留：仅改分类
 function loadAssetCats() {
-  try { return JSON.parse(localStorage.getItem(ASSET_CATS_KEY)) || {}; } catch (e) { return {}; }
+  const meta = loadAssetMeta();
+  const out = {};
+  Object.keys(meta).forEach(k => { if (meta[k] && meta[k].cat) out[k] = meta[k].cat; });
+  return out;
 }
 
 function saveAssetCat(key, cat) {
-  const m = loadAssetCats();
-  if (cat) m[key] = cat; else delete m[key];
-  try { localStorage.setItem(ASSET_CATS_KEY, JSON.stringify(m)); } catch (e) {}
+  setAssetMeta(key, { cat: cat });
 }
 
 function assetKey(a) {
   return String(a.nodeId || '') + '|' + String(a.kind || '') + '|' + String(a.label || '');
 }
 
+// 资产显示名 = 自定义名称 ‖ 节点标题（重名自动编号）——这个名字就是引用令牌
+function assetNameMap(assets) {
+  const meta = loadAssetMeta();
+  const used = new Map();
+  const out = {};
+  (assets || []).forEach(a => {
+    const k = assetKey(a);
+    const custom = ((meta[k] && meta[k].name) || '').trim();
+    if (custom) { out[k] = custom; return; }
+    let base = String(a.nodeTitle || a.label || '资产').trim() || '资产';
+    const c = (used.get(base) || 0) + 1;
+    used.set(base, c);
+    out[k] = c > 1 ? base + ' ' + c : base;
+  });
+  return out;
+}
+
+function assetDisplayName(a) {
+  const all = collectAssets();
+  const map = assetNameMap(all);
+  return map[assetKey(a)] || String(a.nodeTitle || a.label || '资产');
+}
+
 function copyRefToken(label) {
   const token = '<<<' + label + '>>>';
-  const ok = () => showToast('已复制引用令牌 ' + token, 'success');
+  const ok = () => showToast('已复制引用令牌 ' + token + '，粘贴进提示词即可自动带图', 'success');
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(token).then(ok).catch(() => { fallbackCopyText(token); ok(); });
   } else { fallbackCopyText(token); ok(); }
@@ -4978,6 +5976,103 @@ function renderAssetFilterChips() {
   wrap.querySelectorAll('.asset-filter-chip').forEach(ch => {
     ch.classList.toggle('active', ch.getAttribute('data-cat') === _assetCatFilter);
   });
+}
+
+//================ 4i. 引用令牌解析：<<<名称>>> → 真实参考图 ================
+// 提示词里写 <<<ROCO>>>，生成时自动在素材库找到同名资产，把它的图片作为参考图随请求发送。
+// 令牌本身保留在提示词中（模型据此对应第几张参考图）。
+
+const REF_TOKEN_PATTERN = '<<<\\s*([^<>]{1,60}?)\\s*>>>';
+
+// 提取提示词中的全部令牌名（保序去重，忽略大小写重复）
+function parseRefTokens(text) {
+  const out = [];
+  if (!text) return out;
+  const seen = new Set();
+  const re = new RegExp(REF_TOKEN_PATTERN, 'g');
+  let m;
+  while ((m = re.exec(String(text))) !== null) {
+    const name = String(m[1] || '').trim();
+    if (!name) continue;
+    const k = name.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(name);
+  }
+  return out;
+}
+
+function refCatEnglish(c) {
+  return ({ '角色': 'character', '道具': 'prop', '场景': 'scene' })[c] || 'asset';
+}
+
+// 建立"名称 → 资产"索引：资产名优先，节点标题 / 端口标签兜底
+function buildAssetRefIndex() {
+  const all = collectAssets();
+  const nameMap = assetNameMap(all);
+  const index = new Map();
+  all.forEach(a => {
+    const k = assetKey(a);
+    const nm = nameMap[k];
+    if (nm && !index.has(nm.toLowerCase())) index.set(nm.toLowerCase(), { asset: a, key: k, name: nm });
+  });
+  all.forEach(a => {
+    const k = assetKey(a);
+    [a.nodeTitle, a.label].forEach(x => {
+      const s = String(x || '').trim();
+      if (s && !index.has(s.toLowerCase())) index.set(s.toLowerCase(), { asset: a, key: k, name: s });
+    });
+  });
+  return index;
+}
+
+// 解析结果：{ tokens, refs[{token,name,src,cat,lock,nodeId}], missing, images, prompt, augmented }
+function resolveRefTokens(prompt) {
+  const text = String(prompt || '');
+  const result = { tokens: [], refs: [], missing: [], images: [], prompt: text, augmented: text };
+  result.tokens = parseRefTokens(text);
+  if (!result.tokens.length) return result;
+  let index, meta;
+  try { index = buildAssetRefIndex(); meta = loadAssetMeta(); } catch (e) { return result; }
+  result.tokens.forEach(t => {
+    const hit = index.get(t.toLowerCase());
+    const src = hit && hit.asset && hit.asset.src;
+    if (hit && typeof src === 'string' && src.indexOf('data:') === 0) {
+      const m = meta[hit.key] || {};
+      result.refs.push({
+        token: t, name: hit.name, src: src,
+        cat: m.cat || '', lock: m.lock || '', nodeId: hit.asset.nodeId
+      });
+      result.images.push(src);
+    } else {
+      result.missing.push(t);
+    }
+  });
+  result.augmented = buildRefAugmentedPrompt(result);
+  return result;
+}
+
+// 在原提示词后追加"令牌 → 第几张参考图"的映射说明与锁定描述（原令牌原样保留）
+function buildRefAugmentedPrompt(r) {
+  if (!r || !r.refs || !r.refs.length) return r ? r.prompt : '';
+  const lines = [r.prompt, '', 'Reference assets (attached images — keep them strictly consistent):'];
+  r.refs.forEach((ref, i) => {
+    const bits = ['<<<' + ref.name + '>>> = reference image ' + (i + 1)];
+    if (ref.cat) bits.push('role: ' + refCatEnglish(ref.cat));
+    if (ref.lock) bits.push('locked description: ' + ref.lock);
+    lines.push('- ' + bits.join(' · '));
+  });
+  lines.push('Match every referenced subject exactly: same identity, outfit, colors and proportions.');
+  return lines.join('\n');
+}
+
+// 节点当前生效提示词（上游文本优先）里的引用统计，用于卡片徽标
+function nodeRefSummary(node) {
+  if (!node) return { hit: 0, missing: 0, names: [] };
+  const text = (node.effectivePrompt || node.prompt || '');
+  if (!text || text.indexOf('<<<') < 0) return { hit: 0, missing: 0, names: [] };
+  const r = resolveRefTokens(text);
+  return { hit: r.refs.length, missing: r.missing.length, names: r.refs.map(x => x.name), missingNames: r.missing };
 }
 
 //================ 4e. Toast 轻提示 ================
@@ -5034,16 +6129,18 @@ function describeNodeParams(node) {
 }
 function logRun(node, success, durationMs, errorMsg) {
   const def = NODE_TYPES[node.type] || {};
-  const entry = {
-    t: Date.now(),
-    type: node.type,
-    title: node.title || def.label || node.type,
-    model: (node.params && node.params.model) || '',
-    desc: describeNodeParams(node),
-    duration: Math.max(0, Math.round(durationMs || 0)),
-    status: success ? 'success' : 'error',
-    error: success ? '' : (errorMsg || '未知错误')
-  };
+    const entry = {
+      t: Date.now(),
+      type: node.type,
+      title: node.title || def.label || node.type,
+      model: (node.params && node.params.model) || '',
+      desc: describeNodeParams(node),
+      duration: Math.max(0, Math.round(durationMs || 0)),
+      status: success ? 'success' : 'error',
+      error: success ? '' : (errorMsg || '未知错误'),
+      // 仅持久化 http(s) 缩略图（ComfyUI 的 /view 链接），避免 localStorage 被大体积 dataURL 撑爆
+      thumb: (success && typeof node.thumb === 'string' && node.thumb.startsWith('http')) ? node.thumb : ''
+    };
   const list = loadRunLog();
   list.unshift(entry);
   saveRunLog(list);
@@ -5068,11 +6165,14 @@ function renderRunLog() {
     const ss = String(time.getSeconds()).padStart(2, '0');
     const dur = e.duration >= 1000 ? (e.duration / 1000).toFixed(1) + 's' : e.duration + 'ms';
     const errHtml = e.status === 'error' ? '<div class="rl-err">' + escapeHtml(e.error || '失败') + '</div>' : '';
+    const thumbHtml = e.thumb ? '<img class="rl-thumb" src="' + escapeHtml(e.thumb) + '" alt="">' : '';
+    const saveBtn = (e.status === 'success' && e.thumb) ? '<button class="rl-save" data-thumb="' + escapeHtml(e.thumb) + '">存为素材</button>' : '';
     return '<div class="rl-item ' + e.status + '">' +
+      (thumbHtml ? '<div class="rl-thumb-wrap">' + thumbHtml + '</div>' : '') +
       '<div class="rl-row1"><span class="rl-title">' + escapeHtml(e.title) + '</span>' +
       '<span class="rl-status ' + e.status + '">' + (e.status === 'success' ? '成功' : '失败') + '</span></div>' +
       '<div class="rl-row2">' + escapeHtml(e.desc || '') + '</div>' + errHtml +
-      '<div class="rl-row3"><span>' + hh + ':' + mm + ':' + ss + '</span><span>' + dur + '</span></div>' +
+      '<div class="rl-row3"><span>' + hh + ':' + mm + ':' + ss + '</span><span>' + dur + '</span>' + (saveBtn ? '<span class="rl-save-wrap">' + saveBtn + '</span>' : '') + '</div>' +
       '</div>';
   }).join('');
 }
@@ -5377,6 +6477,13 @@ function buildSidebar() {
   ['upscale', 'compare', 'videoBreak', 'material', 'light', 'layout', 'loop'].forEach(type => {
     list.appendChild(createLibraryItem(type));
   });
+
+  // 本地部署
+  const localLabel = document.createElement('div');
+  localLabel.className = 'sidebar-section-label';
+  localLabel.textContent = '本地部署';
+  list.appendChild(localLabel);
+  list.appendChild(createLibraryItem('comfyui'));
 
   // 输出类
   const outputLabel = document.createElement('div');
@@ -5747,7 +6854,8 @@ function closePromptLibrary() {
 
 function openPromptLibrary(node, el, btn) {
   closePromptLibrary();
-  const cats = ['🎬 导演模板'].concat(Object.keys(PROMPT_LIBRARY));
+  const FORM_TABS = ['🎬 导演模板', '🧬 角色设定'];
+  const cats = FORM_TABS.concat(Object.keys(PROMPT_LIBRARY));
   const pop = document.createElement('div');
   pop.className = 'prompt-lib-pop';
   pop.innerHTML =
@@ -5768,12 +6876,14 @@ function openPromptLibrary(node, el, btn) {
 
   function renderList(q) {
     if (_promptLibState.cat === '🎬 导演模板') { renderDirectorForm(); return; }
+    if (_promptLibState.cat === '🧬 角色设定') { renderCharacterForm(); return; }
     listEl.style.display = '';
     const kw = (q || '').trim();
     let words;
     if (kw) {
       words = [];
-      cats.forEach(c => PROMPT_LIBRARY[c].forEach(w => { if (w.includes(kw)) words.push(w); }));
+      // 只在真实词库分类中搜索（跳过表单型标签，否则会取到 undefined）
+      Object.keys(PROMPT_LIBRARY).forEach(c => PROMPT_LIBRARY[c].forEach(w => { if (w.includes(kw)) words.push(w); }));
     } else {
       words = PROMPT_LIBRARY[_promptLibState.cat];
     }
@@ -5812,7 +6922,7 @@ function openPromptLibrary(node, el, btn) {
       _promptLibState.cat = c;
       tabsEl.querySelectorAll('.prompt-lib-tab').forEach(x => x.classList.remove('active'));
       t.classList.add('active');
-      searchInput.style.display = (c === '🎬 导演模板') ? 'none' : '';
+      searchInput.style.display = (FORM_TABS.indexOf(c) >= 0) ? 'none' : '';
       renderList(searchInput.value);
     };
     tabsEl.appendChild(t);
@@ -5878,15 +6988,50 @@ function buildDirectorPrompt(v) {
   }
   if (shots.length) L.push(shots.join('\n'));
   if (anchor) L.push('HARD CUT — [' + anchor + ']');
-  if (refs) L.push('References: ' + refs);
+  if (refs) {
+    L.push('References: ' + refs);
+    const locks = refLockLines(refs);
+    if (locks.length) {
+      L.push('ASSET LOCKS (identical in every shot):');
+      locks.forEach(x => L.push('- ' + x));
+    }
+  }
   return L.join('\n');
 }
 
+// 引用令牌 → 资产锁定描述（在素材库「设为资产」时填写）
+function refLockLines(refsText) {
+  const names = parseRefTokens(refsText);
+  if (!names.length) return [];
+  let index, meta;
+  try { index = buildAssetRefIndex(); meta = loadAssetMeta(); } catch (e) { return []; }
+  const out = [];
+  names.forEach(n => {
+    const hit = index.get(n.toLowerCase());
+    const m = hit ? (meta[hit.key] || {}) : null;
+    if (m && m.lock) out.push('<<<' + ((hit && hit.name) || n) + '>>> — ' + m.lock);
+  });
+  return out;
+}
+
+// 导演模板引用区：自动带出所有已设为「角色 / 道具」的资产令牌（按资产名称，去重）
 function directorRefsFromAssets() {
   const cats = loadAssetCats();
-  return collectAssets()
-    .filter(a => { const c = cats[assetKey(a)]; return c === '角色' || c === '道具'; })
-    .map(a => '<<<' + a.label + '>>>');
+  const all = collectAssets();
+  const nameMap = assetNameMap(all);
+  const seen = new Set();
+  const out = [];
+  all.forEach(a => {
+    const k = assetKey(a);
+    const c = cats[k];
+    if (c !== '角色' && c !== '道具') return;
+    const nm = nameMap[k] || a.nodeTitle || a.label;
+    const low = String(nm).toLowerCase();
+    if (seen.has(low)) return;
+    seen.add(low);
+    out.push('<<<' + nm + '>>>');
+  });
+  return out;
 }
 
 function renderDirectorForm() {
@@ -5932,14 +7077,110 @@ function renderDirectorForm() {
   if (countEl) countEl.textContent = '导演模板 · 多镜头序列';
 }
 
-function insertDirectorPrompt(text) {
+function insertDirectorPrompt(text, silent) {
   const n = _promptLibState.node;
   if (!n) return;
   n.prompt = text;
   const ta = _promptLibState.el.querySelector('.node-textarea');
   if (ta) ta.value = text;
   scheduleAutosave();
-  showToast('已插入导演模板提示词', 'success');
+  // 重建卡片，让「已引用 N 个资产」徽标立即反映新提示词里的令牌
+  if (n.el) { try { buildNodeBody(n.el, n); } catch (e) {} }
+  if (!silent) showToast('已插入导演模板提示词', 'success');
+}
+
+// —— 角色设定表：CHARACTER DESIGN PROMPT（资产先行的第一步）——
+function buildCharacterPrompt(v) {
+  const name = ((v && v.name) || 'UNNAMED').trim() || 'UNNAMED';
+  const style = ((v && v.style) || 'photoreal cinematic character design').trim();
+  const views = (v && v.views) || 'front, 3/4, side, back';
+  const aspect = (v && v.aspect) || '16:9';
+  const res = (v && v.res) || '4K';
+  const rows = [
+    ['Species / Type', (v && v.species) || ''],
+    ['Age & build', (v && v.build) || ''],
+    ['Face', (v && v.face) || ''],
+    ['Hair', (v && v.hair) || ''],
+    ['Outfit', (v && v.outfit) || ''],
+    ['Palette', (v && v.palette) || ''],
+    ['Signature props', (v && v.props) || ''],
+    ['Personality read', (v && v.personality) || '']
+  ].filter(r => String(r[1]).trim());
+  const locks = String((v && v.locks) || '').split('\n').map(s => s.trim()).filter(Boolean);
+  const L = [];
+  L.push('CHARACTER DESIGN SHEET — ' + name);
+  L.push(style + '. One single consistent character, neutral studio backdrop.');
+  L.push('Views in one image: ' + views + ' — same scale, same lighting, feet aligned on one baseline.');
+  if (rows.length) {
+    L.push('');
+    L.push('IDENTITY');
+    L.push('- Name: ' + name);
+    rows.forEach(r => L.push('- ' + r[0] + ': ' + String(r[1]).trim()));
+  }
+  L.push('');
+  L.push('LOCKED DETAILS (must stay identical in every future shot)');
+  if (locks.length) locks.forEach(x => L.push('- ' + x));
+  else L.push('- Same face, same outfit, same palette, same props in every shot.');
+  L.push('');
+  L.push('RENDER SPEC');
+  L.push('- ' + aspect + ' · ' + res + ' · soft key + fill light, no harsh shadows, neutral grey background');
+  L.push('- No text, no watermark, no logo, no extra characters, no cropped limbs');
+  return L.join('\n');
+}
+
+function renderCharacterForm() {
+  const listEl = _promptLibState.pop.querySelector('.prompt-lib-list');
+  const countEl = _promptLibState.pop.querySelector('.prompt-lib-count');
+  listEl.style.display = 'block';
+  listEl.innerHTML =
+    '<div class="dir-form">' +
+      '<div><div class="df-label">角色名（出图后用它做资产名，引用令牌就是 &lt;&lt;&lt;角色名&gt;&gt;&gt;）</div><input class="df-input" id="char-name" placeholder="例如：ROCO" /></div>' +
+      '<div><div class="df-label">风格</div><input class="df-input" id="char-style" placeholder="photoreal cinematic / anime key visual / 3D stylized..." /></div>' +
+      '<div class="df-row">' +
+        '<div><div class="df-label">视图</div><select class="df-select" id="char-views">' +
+          '<option selected>front, 3/4, side, back</option><option>front, side, back</option>' +
+          '<option>front, 3/4, side, back + expression sheet (6 faces)</option>' +
+          '<option>front, back + hands close-up + prop close-up</option></select></div>' +
+        '<div><div class="df-label">画幅</div><select class="df-select" id="char-aspect"><option selected>16:9</option><option>1:1</option><option>4:3</option><option>9:16</option></select></div>' +
+        '<div><div class="df-label">清晰度</div><select class="df-select" id="char-res"><option selected>4K</option><option>8K</option></select></div>' +
+      '</div>' +
+      '<div class="df-row">' +
+        '<div><div class="df-label">物种/类型</div><input class="df-input" id="char-species" placeholder="human / android / beast..." /></div>' +
+        '<div><div class="df-label">年龄与体型</div><input class="df-input" id="char-build" placeholder="late 20s, lean athletic" /></div>' +
+      '</div>' +
+      '<div class="df-row">' +
+        '<div><div class="df-label">面部</div><input class="df-input" id="char-face" placeholder="scar over left brow, amber eyes" /></div>' +
+        '<div><div class="df-label">发型</div><input class="df-input" id="char-hair" placeholder="silver undercut, tied back" /></div>' +
+      '</div>' +
+      '<div><div class="df-label">服装</div><textarea class="df-textarea" id="char-outfit" rows="2" placeholder="worn red hooded coat, black tactical pants, leather boots"></textarea></div>' +
+      '<div class="df-row">' +
+        '<div><div class="df-label">配色</div><input class="df-input" id="char-palette" placeholder="crimson / charcoal / bone white" /></div>' +
+        '<div><div class="df-label">标志道具</div><input class="df-input" id="char-props" placeholder="chipped crystal sword" /></div>' +
+      '</div>' +
+      '<div><div class="df-label">性格气质</div><input class="df-input" id="char-personality" placeholder="quiet, exhausted, unbreakable" /></div>' +
+      '<div><div class="df-label">🔒 锁定细节（每行一条，后续所有镜头都必须一致）</div><textarea class="df-textarea" id="char-locks" rows="3" placeholder="Always the red hood up.&#10;Sword always chipped at the tip."></textarea></div>' +
+      '<div class="df-actions">' +
+        '<button class="df-btn" id="char-insert" type="button">生成并插入</button>' +
+        '<button class="df-btn ghost" id="char-copy" type="button">复制</button>' +
+        '<button class="df-btn ghost" id="char-token" type="button">复制引用令牌</button>' +
+      '</div>' +
+    '</div>';
+  function val(id) { const el = listEl.querySelector(id); return el ? el.value : ''; }
+  const read = () => ({
+    name: val('#char-name'), style: val('#char-style'), views: val('#char-views'),
+    aspect: val('#char-aspect'), res: val('#char-res'), species: val('#char-species'),
+    build: val('#char-build'), face: val('#char-face'), hair: val('#char-hair'),
+    outfit: val('#char-outfit'), palette: val('#char-palette'), props: val('#char-props'),
+    personality: val('#char-personality'), locks: val('#char-locks')
+  });
+  listEl.querySelector('#char-insert').onclick = () => {
+    insertDirectorPrompt(buildCharacterPrompt(read()), true);
+    const nm = (val('#char-name') || '').trim();
+    showToast('已插入角色设定提示词' + (nm ? '。出图后到素材库把它「设为资产」，名称填 ' + nm + '，之后写 <<<' + nm + '>>> 就能自动带图' : ''), 'success', 5200);
+  };
+  listEl.querySelector('#char-copy').onclick = () => copyDirectorPrompt(buildCharacterPrompt(read()));
+  listEl.querySelector('#char-token').onclick = () => copyRefToken((val('#char-name') || 'UNNAMED').trim() || 'UNNAMED');
+  if (countEl) countEl.textContent = '角色设定 · CHARACTER DESIGN SHEET';
 }
 
 function copyDirectorPrompt(text) {
@@ -6079,12 +7320,30 @@ function buildNodeBody(el, node) {
           upTag.textContent = '↑ 上游提示词';
           promptArea.appendChild(upTag);
         }
+        // 资产引用徽标：提示词里的 <<<名称>>> 命中素材库资产时显示，生成时会带上参考图
+        const refBadge = document.createElement('div');
+        refBadge.className = 'node-ref-badge';
+        refBadge.style.display = 'none';
+        const refreshRefBadge = () => {
+          let rs = { hit: 0, missing: 0, names: [], missingNames: [] };
+          try { rs = nodeRefSummary(node); } catch (e) {}
+          if (!rs.hit && !rs.missing) { refBadge.style.display = 'none'; return; }
+          refBadge.style.display = '';
+          refBadge.classList.toggle('has-missing', rs.missing > 0);
+          refBadge.textContent = '🔗 已引用 ' + rs.hit + ' 个资产' + (rs.missing ? ' · ' + rs.missing + ' 个未找到' : '');
+          const tips = [];
+          if (rs.names && rs.names.length) tips.push('命中：' + rs.names.join('、'));
+          if (rs.missingNames && rs.missingNames.length) tips.push('未找到：' + rs.missingNames.join('、') + '（去素材库「设为资产」并填名称）');
+          refBadge.title = tips.join('\n');
+        };
+        refreshRefBadge();
+        promptArea.appendChild(refBadge);
         const textarea = document.createElement('textarea');
         textarea.className = 'node-textarea';
         textarea.placeholder = '输入提示词...';
         textarea.value = node.prompt;
         textarea.rows = 2;
-        textarea.oninput = (e) => { node.prompt = e.target.value; scheduleAutosave(); };
+        textarea.oninput = (e) => { node.prompt = e.target.value; scheduleAutosave(); refreshRefBadge(); };
         textarea.onmousedown = (e) => e.stopPropagation();
         promptArea.appendChild(textarea);
         thumbRow.appendChild(promptArea);
@@ -6263,6 +7522,8 @@ function buildNodeBody(el, node) {
     loopBody.appendChild(hint);
 
     body = loopBody;
+  } else if (node.type === 'comfyui') {
+    body = renderComfyNodeBody(node);
   } else if (node.type === 'save') {
     // 保存节点：预览输入内容 + 填写文件名 + 触发本地下载
     const saveBody = document.createElement('div');
@@ -6789,6 +8050,10 @@ function updateNodeStatus(node) {
       runBtn.classList.remove('running');
     }
   }
+
+  // 镜头清单：同步对应镜头的生成状态并刷新面板
+  syncShotStatus(node);
+  refreshShotPanelIfOpen();
 }
 
 //================ 8. 节点 CRUD ================
@@ -7279,11 +8544,17 @@ function handleShortcutsRecording(e) {
 let panning = false;
 let panStart = null;
 let isSpacePressed = false;
+let selDragStart = null;     // 框选起点（视口坐标）
+let isBoxSelecting = false;  // 是否正在框选
+let rubberEl = null;         // 橡皮筋矩形 DOM
 
 canvasWrap.addEventListener('mousedown', (e) => {
   const isOnNode = e.target.closest('.node');
   const isOnPort = e.target.closest('.node-port');
   if (isOnNode || isOnPort) return;
+  // UI 控件（AI 面板/按钮/输入框等，多为 canvasWrap 子元素且事件会冒泡上来）直接放行，
+  // 避免误触发框选逻辑、尤其 preventDefault 会冻结焦点导致快捷键失效
+  if (e.target.closest('.ai-panel, .context-menu, .modal, .minimap, button, input, textarea, select, a, label, [contenteditable="true"], [role="button"]')) return;
 
   // 空格键 或 中键 → 平移
   if (e.button === 1 || (isSpacePressed && e.button === 0)) {
@@ -7292,12 +8563,9 @@ canvasWrap.addEventListener('mousedown', (e) => {
     canvasWrap.classList.add('panning');
     e.preventDefault();
   } else if (e.button === 0) {
-    // 点击空白 → 取消选中
-    workflow.selection.forEach(id => {
-      const n = workflow.nodes.get(id);
-      if (n && n.el) n.el.classList.remove('selected');
-    });
-    workflow.selection.clear();
+    // 空白左键按下：记录起点，松开时再判定是“单击清除”还是“框选”
+    selDragStart = { x: e.clientX, y: e.clientY };
+    e.preventDefault();
   }
 });
 
@@ -7307,14 +8575,62 @@ window.addEventListener('mousemove', (e) => {
     workflow.camera.y = panStart.camY + (e.clientY - panStart.y);
     applyTransform();
     markEdgesDirty();
+  } else if (selDragStart && !(typeof connecting !== 'undefined' && connecting)) {
+    const dx = e.clientX - selDragStart.x;
+    const dy = e.clientY - selDragStart.y;
+    if (Math.hypot(dx, dy) > 5) {
+      isBoxSelecting = true;
+      if (!rubberEl) {
+        rubberEl = document.createElement('div');
+        rubberEl.className = 'rubber-band';
+        document.body.appendChild(rubberEl);
+      }
+      const left = Math.min(selDragStart.x, e.clientX);
+      const top = Math.min(selDragStart.y, e.clientY);
+      rubberEl.style.left = left + 'px';
+      rubberEl.style.top = top + 'px';
+      rubberEl.style.width = Math.abs(dx) + 'px';
+      rubberEl.style.height = Math.abs(dy) + 'px';
+    }
   }
 });
 
-window.addEventListener('mouseup', () => {
+window.addEventListener('mouseup', (e) => {
   if (panning) {
     panning = false;
     panStart = null;
     canvasWrap.classList.remove('panning');
+  }
+  if (isBoxSelecting) {
+    const band = rubberEl.getBoundingClientRect();
+    const additive = !!(e && e.shiftKey);
+    if (!additive) {
+      workflow.selection.forEach(id => {
+        const n = workflow.nodes.get(id);
+        if (n && n.el) n.el.classList.remove('selected');
+      });
+      workflow.selection.clear();
+    }
+    workflow.nodes.forEach(node => {
+      if (!node.el) return;
+      const nr = node.el.getBoundingClientRect();
+      if (nr.left < band.right && nr.right > band.left && nr.top < band.bottom && nr.bottom > band.top) {
+        workflow.selection.add(node.id);
+        node.el.classList.add('selected');
+      }
+    });
+    if (rubberEl && rubberEl.parentNode) rubberEl.parentNode.removeChild(rubberEl);
+    rubberEl = null;
+    isBoxSelecting = false;
+    selDragStart = null;
+  } else if (selDragStart) {
+    // 单击空白（未拖动）→ 清除选中
+    workflow.selection.forEach(id => {
+      const n = workflow.nodes.get(id);
+      if (n && n.el) n.el.classList.remove('selected');
+    });
+    workflow.selection.clear();
+    selDragStart = null;
   }
 });
 
@@ -8645,6 +9961,368 @@ function computeNodeOutput(node) {
 }
 
 // 异步执行单节点：收集输入 → 计算输出 → 刷新卡片
+//================ 4i. ComfyUI 节点（浏览器直连本地 ComfyUI） ================
+// 内置工作流模板（标准 ComfyUI API 格式）。build(values) 返回 {nodeId:{class_type,inputs,_meta}}。
+function comfyNum(v, d) { const n = parseFloat(v); return isNaN(n) ? d : n; }
+function comfyInt(v, d) { const n = parseInt(v); return isNaN(n) ? d : n; }
+function comfySeed(v) { const n = parseInt(v); return (isNaN(n) || n < 0) ? Math.floor(Math.random() * 4294967295) : n; }
+
+const COMFY_WORKFLOWS = {
+  txt2img: {
+    label: '文生图 (SDXL)',
+    fields: [
+      { key:'prompt', label:'提示词', type:'textarea', default:'(masterpiece, best quality), 1girl, sunny day' },
+      { key:'negative', label:'负面提示词', type:'text', default:'lowres, bad anatomy, worst quality' },
+      { key:'seed', label:'种子 (-1=随机)', type:'number', default:-1, min:-1, max:4294967295 },
+      { key:'steps', label:'采样步数', type:'slider', default:25, min:1, max:80 },
+      { key:'cfg', label:'CFG 权重', type:'slider', default:7, min:1, max:20, step:0.5 },
+      { key:'width', label:'宽', type:'number', default:1024, min:64, max:2048 },
+      { key:'height', label:'高', type:'number', default:1024, min:64, max:2048 },
+    ],
+    build(v) {
+      return {
+        "3": { class_type:"KSampler", inputs:{ seed:comfySeed(v.seed), steps:comfyInt(v.steps,25), cfg:comfyNum(v.cfg,7), sampler_name:"euler", scheduler:"normal", denoise:1, model:["4",0], positive:["6",0], negative:["7",0], latent_image:["5",0] }, _meta:{title:"采样"} },
+        "4": { class_type:"CheckpointLoaderSimple", inputs:{ ckpt_name:"sd_xl_base_1.0.safetensors" }, _meta:{title:"载入模型"} },
+        "5": { class_type:"EmptyLatentImage", inputs:{ width:comfyInt(v.width,1024), height:comfyInt(v.height,1024), batch_size:1 }, _meta:{title:"空白潜空间"} },
+        "6": { class_type:"CLIPTextEncode", inputs:{ text:String(v.prompt||''), clip:["4",1] }, _meta:{title:"正向提示词"} },
+        "7": { class_type:"CLIPTextEncode", inputs:{ text:String(v.negative||''), clip:["4",1] }, _meta:{title:"负向提示词"} },
+        "8": { class_type:"VAEDecode", inputs:{ samples:["3",0], vae:["4",2] }, _meta:{title:"VAE 解码"} },
+        "9": { class_type:"SaveImage", inputs:{ images:["8",0] }, _meta:{title:"保存图像"} },
+      };
+    }
+  },
+  img2img: {
+    label: '图生图 (SDXL)',
+    inputs: [{ node:"10", input:"image", portType:"image" }],
+    fields: [
+      { key:'prompt', label:'提示词', type:'textarea', default:'(masterpiece), 1girl' },
+      { key:'negative', label:'负面提示词', type:'text', default:'lowres' },
+      { key:'denoise', label:'重绘幅度', type:'slider', default:0.6, min:0, max:1, step:0.05 },
+      { key:'seed', label:'种子 (-1=随机)', type:'number', default:-1, min:-1, max:4294967295 },
+      { key:'steps', label:'采样步数', type:'slider', default:25, min:1, max:80 },
+      { key:'cfg', label:'CFG 权重', type:'slider', default:7, min:1, max:20, step:0.5 },
+    ],
+    build(v) {
+      return {
+        "10": { class_type:"LoadImage", inputs:{ image:"__COMFY_INPUT__" }, _meta:{title:"载入图像"} },
+        "3": { class_type:"KSampler", inputs:{ seed:comfySeed(v.seed), steps:comfyInt(v.steps,25), cfg:comfyNum(v.cfg,7), sampler_name:"euler", scheduler:"normal", denoise:comfyNum(v.denoise,0.6), model:["4",0], positive:["6",0], negative:["7",0], latent_image:["12",0] }, _meta:{title:"采样"} },
+        "4": { class_type:"CheckpointLoaderSimple", inputs:{ ckpt_name:"sd_xl_base_1.0.safetensors" }, _meta:{title:"载入模型"} },
+        "11": { class_type:"VAELoader", inputs:{ vae_name:"ae.safetensors" }, _meta:{title:"载入 VAE"} },
+        "12": { class_type:"VAEEncode", inputs:{ pixels:["10",0], vae:["11",0] }, _meta:{title:"VAE 编码"} },
+        "6": { class_type:"CLIPTextEncode", inputs:{ text:String(v.prompt||''), clip:["4",1] }, _meta:{title:"正向提示词"} },
+        "7": { class_type:"CLIPTextEncode", inputs:{ text:String(v.negative||''), clip:["4",1] }, _meta:{title:"负向提示词"} },
+        "8": { class_type:"VAEDecode", inputs:{ samples:["3",0], vae:["11",0] }, _meta:{title:"VAE 解码"} },
+        "9": { class_type:"SaveImage", inputs:{ images:["8",0] }, _meta:{title:"保存图像"} },
+      };
+    }
+  },
+  upscale: {
+    label: '超清放大',
+    inputs: [{ node:"10", input:"image", portType:"image" }],
+    fields: [
+      { key:'scale', label:'放大倍数', type:'slider', default:2, min:1.5, max:4, step:0.5 },
+      { key:'method', label:'算法', type:'dropdown', options:['lanczos','bilinear','bicubic'], default:'lanczos' },
+    ],
+    build(v) {
+      return {
+        "10": { class_type:"LoadImage", inputs:{ image:"__COMFY_INPUT__" }, _meta:{title:"载入图像"} },
+        "20": { class_type:"ImageScaleBy", inputs:{ image:["10",0], scale_by:comfyNum(v.scale,2), method:String(v.method||'lanczos') }, _meta:{title:"放大"} },
+        "9": { class_type:"SaveImage", inputs:{ images:["20",0] }, _meta:{title:"保存图像"} },
+      };
+    }
+  },
+  custom: {
+    label: '自定义 JSON',
+    custom: true,
+    fields: [
+      { key:'json', label:'ComfyUI 工作流 JSON', type:'textarea', default:'{\n  "3": { "class_type":"KSampler", "inputs":{ "seed":0, "steps":20, "cfg":7, "sampler_name":"euler", "scheduler":"normal", "denoise":1, "model":["4",0], "positive":["6",0], "negative":["7",0], "latent_image":["5",0] }, "_meta":{ "title":"采样" } },\n  "4": { "class_type":"CheckpointLoaderSimple", "inputs":{ "ckpt_name":"sd_xl_base_1.0.safetensors" }, "_meta":{ "title":"载入模型" } },\n  "5": { "class_type":"EmptyLatentImage", "inputs":{ "width":1024, "height":1024, "batch_size":1 }, "_meta":{ "title":"空白潜空间" } },\n  "6": { "class_type":"CLIPTextEncode", "inputs":{ "text":"beautiful scenery", "clip":["4",1] }, "_meta":{ "title":"正向" } },\n  "7": { "class_type":"CLIPTextEncode", "inputs":{ "text":"", "clip":["4",1] }, "_meta":{ "title":"负向" } },\n  "8": { "class_type":"VAEDecode", "inputs":{ "samples":["3",0], "vae":["4",2] }, "_meta":{ "title":"VAE 解码" } },\n  "9": { "class_type":"SaveImage", "inputs":{ "images":["8",0] }, "_meta":{ "title":"保存图像" } }\n}' },
+    ],
+    build(v) {
+      try { return JSON.parse(String(v.json||'{}')); }
+      catch (e) { throw new Error('自定义 JSON 解析失败：' + e.message); }
+    }
+  }
+};
+
+function comfyGetInputImage(node) {
+  const list = (node.inputsData || []).filter(d => d && d.type === 'image' && typeof d.value === 'string' && d.value.startsWith('data:'));
+  return list.length ? list[0].value : null;
+}
+
+async function comfyUploadImage(addr, dataUrl) {
+  try {
+    const comma = dataUrl.indexOf(',');
+    const meta = dataUrl.slice(0, comma);
+    const b64 = dataUrl.slice(comma + 1);
+    const mime = (meta.match(/data:([^;]+)/) || [,'image/png'])[1];
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    const blob = new Blob([arr], { type: mime });
+    const fd = new FormData();
+    fd.append('image', blob, 'flowcraft_in.png');
+    const r = await fetch(addr + '/upload/image', { method:'POST', body: fd });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j.name || null;
+  } catch (e) { return null; }
+}
+
+function comfyExtractImages(addr, historyItem) {
+  const out = [];
+  try {
+    const outs = (historyItem && historyItem.outputs) || {};
+    Object.keys(outs).forEach(k => {
+      const o = outs[k];
+      if (o && Array.isArray(o.images)) {
+        o.images.forEach(im => {
+          const sub = im.subfolder ? ('&subfolder=' + encodeURIComponent(im.subfolder)) : '';
+          const ft = im.type ? ('&type=' + encodeURIComponent(im.type)) : '&type=output';
+          out.push(addr + '/view?filename=' + encodeURIComponent(im.filename) + sub + ft);
+        });
+      }
+    });
+  } catch (e) {}
+  return out;
+}
+
+async function runComfyUINode(node) {
+  const addr = String(node.params.addr || 'http://127.0.0.1:8188').replace(/\/+$/, '');
+  const tmpl = COMFY_WORKFLOWS[node.params.wf] || COMFY_WORKFLOWS.txt2img;
+  const values = node.params.fields || {};
+  node._comfyErr = '';
+
+  // 1) 探测本地 ComfyUI 是否可达（loopback 豁免混合内容拦截）
+  let reachable = false;
+  try {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 2500);
+    const r = await fetch(addr + '/system_stats', { signal: ctrl.signal });
+    clearTimeout(to);
+    reachable = r.ok;
+  } catch (e) { reachable = false; }
+
+  if (!reachable) {
+    node.status = 'error';
+    node._comfyErr = '未检测到本地 ComfyUI 服务（' + addr + '）。请先启动 ComfyUI（建议加参数 --enable-cors-header *），再运行此节点。';
+    showToast(node._comfyErr, 'danger');
+    return false;
+  }
+
+  // 2) 构建提示词
+  let promptObj;
+  try {
+    promptObj = tmpl.build(values);
+  } catch (e) {
+    node.status = 'error';
+    node._comfyErr = 'ComfyUI 工作流构建失败：' + localizeError(e);
+    showToast(node._comfyErr, 'danger');
+    return false;
+  }
+
+  // 3) 上传输入图并注入 LoadImage
+  if (Array.isArray(tmpl.inputs)) {
+    const img = comfyGetInputImage(node);
+    const fname = img ? await comfyUploadImage(addr, img) : null;
+    tmpl.inputs.forEach(spec => {
+      if (promptObj[spec.node] && promptObj[spec.node].inputs) {
+        promptObj[spec.node].inputs[spec.input] = fname || '__COMFY_INPUT__';
+      }
+    });
+  }
+
+  // 4) 提交任务
+  const clientId = 'flowcraft-' + Math.random().toString(36).slice(2, 10);
+  let promptId;
+  try {
+    const r = await fetch(addr + '/prompt', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ prompt: promptObj, client_id: clientId })
+    });
+    if (!r.ok) {
+      let detail = '';
+      try { const ej = await r.json(); detail = JSON.stringify(ej.error || ej); } catch(_) {}
+      node.status = 'error';
+      node._comfyErr = 'ComfyUI 拒绝任务（HTTP ' + r.status + '）：' + localizeError(detail || ('HTTP ' + r.status));
+      showToast(node._comfyErr, 'danger');
+      return false;
+    }
+    const pj = await r.json();
+    promptId = pj.prompt_id;
+  } catch (e) {
+    node.status = 'error';
+    node._comfyErr = '提交 ComfyUI 任务失败：' + localizeError(e);
+    showToast(node._comfyErr, 'danger');
+    return false;
+  }
+
+  if (!promptId) {
+    node.status = 'error';
+    node._comfyErr = 'ComfyUI 未返回任务 ID';
+    showToast(node._comfyErr, 'danger');
+    return false;
+  }
+
+  // 5) 轮询历史（最长 30 分钟）
+  let historyItem = null;
+  const deadline = Date.now() + 1800000;
+  while (Date.now() < deadline) {
+    try {
+      const hr = await fetch(addr + '/history/' + promptId);
+      if (hr.ok) {
+        const hj = await hr.json();
+        if (hj[promptId]) { historyItem = hj[promptId]; break; }
+      }
+    } catch (_) {}
+    await new Promise(res => setTimeout(res, 1000));
+  }
+
+  if (!historyItem) {
+    node.status = 'error';
+    node._comfyErr = 'ComfyUI 任务超时（>30分钟）未返回结果';
+    showToast(node._comfyErr, 'danger');
+    return false;
+  }
+
+  // 解析 ComfyUI node_errors（若有）
+  if (historyItem.status && historyItem.status.status_str === 'error') {
+    let msg = 'ComfyUI 执行失败';
+    try {
+      const ne = historyItem.status.node_errors || [];
+      if (ne.length) msg = 'ComfyUI 节点错误：' + ne.map(x => (x.class_type || x.type || '节点') + ' ' + (x.message || '')).join('；');
+    } catch(_) {}
+    node.status = 'error';
+    node._comfyErr = msg;
+    showToast(node._comfyErr, 'danger');
+    return false;
+  }
+
+  // 6) 提取输出图
+  const imgs = comfyExtractImages(addr, historyItem);
+  if (!imgs.length) {
+    node.status = 'error';
+    node._comfyErr = 'ComfyUI 未返回任何图像（请确认工作流含 SaveImage 节点）';
+    showToast(node._comfyErr, 'danger');
+    return false;
+  }
+  node.thumb = imgs[0];
+  node.outputsData = imgs.map(src => ({ type:'image', value: src }));
+  return true;
+}
+
+function renderComfyNodeBody(node) {
+  const wrap = document.createElement('div');
+  wrap.className = 'node-body node-body-comfy';
+  const tmpl = COMFY_WORKFLOWS[node.params.wf] || COMFY_WORKFLOWS.txt2img;
+
+  // 地址
+  const addrRow = document.createElement('div');
+  addrRow.className = 'comfy-addr-row';
+  const addrInp = document.createElement('input');
+  addrInp.type = 'text';
+  addrInp.className = 'comfy-addr';
+  addrInp.value = node.params.addr || 'http://127.0.0.1:8188';
+  addrInp.title = 'ComfyUI 地址（本地局域网）';
+  addrInp.oninput = (e) => { node.params.addr = e.target.value.trim(); scheduleAutosave(); };
+  addrInp.onmousedown = (e) => e.stopPropagation();
+  addrRow.appendChild(addrInp);
+  wrap.appendChild(addrRow);
+
+  // 工作流选择
+  const wfRow = document.createElement('div');
+  wfRow.className = 'comfy-wf-row';
+  const wfSel = document.createElement('select');
+  wfSel.className = 'comfy-wf';
+  Object.keys(COMFY_WORKFLOWS).forEach(k => {
+    const o = document.createElement('option'); o.value = k; o.textContent = COMFY_WORKFLOWS[k].label;
+    if ((node.params.wf || 'txt2img') === k) o.selected = true;
+    wfSel.appendChild(o);
+  });
+  wfSel.onchange = (e) => {
+    node.params.wf = e.target.value;
+    node.params.fields = {};
+    if (node.el) buildNodeBody(node.el, node);
+    scheduleAutosave();
+  };
+  wfSel.onmousedown = (e) => e.stopPropagation();
+  wfRow.appendChild(wfSel);
+  wrap.appendChild(wfRow);
+
+  // 字段
+  const fieldsBox = document.createElement('div');
+  fieldsBox.className = 'comfy-fields';
+  (tmpl.fields || []).forEach(f => { fieldsBox.appendChild(comfyFieldRow(node, f)); });
+  wrap.appendChild(fieldsBox);
+
+  // 运行按钮
+  const actRow = document.createElement('div');
+  actRow.className = 'comfy-act-row';
+  const runBtn = document.createElement('button');
+  runBtn.className = 'run-btn comfy-run';
+  runBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l9 6-9 6z"/></svg> 运行';
+  runBtn.onclick = (e) => { e.stopPropagation(); runNode(node); };
+  runBtn.onmousedown = (e) => e.stopPropagation();
+  actRow.appendChild(runBtn);
+  wrap.appendChild(actRow);
+
+  // 提示
+  const hint = document.createElement('div');
+  hint.className = 'comfy-hint';
+  hint.textContent = tmpl.inputs ? '需连接上游图片节点作为输入' : '纯文本生图，无需上游输入';
+  wrap.appendChild(hint);
+
+  return wrap;
+}
+
+function comfyFieldRow(node, f) {
+  const row = document.createElement('div');
+  row.className = 'comfy-field';
+  const lab = document.createElement('label');
+  lab.className = 'comfy-field-label';
+  lab.textContent = f.label;
+  row.appendChild(lab);
+  if (!node.params.fields) node.params.fields = {};
+  const raw = node.params.fields[f.key];
+  const cur = (raw === undefined || raw === null || raw === '') ? f.default : raw;
+
+  if (f.type === 'textarea') {
+    const ta = document.createElement('textarea');
+    ta.className = 'comfy-ta'; ta.rows = 2; ta.value = String(cur);
+    ta.oninput = (e) => { node.params.fields[f.key] = e.target.value; if (f.key === 'prompt') node.prompt = e.target.value; scheduleAutosave(); };
+    ta.onmousedown = (e) => e.stopPropagation();
+    row.appendChild(ta);
+  } else if (f.type === 'dropdown') {
+    const sel = document.createElement('select'); sel.className = 'comfy-sel';
+    (f.options||[]).forEach(opt => { const o=document.createElement('option'); o.value=opt; o.textContent=opt; sel.appendChild(o); });
+    sel.value = String(cur);
+    sel.onchange = (e) => { node.params.fields[f.key] = e.target.value; scheduleAutosave(); };
+    sel.onmousedown = (e) => e.stopPropagation();
+    row.appendChild(sel);
+  } else if (f.type === 'slider') {
+    const rng = document.createElement('input'); rng.type='range';
+    rng.min = f.min!=null?f.min:0; rng.max = f.max!=null?f.max:100; rng.step = f.step!=null?f.step:1; rng.value = cur;
+    const out = document.createElement('span'); out.className='comfy-range-val'; out.textContent = cur;
+    rng.oninput = (e) => { out.textContent = e.target.value; node.params.fields[f.key] = parseFloat(e.target.value); scheduleAutosave(); };
+    rng.onmousedown = (e) => e.stopPropagation();
+    row.appendChild(rng); row.appendChild(out);
+  } else if (f.type === 'boolean') {
+    const chk = document.createElement('input'); chk.type='checkbox'; chk.checked = !!cur;
+    chk.onchange = (e) => { node.params.fields[f.key] = e.target.checked; scheduleAutosave(); };
+    chk.onmousedown = (e) => e.stopPropagation();
+    row.appendChild(chk);
+  } else {
+    const inp = document.createElement('input'); inp.type = (f.type === 'number') ? 'number' : 'text';
+    inp.className = 'comfy-inp'; inp.value = cur;
+    if (f.min != null) inp.min = f.min;
+    if (f.max != null) inp.max = f.max;
+    inp.oninput = (e) => { node.params.fields[f.key] = (f.type === 'number') ? e.target.value : e.target.value; scheduleAutosave(); };
+    inp.onmousedown = (e) => e.stopPropagation();
+    row.appendChild(inp);
+  }
+  return row;
+}
+
 function executeNodeAsync(node, delay) {
   return new Promise(resolve => {
     if (node.status === 'running') { resolve(); return; }
@@ -8710,10 +10388,23 @@ function executeNodeAsync(node, delay) {
                 return;
               }
             } catch (err) {
-              showToast(node.title + ' 真实图生图失败，已回退为原图：' + describeOpenAIError(err), 'warn');
+              showToast(node.title + ' 真实图生图失败，已回退为原图：' + localizeError(err), 'warn');
             }
           }
           // 无上游图 / 未配置 Key / 接口不支持 → 走下方 computeNodeOutput 回退（保留原图 / 占位）
+        }
+
+        // ComfyUI 节点：浏览器直连本地 ComfyUI
+        if (node.type === 'comfyui') {
+          const ok = await runComfyUINode(node);
+          node.status = ok ? 'done' : 'error';
+          logRun(node, ok, Date.now() - _t0, ok ? '' : (node._comfyErr || 'ComfyUI 运行失败'));
+          if (node.el) buildNodeBody(node.el, node);
+          updateNodeStatus(node);
+          markEdgesDirty();
+          scheduleAutosave();
+          resolve();
+          return;
         }
 
         const isGptImage = node.type === 'aiImage' && node.params && node.params.model === 'GPT Image 2';
@@ -8739,8 +10430,9 @@ function executeNodeAsync(node, delay) {
         logRun(node, true, Date.now() - _t0);
       } catch (err) {
         node.status = 'error';
-        logRun(node, false, Date.now() - _t0, (err && err.message) || String(err));
-        showToast(node.title + ' 运行失败：' + (err && err.message || err), 'danger');
+        const loc = localizeError(err);
+        logRun(node, false, Date.now() - _t0, loc);
+        showToast(node.title + ' 运行失败：' + loc, 'danger');
       }
       if (node.el) buildNodeBody(node.el, node);
       updateNodeStatus(node);
@@ -8977,6 +10669,147 @@ function describeOpenAIError(err) {
   return msg;
 }
 
+// 统一错误中文化：把网络/CORS/超时/fetch 失败、HTTP 状态码、OpenAI/ComfyUI 英文错误
+// 翻译为面向用户的中文提示。已为中文的错误原样返回。
+function localizeError(err) {
+  if (!err) return '未知错误';
+  const raw = (err && err.message) ? err.message : String(err);
+  const s = (raw == null ? '' : raw).toString();
+  // 已含中文 → 直接返回
+  if (/[一-龥]/.test(s)) return s;
+  const lc = s.toLowerCase();
+
+  // 网络层
+  if (/failed to fetch|networkerror|load failed|typeerror: failed|net::err/i.test(lc))
+    return '网络请求失败（可能是 CORS 跨域拦截，或本地服务未启动）。请确认接口地址可访问，或改用支持 CORS 的 API 中转。';
+  if (/(timeout|timed out|aborted|deadline|operation timed)/i.test(lc))
+    return '请求超时，请稍后重试，或检查网络/服务是否响应缓慢。';
+
+  // HTTP 状态码
+  const sm = s.match(/HTTP\s*(\d{3})/i) || lc.match(/status[=: ]*(\d{3})/);
+  if (sm) {
+    const code = sm[1];
+    const map = {
+      '400': '请求参数有误（HTTP 400），请检查提示词或参数。',
+      '401': '鉴权失败（HTTP 401），API Key 无效或已过期。',
+      '403': '无权限访问（HTTP 403），请确认 Key 或账户额度。',
+      '404': '接口不存在（HTTP 404），请检查 API 地址是否正确。',
+      '405': '请求方法不被允许（HTTP 405），该地址可能不支持此接口。',
+      '408': '请求超时（HTTP 408），请稍后重试。',
+      '429': '请求过于频繁（HTTP 429），请稍后重试或降低并发。',
+      '500': '服务内部错误（HTTP 500），请稍后重试。',
+      '502': '网关错误（HTTP 502），上游服务可能离线。',
+      '503': '服务暂不可用（HTTP 503），请稍后重试。'
+    };
+    if (map[code]) {
+      const detail = s.replace(/HTTP\s*\d{3}\s*[：:]\s*/, '').replace(/status[=: ]*\d{3}\s*[：:]\s*/i, '').slice(0, 160);
+      return map[code] + (detail ? '（' + detail + '）' : '');
+    }
+  }
+
+  // OpenAI / 通用英文语义
+  if (/incorrect api key|invalid api key|authentication failed|unauthorized/i.test(lc))
+    return 'API Key 无效或未配置，请在设置中填写正确的 Key。';
+  if (/insufficient|quota|exceed.*limit|rate limit|too many requests/i.test(lc))
+    return '额度不足或触发限流，请检查账户余额或稍后重试。';
+  if (/model.*not found|does not exist|unknown model|invalid model/i.test(lc))
+    return '模型不存在或不支持，请更换模型名称。';
+  if (/cors|cross-origin|cross origin|origin not allowed|not allowed by access-control|blocked by.*(cors|policy)/i.test(lc))
+    return '跨域（CORS）被拒绝，请使用支持跨域的 API 中转地址。';
+  if (/content.*policy|moderat|unsafe|safety system|prompt.*reject|violat/i.test(lc))
+    return '内容被安全策略拦截，请调整提示词后重试。';
+  if (/node_errors|execution (error|failed|interrupted)|node type|missing/i.test(lc))
+    return 'ComfyUI 执行错误：' + s.slice(0, 160);
+
+  // 兜底：交给既有 describeOpenAIError（含 file:// 提示）
+  try { return describeOpenAIError(err) || s; } catch (_) { return s; }
+}
+
+// —— 带参考图的生成（引用令牌命中时走 /images/edits，多图 multipart）——
+
+// 组装 multipart 表单；useArrayField=true 时字段名为 image[]（OpenAI 多参考图规范）
+function buildRefFormData(model, prompt, imageDataUrls, size, useArrayField) {
+  const fd = new FormData();
+  const field = useArrayField ? 'image[]' : 'image';
+  let n = 0;
+  (imageDataUrls || []).forEach(function(d, i) {
+    if (!useArrayField && n >= 1) return; // 单图模式只带第一张
+    const blob = dataURLtoBlob(d);
+    if (!blob) return;
+    fd.append(field, blob, 'ref' + (i + 1) + '.png');
+    n++;
+  });
+  fd.append('prompt', prompt);
+  fd.append('size', size || '1024x1024');
+  fd.append('n', '1');
+  fd.append('model', model);
+  return { fd: fd, count: n };
+}
+
+function openAIImageEditMulti(base, key, model, prompt, imageDataUrls, size, useArrayField) {
+  const built = buildRefFormData(model, prompt, imageDataUrls, size, useArrayField);
+  if (!built.count) return Promise.reject(new Error('参考图为空或格式不支持（需 data: 图片）'));
+  return fetch(base + '/images/edits', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + key }, // FormData 不能手动设 Content-Type
+    body: built.fd
+  }).then(function(resp) {
+    if (!resp.ok) {
+      return resp.text().then(function(t) {
+        const e = new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 200) : ''));
+        e.status = resp.status; e.bodyText = t || '';
+        throw e;
+      });
+    }
+    return resp.json();
+  }).then(function(data) {
+    const it = (data && data.data && data.data[0]) || null;
+    if (!it) throw new Error('参考图生成接口返回为空');
+    const img = it.b64_json ? 'data:image/png;base64,' + it.b64_json : (it.url || null);
+    if (!img) throw new Error('未获取到图片');
+    return img;
+  });
+}
+
+// 依次尝试：候选模型 × (多图 image[] → 单图 image)，全失败则抛出
+function generateImageWithRefs(base, key, prompt, images, count, size) {
+  const models = ['gpt-image-1', 'gpt-image-2', 'dall-e-2'];
+  const multi = (images || []).length > 1;
+  let lastErr = null;
+  function once(model, useArray) {
+    return openAIImageEditMulti(base, key, model, prompt, images, size, useArray);
+  }
+  function attempt(ms) {
+    if (!ms.length) {
+      const e = new Error((lastErr && lastErr.message) || '参考图接口不可用');
+      e.tried = models.join(' / ');
+      throw e;
+    }
+    const m = ms[0];
+    const first = multi ? once(m, true).catch(function(err) {
+      lastErr = err;
+      return once(m, false); // 服务端不认 image[] 时退回单张参考图
+    }) : once(m, false);
+    return first
+      .then(function(img) {
+        if (count > 1) {
+          const extra = [];
+          for (let i = 1; i < count; i++) {
+            extra.push(multi ? once(m, true).catch(function() { return once(m, false); }) : once(m, false));
+          }
+          return Promise.all(extra).then(function(list) { return [img].concat(list); })
+            .catch(function() { return [img]; });
+        }
+        return [img];
+      })
+      .catch(function(err) {
+        lastErr = err;
+        return attempt(ms.slice(1));
+      });
+  }
+  return attempt(models.slice());
+}
+
 function generateOpenAIImage(node) {
   const key = localStorage.getItem(OPENAI_KEY_STORAGE);
   if (!key) {
@@ -8998,20 +10831,43 @@ function generateOpenAIImage(node) {
   node.status = 'running';
   updateNodeStatus(node);
 
-  return openAIImageWithFallback(base, key, prompt, count, size)
-    .then(function(imgs) {
-      // 保存每张单独图，供预览区逐张展示与下载
-      node._galleryImages = imgs.slice();
-      // 张数 > 1：拼成网格（保留统计信息）
-      if (count > 1) {
-        return composeImageGrid(imgs, node.params.aspect).then(function(grid) {
-          node._imageCount = imgs.length;
-          return grid;
-        });
-      }
-      return imgs[0];
-    })
-    .catch(err => {
+  // 解析 <<<名称>>> 引用令牌 → 命中的资产图作为参考图随请求发送
+  const ref = resolveRefTokens(prompt);
+  node._refInfo = { hit: ref.refs.length, missing: ref.missing.length, names: ref.refs.map(function(r) { return r.name; }) };
+  if (ref.missing.length) {
+    showToast('有 ' + ref.missing.length + ' 个引用未在素材库找到：' + ref.missing.join('、') +
+      '（在素材库给对应素材填名称并点「设为资产」）', 'warn');
+  }
+
+  function finish(imgs) {
+    node._galleryImages = imgs.slice();
+    if (count > 1) {
+      return composeImageGrid(imgs, node.params.aspect).then(function(grid) {
+        node._imageCount = imgs.length;
+        return grid;
+      });
+    }
+    return imgs[0];
+  }
+  function plain() {
+    return openAIImageWithFallback(base, key, prompt, count, size).then(finish);
+  }
+
+  let task;
+  if (ref.refs.length) {
+    showToast('已引用 ' + ref.refs.length + ' 个资产（' + ref.refs.map(function(r) { return r.name; }).join('、') +
+      '），参考图将随请求一起发送', 'info');
+    task = generateImageWithRefs(base, key, ref.augmented, ref.images, count, size)
+      .then(finish)
+      .catch(function(err) {
+        showToast('带参考图生成失败，已回退为纯文本生成：' + describeOpenAIError(err), 'warn');
+        return plain();
+      });
+  } else {
+    task = plain();
+  }
+
+  return task.catch(err => {
       node.status = 'error';
       showToast('gpt-image-2 生成失败：' + describeOpenAIError(err) +
         '（已尝试模型：' + (err.tried || OPENAI_IMAGE_MODELS.join(' / ')) + '）。' +
@@ -9329,6 +11185,8 @@ async function runWorkflow() {
 function updateStatusbar() {
   document.getElementById('statNodes').textContent = workflow.nodes.size;
   document.getElementById('statEdges').textContent = workflow.edges.size;
+  const verEl = document.getElementById('statVersion');
+  if (verEl) verEl.textContent = 'v' + APP_VERSION;
 }
 
 //================ 17b. 右键上下文菜单 ================
@@ -9379,6 +11237,7 @@ function showContextMenu(x, y, node) {
     if (node.type === 'aiImage' || node.type === 'aiVideo') {
       addMenuItem('运行节点', MENU_ICONS.run, '', () => runNode(node));
     }
+    addMenuItem('加入场景', MENU_ICONS.selectAll, '', () => assignSelectedToScenePrompt());
   } else {
     // —— 画布上下文菜单 ——
     addMenuItem('适应内容', MENU_ICONS.fit, getShortcutDisplay(keybindings.fitContent), () => fitToContent());
@@ -9509,7 +11368,44 @@ function init() {
   document.getElementById('runLogClose').onclick = () => toggleRunLogPanel(false);
   document.getElementById('runLogClear').onclick = () => clearRunLog();
   document.getElementById('runLogFilter').onchange = () => renderRunLog();
+  // 生成历史：点击「存为素材」把缩略图作为图片节点存入画布/素材库
+  document.getElementById('runLogList').addEventListener('click', (e) => {
+    const btn = e.target.closest('.rl-save');
+    if (!btn) return;
+    const thumb = btn.getAttribute('data-thumb');
+    if (!thumb) return;
+    const n = addNode('image', 80 + Math.floor(Math.random() * 200), 80 + Math.floor(Math.random() * 200));
+    n.thumb = thumb;
+    if (n.el) buildNodeBody(n.el, n);
+    scheduleAutosave();
+    refreshAssetPanelIfOpen();
+    showToast('已存入素材库', 'success');
+  });
+  // 场景分组面板
+  document.getElementById('btnScenes').onclick = () => toggleScenePanel();
+  document.getElementById('sceneClose').onclick = () => toggleScenePanel(false);
+  document.getElementById('sceneNew').onclick = () => {
+    const name = prompt('场景名称', '场景 ' + (workflow.scenes.length + 1));
+    if (name !== null) createScene(name.trim() || ('场景 ' + (workflow.scenes.length + 1)));
+  };
+  document.getElementById('sceneList').addEventListener('click', (e) => {
+    const btn = e.target.closest('.mini-btn');
+    if (!btn) return;
+    const act = btn.getAttribute('data-act');
+    const id = btn.getAttribute('data-id');
+    if (act === 'focus') focusScene(id);
+    else if (act === 'del') deleteScene(id);
+    else if (act === 'add') {
+      const ids = [...workflow.selection].map(n => n.id);
+      if (ids.length) addNodesToScene(id, ids);
+    }
+  });
   document.getElementById('btnShortcuts').onclick = () => openShortcutsPanel();
+
+  // 开箱模板面板
+  document.getElementById('btnTemplates').onclick = () => openTemplatePanel();
+  document.getElementById('templateClose').onclick = () => closeTemplatePanel();
+  bindTemplateEvents();
 
   // 工作流管理 / 素材库 面板
   document.getElementById('btnWorkflow').onclick = () => {
