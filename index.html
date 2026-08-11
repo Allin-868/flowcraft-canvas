@@ -11282,6 +11282,20 @@ function generateOpenAIImage(node) {
 
   return task.catch(err => {
       node.status = 'error';
+      const _loc = localizeError(err);
+      try {
+        logRun(node, false, 0, _loc);
+        logRegen({
+          id: 'regen_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          kind: 'failed', type: node.type,
+          title: node.title || (NODE_TYPES[node.type] || {}).label || node.type,
+          model: (node.params && node.params.model) || '',
+          desc: describeNodeParams(node),
+          error: _loc, nodeId: node.id
+        });
+      } catch (e2) {}
+      if (node.el) buildNodeBody(node.el, node);
+      updateNodeStatus(node);
       showToast('gpt-image-2 生成失败：' + describeOpenAIError(err) +
         '（已尝试模型：' + (err.tried || OPENAI_IMAGE_MODELS.join(' / ')) + '）。' +
         '请检查：① API Key 是否正确 ② ⚙ 中自定义 API 地址 ③ 当前服务是否支持这些模型名 / 当前尺寸', 'danger');
