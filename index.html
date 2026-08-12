@@ -11582,6 +11582,10 @@ function topoSortNodes(seedSet) {
 
 // 按拓扑顺序逐个执行；skipSet 中的节点（循环节点的下游）由循环节点自行驱动
 async function runInOrder(order, delay, skipSet) {
+  // 阶段 3：opt-in 委托任务执行引擎（含状态机/并发/取消/超时/重试/幂等/对账）
+  if (window.FlowCraft && window.FlowCraft.runner && typeof window.FlowCraft.runner.runInOrder === 'function') {
+    return window.FlowCraft.runner.runInOrder(order, delay, skipSet);
+  }
   skipSet = skipSet || new Set();
   // 并行执行：每个节点只等待它的直接上游完成；互不依赖的分支同时运行
   const done = new Map();
@@ -16142,20 +16146,295 @@ init();
   };
 
   // src/execution/runner.js
+  var Semaphore = class {
+    constructor(n) {
+      this.n = n;
+      this.q = [];
+    }
+    acquire() {
+      return new Promise((res) => {
+        if (this.n > 0) {
+          this.n--;
+          res();
+        } else this.q.push(res);
+      });
+    }
+    release() {
+      if (this.q.length) {
+        const r = this.q.shift();
+        r();
+      } else this.n++;
+    }
+  };
+  function legacy(name) {
+    return typeof window !== "undefined" ? window[name] : void 0;
+  }
+  var _seq = 0;
+  var _sem = new Semaphore(8);
+  var _tasks = /* @__PURE__ */ new Map();
+  var _idem = /* @__PURE__ */ new Map();
+  var _cancel = /* @__PURE__ */ new Set();
+  var _maxConcurrent = 8;
+  function mkTaskId(node, attempt) {
+    return "t:" + (node && node.id) + ":" + ++_seq + ":a" + attempt;
+  }
+  function nodeTimeout(node) {
+    const type = node && node.type;
+    if (node && typeof node._timeoutOverride === "number" && node._timeoutOverride > 0) return node._timeoutOverride;
+    if (type === "aiVideo") return 12e4;
+    if (type === "aiImage") return 9e4;
+    if (type === "comfyui") return 3e5;
+    return 6e4;
+  }
+  function computeInputHash(node) {
+    try {
+      const basis = {
+        type: node.type,
+        params: node.params || {},
+        prompt: node.prompt || "",
+        inputs: node.inputsData || []
+      };
+      return JSON.stringify(basis);
+    } catch (e) {
+      return (node.type || "") + ":" + (node.id || "");
+    }
+  }
+  function classify(node) {
+    if (node.status === "failure") return { category: "param", maxRetry: 0 };
+    if (node.status === "error") return { category: "transient", maxRetry: 2 };
+    return { category: "system", maxRetry: 1 };
+  }
+  function applyCached(node, c) {
+    if (c.outputs) node.outputsData = c.outputs;
+    if (c.thumb != null) node.thumb = c.thumb;
+    node.status = "done";
+    const u = legacy("updateNodeStatus");
+    if (typeof u === "function" && node.el) {
+      try {
+        u(node);
+      } catch (e) {
+      }
+    }
+    const m = legacy("markEdgesDirty");
+    if (typeof m === "function") {
+      try {
+        m();
+      } catch (e) {
+      }
+    }
+  }
+  async function putTask(task) {
+    _tasks.set(task.id, task);
+    try {
+      await idbPut("tasks", task);
+    } catch (e) {
+    }
+  }
+  function backoff(attempt) {
+    const ms = Math.min(8e3, 800 * Math.pow(2, attempt));
+    return new Promise((r) => setTimeout(r, ms));
+  }
+  async function safeExec(node, delay) {
+    const ex = legacy("executeNodeAsync");
+    if (typeof ex !== "function") return;
+    return ex(node, delay);
+  }
+  async function engineRunNode(node, delay, attempt) {
+    attempt = attempt || 0;
+    if (!node) return;
+    if (_cancel.has(node.id)) {
+      await putTask({ id: mkTaskId(node, attempt), nodeId: node.id, type: node.type, state: "cancelled", attempt, inputHash: computeInputHash(node), startedAt: Date.now() });
+      return;
+    }
+    if (node.status === "running") return;
+    const inputHash = computeInputHash(node);
+    if (attempt === 0 && _idem.has(node.id + ":" + inputHash)) {
+      const c = _idem.get(node.id + ":" + inputHash);
+      if (c && c.state === "success") {
+        applyCached(node, c);
+        await putTask({ id: mkTaskId(node, attempt), nodeId: node.id, type: node.type, state: "success", cached: true, attempt, inputHash, startedAt: Date.now() });
+        return;
+      }
+    }
+    await _sem.acquire();
+    const taskId = mkTaskId(node, attempt);
+    const task = { id: taskId, nodeId: node.id, type: node.type, state: "running", attempt, inputHash, startedAt: Date.now() };
+    await putTask(task);
+    node._taskState = "running";
+    let timedOut = false;
+    const timer = new Promise((res) => {
+      node._toTimer = setTimeout(() => {
+        timedOut = true;
+        node._timedOut = true;
+        node._abort = true;
+        res();
+      }, nodeTimeout(node));
+    });
+    try {
+      const execP = safeExec(node, delay);
+      await Promise.race([execP, timer]);
+      if (timedOut) {
+        if (execP) execP.catch(() => {
+        });
+      }
+    } finally {
+      clearTimeout(node._toTimer);
+    }
+    const releaseAnd = (fn) => {
+      _sem.release();
+      return fn;
+    };
+    if (timedOut) {
+      node._timedOut = true;
+      task.state = "timeout";
+      task.endedAt = Date.now();
+      await putTask(task);
+      return releaseAnd(void 0);
+    }
+    const outcome = node.status;
+    if (node._abort && outcome !== "done") {
+      task.state = "cancelled";
+      task.endedAt = Date.now();
+      await putTask(task);
+      return releaseAnd(void 0);
+    }
+    if (outcome === "done") {
+      task.state = "success";
+      task.endedAt = Date.now();
+      _idem.set(node.id + ":" + inputHash, { state: "success", outputs: node.outputsData, thumb: node.thumb });
+      await putTask(task);
+      return releaseAnd(void 0);
+    }
+    const cls = classify(node);
+    task.error = node._lastError || "";
+    if (attempt < cls.maxRetry) {
+      task.state = "retrying";
+      await putTask(task);
+      await backoff(attempt);
+      _sem.release();
+      return engineRunNode(node, delay, attempt + 1);
+    }
+    task.state = "failure";
+    task.category = cls.category;
+    task.endedAt = Date.now();
+    await putTask(task);
+    return releaseAnd(void 0);
+  }
   var Runner = {
-    _mode: "legacy-runNode",
-    // 运行单个节点：委托旧 runNode(node)
-    runNode(node) {
-      if (typeof runNode === "function") return runNode(node);
-      return null;
-    },
-    // 图像生成：委托旧 generateOpenAIImage(node)
-    generateImage(node) {
-      if (typeof generateOpenAIImage === "function") return generateOpenAIImage(node);
-      return null;
-    },
+    _mode: "task-engine",
     getMode() {
       return this._mode;
+    },
+    setMaxConcurrent(n) {
+      _maxConcurrent = Math.max(1, parseInt(n) || 8);
+      _sem.n = _maxConcurrent;
+    },
+    // 核心委托入口：替代 legacy runInOrder
+    runInOrder(order, delay, skipSet) {
+      skipSet = skipSet || /* @__PURE__ */ new Set();
+      const wf = legacy("workflow");
+      const edges = wf && wf.edges ? wf.edges : /* @__PURE__ */ new Map();
+      const done = /* @__PURE__ */ new Map();
+      for (const node of order) {
+        if (skipSet.has(node)) {
+          done.set(node, Promise.resolve());
+          continue;
+        }
+        const upstream = [];
+        edges.forEach((e) => {
+          if (e.to && e.to.node === node && order.indexOf(e.from.node) >= 0) upstream.push(e.from.node);
+        });
+        const p = (async () => {
+          await Promise.all(upstream.map((u) => done.get(u) || Promise.resolve()));
+          return engineRunNode(node, delay);
+        })();
+        done.set(node, p);
+      }
+      return Promise.all([...done.values()]);
+    },
+    // 单节点运行（兼容外部 API）：复用 legacy 的祖先+拓扑逻辑经引擎执行
+    runNode(node) {
+      const topo = legacy("topoSortNodes");
+      const coll = legacy("collectAncestors");
+      if (typeof topo === "function" && typeof coll === "function" && node) {
+        const set = coll(node);
+        set.add(node);
+        const order = topo(set);
+        const skip = /* @__PURE__ */ new Set();
+        set.forEach((n) => {
+          if (n.type === "loop") {
+            const gd = legacy("getDescendants");
+            if (gd) gd(n).forEach((d) => skip.add(d));
+          }
+        });
+        return this.runInOrder(order, 550, skip);
+      }
+      const rn = legacy("runNode");
+      if (typeof rn === "function") return rn(node);
+      return null;
+    },
+    // 图像生成（保留外部 API）
+    generateImage(node) {
+      const g = legacy("generateOpenAIImage");
+      if (typeof g === "function") return g(node);
+      return null;
+    },
+    // 取消：pending 节点直接跳过；running 节点置 _abort，完成后标记 cancelled
+    cancel(nodeId) {
+      if (nodeId == null) return;
+      _cancel.add(nodeId);
+      const wf = legacy("workflow");
+      if (wf && wf.nodes && wf.nodes.has(nodeId)) {
+        const node = wf.nodes.get(nodeId);
+        node._abort = true;
+        const t = legacy("updateNodeStatus");
+        if (typeof t === "function" && node.el) {
+          try {
+            t(node);
+          } catch (e) {
+          }
+        }
+      }
+      for (const rec of _tasks.values()) {
+        if (rec.nodeId === nodeId && (rec.state === "running" || rec.state === "retrying")) {
+          rec.state = "cancelled";
+          putTask(rec);
+        }
+      }
+    },
+    clearCancel(nodeId) {
+      if (nodeId != null) _cancel.delete(nodeId);
+    },
+    // 对账：刷新后把崩溃遗留的 running 任务标记为 failure
+    async reconcile() {
+      try {
+        const rows = await idbGetAll("tasks");
+        const stuck = (rows || []).filter((t) => t && t.state === "running");
+        await Promise.all(stuck.map((t) => {
+          const nt = Object.assign({}, t, { state: "failure", note: "recovered-after-reload", endedAt: Date.now() });
+          _tasks.set(t.id, nt);
+          return idbPut("tasks", nt);
+        }));
+        return stuck.length;
+      } catch (e) {
+        return 0;
+      }
+    },
+    // 返回当前会话任务快照（用于测试/调试）
+    getState() {
+      return [..._tasks.values()].map((t) => Object.assign({}, t));
+    },
+    getTask(taskId) {
+      return _tasks.has(taskId) ? Object.assign({}, _tasks.get(taskId)) : null;
+    },
+    // 仅清内存镜像（不动 IDB），用于测试隔离
+    reset() {
+      _tasks.clear();
+      _idem.clear();
+      _cancel.clear();
+      _seq = 0;
+      _sem.n = _maxConcurrent;
+      _sem.q.length = 0;
     }
   };
 
@@ -16498,7 +16777,7 @@ init();
   window.FlowCraft.nodes = NodeContract;
   window.FlowCraft.proxy = ProxyClient;
   window.FlowCraft.fee = FeeModel;
-  window.FlowCraft.version = "3.4-node-contract";
+  window.FlowCraft.version = "3.5-task-engine";
   if (typeof console !== "undefined") {
     console.log("[FlowCraft] \u517C\u5BB9\u5C42\u5DF2\u6302\u8F7D\uFF1Astorage=IndexedDB runner=" + Runner.getMode());
   }
@@ -16603,6 +16882,8 @@ init();
         }
       };
     }
+    if (Runner && typeof Runner.reconcile === "function") Runner.reconcile().catch(() => {
+    });
     _installProjectPanelUI();
     _installSnapshotUI();
     function _installCapacityUI() {

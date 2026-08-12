@@ -7058,6 +7058,10 @@ function topoSortNodes(seedSet) {
 
 // 按拓扑顺序逐个执行；skipSet 中的节点（循环节点的下游）由循环节点自行驱动
 async function runInOrder(order, delay, skipSet) {
+  // 阶段 3：opt-in 委托任务执行引擎（含状态机/并发/取消/超时/重试/幂等/对账）
+  if (window.FlowCraft && window.FlowCraft.runner && typeof window.FlowCraft.runner.runInOrder === 'function') {
+    return window.FlowCraft.runner.runInOrder(order, delay, skipSet);
+  }
   skipSet = skipSet || new Set();
   // 并行执行：每个节点只等待它的直接上游完成；互不依赖的分支同时运行
   const done = new Map();

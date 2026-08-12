@@ -14,7 +14,7 @@ window.FlowCraft.runner = Runner;
 window.FlowCraft.nodes = NodeContract;
 window.FlowCraft.proxy = ProxyClient;
 window.FlowCraft.fee = FeeModel;
-window.FlowCraft.version = '3.4-node-contract';
+window.FlowCraft.version = '3.5-task-engine';
 
 if (typeof console !== 'undefined') {
   console.log('[FlowCraft] 兼容层已挂载：storage=IndexedDB runner=' + Runner.getMode());
@@ -104,6 +104,9 @@ function downloadBlob(blob, filename) {
       }
     };
   }
+
+  // —— 阶段 3：启动对账（崩溃遗留 running 任务 → failure）——
+  if (Runner && typeof Runner.reconcile === 'function') Runner.reconcile().catch(() => {});
 
   // —— T1-3：多项目面板（IndexedDB 驱动）——
   _installProjectPanelUI();
