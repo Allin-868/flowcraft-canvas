@@ -15914,10 +15914,28 @@ init();
       }
       return true;
     },
+    // —— 多项目：改名 / 删除 ——
+    async renameProject(id, name) {
+      const ok = await this._ensureIDB();
+      if (!ok) return false;
+      const row = await idbGet("projects", id);
+      if (!row) return false;
+      row.name = name;
+      await idbPut("projects", row);
+      return true;
+    },
+    async deleteProject(id) {
+      const ok = await this._ensureIDB();
+      if (!ok) return false;
+      if (id === CURRENT_PROJECT_ID) return false;
+      await idbDelete("projects", id);
+      return true;
+    },
     // —— 项目文件 ZIP ——
     async exportProject(meta) {
       const proj = _readWorkflowJSON();
       if (!proj) return null;
+      if (meta && meta.projectName) proj.name = meta.projectName;
       const assets = _collectHeavyAssets(proj);
       const blob = await exportProjectZip(proj, assets, meta || {});
       return blob;
@@ -16042,6 +16060,21 @@ init();
       await idbPut("projects", { id: CURRENT_PROJECT_ID, data: row.data, savedAt: (/* @__PURE__ */ new Date()).toISOString(), size: JSON.stringify(row.data).length, restoredFrom: id });
       return row.data;
     },
+    async renameSnapshot(id, label) {
+      const ok = await this._ensureIDB();
+      if (!ok) return false;
+      const row = await idbGet("snapshots", id);
+      if (!row) return false;
+      row.label = label;
+      await idbPut("snapshots", row);
+      return true;
+    },
+    async deleteSnapshot(id) {
+      const ok = await this._ensureIDB();
+      if (!ok) return false;
+      await idbDelete("snapshots", id);
+      return true;
+    },
     async _enforceSnapshotPolicy() {
       const all = await idbGetAll("snapshots");
       all.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
@@ -16139,9 +16172,25 @@ init();
   window.FlowCraft.nodes = NodeRegistry;
   window.FlowCraft.proxy = ProxyClient;
   window.FlowCraft.fee = FeeModel;
-  window.FlowCraft.version = "3.3-indexeddb";
+  window.FlowCraft.version = "3.3-projects";
   if (typeof console !== "undefined") {
     console.log("[FlowCraft] \u517C\u5BB9\u5C42\u5DF2\u6302\u8F7D\uFF1Astorage=IndexedDB runner=" + Runner.getMode());
+  }
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  }
+  function downloadBlob(blob, filename) {
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1e3);
+    } catch (e) {
+    }
   }
   (function bootstrapStorage() {
     const S = StorageAdapter;
@@ -16160,6 +16209,7 @@ init();
     const _legacyLoadNamed = window.loadNamedWorkflow;
     const _legacyDeleteNamed = window.deleteNamedWorkflow;
     const _legacyPersistAsset = window.persistAssetMeta;
+    const _origUpdateWorkflowPanel = window.updateWorkflowPanel;
     if (typeof _legacyDoAutosave === "function") {
       window.doAutosave = function() {
         try {
@@ -16201,8 +16251,7 @@ init();
     }
     if (typeof _legacyDeleteNamed === "function") {
       window.deleteNamedWorkflow = function(id) {
-        S._ensureIDB().then(() => {
-        }).catch(() => {
+        S.deleteProject(id).catch(() => {
         });
         try {
           return _legacyDeleteNamed(id);
@@ -16228,6 +16277,8 @@ init();
         }
       };
     }
+    _installProjectPanelUI();
+    _installSnapshotUI();
     function _installCapacityUI() {
       if (typeof document === "undefined") return;
       if (document.getElementById("statCap")) return;
@@ -16250,6 +16301,179 @@ init();
         if (quota > 0) cap.textContent = "\u672C\u5730\u5E93 " + used.toFixed(1) + " / " + quota.toFixed(0) + " MB";
         else cap.textContent = "\u672C\u5730\u5E93 " + used.toFixed(1) + " MB";
       }).catch(() => {
+      });
+    }
+    const EMPTY_WORKFLOW_HTML = '<div class="recycle-empty"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4a2 2 0 012-2h3l2 2h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V4z"/></svg><div class="empty-text">\u6682\u65E0\u4FDD\u5B58\u7684\u9879\u76EE<br>\u70B9\u51FB\u300C\u4FDD\u5B58\u5F53\u524D\u4E3A\u2026\u300D\u521B\u5EFA</div></div>';
+    window.updateWorkflowPanel = function() {
+      const list = document.getElementById("workflowList");
+      const count = document.getElementById("workflowCount");
+      if (!list) return;
+      S.list().then((items) => {
+        if (!items || items.length === 0) {
+          if (S.getMode() === "localStorage-legacy" && typeof _origUpdateWorkflowPanel === "function") {
+            _origUpdateWorkflowPanel();
+          } else {
+            list.innerHTML = EMPTY_WORKFLOW_HTML;
+            if (count) count.textContent = "0";
+          }
+          return;
+        }
+        if (count) count.textContent = items.length;
+        list.innerHTML = "";
+        items.forEach((item) => {
+          const card = document.createElement("div");
+          card.className = "wf-card";
+          const date = new Date(item.savedAt).toLocaleString();
+          card.innerHTML = '<div class="wf-card-main"><div class="wf-card-name" title="' + escapeHtml(item.name) + '">' + escapeHtml(item.name) + '</div><div class="wf-card-meta">' + escapeHtml(date) + '</div></div><div class="wf-card-actions"><button class="wf-btn" data-act="open">\u6253\u5F00</button><button class="wf-btn" data-act="export">\u5BFC\u51FA</button><button class="wf-btn" data-act="rename">\u6539\u540D</button><button class="wf-btn danger" data-act="del">\u5220\u9664</button></div>';
+          card.querySelectorAll("button").forEach((btn) => {
+            btn.onclick = () => {
+              const act = btn.dataset.act;
+              if (act === "open") {
+                S.open(item.id).then((proj) => {
+                  if (proj && window.applyWorkflowData) {
+                    window.applyWorkflowData(proj);
+                    setTimeout(() => window.fitToContent && window.fitToContent(), 100);
+                    window.refreshAssetPanelIfOpen && window.refreshAssetPanelIfOpen();
+                    window.toggleWorkflowPanel && window.toggleWorkflowPanel(false);
+                    window.showToast && window.showToast("\u5DF2\u6253\u5F00\uFF1A" + item.name, "success");
+                  } else if (window.showToast) window.showToast("\u6253\u5F00\u5931\u8D25", "danger");
+                }).catch(() => window.showToast && window.showToast("\u6253\u5F00\u5931\u8D25", "danger"));
+              } else if (act === "export") {
+                S.exportProject({ projectName: item.name }).then((blob) => {
+                  if (blob) downloadBlob(blob, (item.name || "project").replace(/[\\/:*?"<>|]/g, "_") + ".flowcraft");
+                  else window.showToast && window.showToast("\u5BFC\u51FA\u5931\u8D25\uFF08IndexedDB \u4E0D\u53EF\u7528\uFF09", "danger");
+                }).catch(() => window.showToast && window.showToast("\u5BFC\u51FA\u5931\u8D25", "danger"));
+              } else if (act === "rename") {
+                const nn = window.prompt ? window.prompt("\u91CD\u547D\u540D\u9879\u76EE", item.name) : null;
+                if (nn && nn.trim()) S.renameProject(item.id, nn.trim()).then(() => window.updateWorkflowPanel());
+              } else if (act === "del") {
+                if (window.confirm && window.confirm("\u786E\u5B9A\u5220\u9664\u9879\u76EE\u300C" + item.name + "\u300D\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002")) {
+                  S.deleteProject(item.id).then((ok) => {
+                    if (ok) window.updateWorkflowPanel();
+                  });
+                }
+              }
+            };
+          });
+          list.appendChild(card);
+        });
+      }).catch(() => {
+        if (typeof _origUpdateWorkflowPanel === "function") _origUpdateWorkflowPanel();
+      });
+    };
+    function _installProjectPanelUI() {
+      if (typeof document === "undefined") return;
+      const saveBtn = document.getElementById("btnSaveWorkflow");
+      if (saveBtn) saveBtn.onclick = () => {
+        const n = window.prompt ? window.prompt("\u4FDD\u5B58\u5F53\u524D\u753B\u5E03\u4E3A\u9879\u76EE\uFF1A", "") : null;
+        if (!n || !n.trim()) return;
+        S.saveAs(n.trim()).then((id) => {
+          if (id) {
+            window.showToast && window.showToast("\u5DF2\u4FDD\u5B58\u9879\u76EE\uFF1A" + n.trim(), "success");
+            window.updateWorkflowPanel();
+          } else window.showToast && window.showToast("\u4FDD\u5B58\u5931\u8D25\uFF08IndexedDB \u4E0D\u53EF\u7528\uFF09", "danger");
+        }).catch(() => window.showToast && window.showToast("\u4FDD\u5B58\u5931\u8D25", "danger"));
+      };
+      const newBtn = document.getElementById("btnNewWorkflow");
+      if (newBtn) newBtn.onclick = () => {
+        if (window.confirm && window.confirm("\u65B0\u5EFA\u7A7A\u767D\u9879\u76EE\uFF1F\u5F53\u524D\u753B\u5E03\u672A\u4FDD\u5B58\u7684\u5185\u5BB9\u5C06\u6E05\u7A7A\uFF08\u5EFA\u8BAE\u5148\u300C\u4FDD\u5B58\u5F53\u524D\u4E3A\u2026\u300D\uFF09\u3002")) {
+          S.newProject().then(() => {
+            if (window.newWorkflow) window.newWorkflow();
+            window.showToast && window.showToast("\u5DF2\u65B0\u5EFA\u7A7A\u767D\u9879\u76EE", "success");
+            window.updateWorkflowPanel();
+          });
+        }
+      };
+      const importInput = document.getElementById("importFileInput");
+      if (importInput) {
+        importInput.onchange = (e) => {
+          const file = e.target.files && e.target.files[0];
+          e.target.value = "";
+          if (!file) return;
+          const name = file.name || "";
+          if (name.endsWith(".flowcraft") || name.endsWith(".zip")) {
+            S.importProject(file).then((proj) => {
+              if (proj && window.applyWorkflowData) {
+                window.applyWorkflowData(proj);
+                setTimeout(() => window.fitToContent && window.fitToContent(), 100);
+                window.refreshAssetPanelIfOpen && window.refreshAssetPanelIfOpen();
+                window.toggleWorkflowPanel && window.toggleWorkflowPanel(false);
+                window.showToast && window.showToast("\u5DF2\u5BFC\u5165\u9879\u76EE\uFF1A" + name, "success");
+              } else window.showToast && window.showToast("\u5BFC\u5165\u5931\u8D25", "danger");
+            }).catch((err) => window.showToast && window.showToast("\u5BFC\u5165\u5931\u8D25\uFF1A" + (err && err.message || err), "danger"));
+          } else if (typeof window.importJSON === "function") {
+            window.importJSON(file);
+          }
+        };
+      }
+      const wfBtn = document.getElementById("btnWorkflow");
+      if (wfBtn) wfBtn.addEventListener("click", () => setTimeout(_renderSnapshots, 0));
+    }
+    function _installSnapshotUI() {
+      if (typeof document === "undefined") return;
+      const list = document.getElementById("workflowList");
+      if (!list || document.getElementById("snapshotBlock")) return;
+      const style = document.createElement("style");
+      style.textContent = ".wf-snapshot-block{margin:10px 0 4px;border-top:1px solid var(--border,#2a2f3a);padding-top:10px}.wf-snapshot-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.wf-snapshot-title{font-size:12px;color:var(--text-2,#9aa3b2);font-weight:600}";
+      document.head.appendChild(style);
+      const block = document.createElement("div");
+      block.id = "snapshotBlock";
+      block.className = "wf-snapshot-block";
+      block.innerHTML = '<div class="wf-snapshot-head"><span class="wf-snapshot-title">\u6062\u590D\u70B9\uFF08\u81EA\u52A8\u4FDD\u7559\u6700\u8FD1 20 \u4E2A\uFF09</span><button class="ra-btn" id="btnSnapshotSave" title="\u4FDD\u5B58\u5F53\u524D\u753B\u5E03\u4E3A\u6062\u590D\u70B9">\u{1F4BE} \u4FDD\u5B58\u6062\u590D\u70B9</button></div><div class="recycle-list" id="snapshotList"></div>';
+      list.parentNode.insertBefore(block, list);
+      const saveSnap = document.getElementById("btnSnapshotSave");
+      if (saveSnap) saveSnap.onclick = () => {
+        const label = window.prompt ? window.prompt("\u6062\u590D\u70B9\u5907\u6CE8\uFF08\u53EF\u9009\uFF09\uFF1A", "") : "";
+        S.snapshot(label || "").then((id) => {
+          if (id) {
+            window.showToast && window.showToast("\u5DF2\u4FDD\u5B58\u6062\u590D\u70B9", "success");
+            _renderSnapshots();
+          } else window.showToast && window.showToast("\u6062\u590D\u70B9\u4FDD\u5B58\u5931\u8D25\uFF08IndexedDB \u4E0D\u53EF\u7528\uFF09", "danger");
+        }).catch(() => window.showToast && window.showToast("\u4FDD\u5B58\u6062\u590D\u70B9\u5931\u8D25", "danger"));
+      };
+      _renderSnapshots();
+    }
+    function _renderSnapshots() {
+      const el = document.getElementById("snapshotList");
+      if (!el) return;
+      S.listSnapshots().then((rows) => {
+        if (!rows || rows.length === 0) {
+          el.innerHTML = '<div class="recycle-empty"><div class="empty-text">\u6682\u65E0\u6062\u590D\u70B9<br>\u70B9\u51FB\u300C\u4FDD\u5B58\u6062\u590D\u70B9\u300D\u53EF\u968F\u65F6\u56DE\u9000</div></div>';
+          return;
+        }
+        el.innerHTML = "";
+        rows.forEach((s) => {
+          const card = document.createElement("div");
+          card.className = "wf-card";
+          const date = new Date(s.createdAt).toLocaleString();
+          const label = s.label ? escapeHtml(s.label) : "";
+          card.innerHTML = '<div class="wf-card-main"><div class="wf-card-name" title="' + label + '">' + (label || "\u6062\u590D\u70B9") + '</div><div class="wf-card-meta">' + escapeHtml(date) + '</div></div><div class="wf-card-actions"><button class="wf-btn" data-act="restore">\u8FD8\u539F</button><button class="wf-btn" data-act="keep">\u6C38\u4E45</button><button class="wf-btn danger" data-act="del">\u5220\u9664</button></div>';
+          card.querySelectorAll("button").forEach((btn) => {
+            btn.onclick = () => {
+              const act = btn.dataset.act;
+              if (act === "restore") {
+                S.restoreSnapshot(s.id).then((proj) => {
+                  if (proj && window.applyWorkflowData) {
+                    window.applyWorkflowData(proj);
+                    setTimeout(() => window.fitToContent && window.fitToContent(), 100);
+                    window.toggleWorkflowPanel && window.toggleWorkflowPanel(false);
+                    window.showToast && window.showToast("\u5DF2\u8FD8\u539F\u6062\u590D\u70B9", "success");
+                  } else window.showToast && window.showToast("\u8FD8\u539F\u5931\u8D25", "danger");
+                }).catch(() => window.showToast && window.showToast("\u8FD8\u539F\u5931\u8D25", "danger"));
+              } else if (act === "keep") {
+                const cur = (s.label || "").indexOf("[\u6C38\u4E45]") >= 0 ? (s.label || "").replace("[\u6C38\u4E45]", "").replace(/\s+/g, " ").trim() : "[\u6C38\u4E45] " + (s.label || "\u6062\u590D\u70B9");
+                S.renameSnapshot(s.id, cur).then(() => _renderSnapshots());
+              } else if (act === "del") {
+                if (window.confirm && window.confirm("\u5220\u9664\u8BE5\u6062\u590D\u70B9\uFF1F")) {
+                  S.deleteSnapshot(s.id).then(() => _renderSnapshots());
+                }
+              }
+            };
+          });
+          el.appendChild(card);
+        });
+      }).catch(() => {
+        el.innerHTML = "";
       });
     }
   })();

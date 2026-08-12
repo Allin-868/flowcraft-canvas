@@ -142,10 +142,29 @@ export const StorageAdapter = {
     return true;
   },
 
+  // —— 多项目：改名 / 删除 ——
+  async renameProject(id, name) {
+    const ok = await this._ensureIDB();
+    if (!ok) return false;
+    const row = await db.idbGet('projects', id);
+    if (!row) return false;
+    row.name = name;
+    await db.idbPut('projects', row);
+    return true;
+  },
+  async deleteProject(id) {
+    const ok = await this._ensureIDB();
+    if (!ok) return false;
+    if (id === CURRENT_PROJECT_ID) return false; // 当前项目不可删，用 newProject 清空
+    await db.idbDelete('projects', id);
+    return true;
+  },
+
   // —— 项目文件 ZIP ——
   async exportProject(meta) {
     const proj = _readWorkflowJSON();
     if (!proj) return null;
+    if (meta && meta.projectName) proj.name = meta.projectName; // 导出名落到项目对象，保证往返一致
     const assets = _collectHeavyAssets(proj);
     const blob = await exportProjectZip(proj, assets, meta || {});
     return blob;
@@ -262,6 +281,21 @@ export const StorageAdapter = {
     if (!row) return null;
     await db.idbPut('projects', { id: CURRENT_PROJECT_ID, data: row.data, savedAt: new Date().toISOString(), size: JSON.stringify(row.data).length, restoredFrom: id });
     return row.data;
+  },
+  async renameSnapshot(id, label) {
+    const ok = await this._ensureIDB();
+    if (!ok) return false;
+    const row = await db.idbGet('snapshots', id);
+    if (!row) return false;
+    row.label = label;
+    await db.idbPut('snapshots', row);
+    return true;
+  },
+  async deleteSnapshot(id) {
+    const ok = await this._ensureIDB();
+    if (!ok) return false;
+    await db.idbDelete('snapshots', id);
+    return true;
   },
   async _enforceSnapshotPolicy() {
     // 保留策略（本批）：最近 20 个；标记 [永久] 的不删。每日 1 个的长期策略留待 UI 细化。
