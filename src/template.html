@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<!--
+  FlowCraft · AI 工作流编辑器 v2
+  设计系统：FlowCraft Dark Theme (design-system-expert 规范)
+  原型类型：dashboard (无限画布工作流编辑器)
+  阶段：1 (画布骨架) + 2 (节点系统 DOM 卡片)
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>FlowCraft · AI 工作流编辑器</title>
+<style>
+<!--BUILD_STYLE-->
+</style>
+
+</head>
+<body>
+<div class="app">
+  <!-- ========== 左侧节点库 ========== -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-toggle-btn" id="sidebarCollapseBtn" title="折叠节点库">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 3L6 8l5 5"/></svg>
+    </button>
+    <div class="sidebar-header">
+      <div class="sidebar-title">节点库</div>
+      <div class="sidebar-search">
+        <input type="text" placeholder="搜索节点..." id="libSearch" />
+      </div>
+    </div>
+    <div class="sidebar-list" id="sidebarList">
+      <!-- 节点库项由 JS 动态生成 -->
+    </div>
+  </aside>
+
+  <!-- ========== 主画布 ========== -->
+  <main class="canvas-wrap" id="canvasWrap">
+    <!-- 3层渲染：grid → edges → nodes -->
+    <canvas id="gridCanvas"></canvas>
+    <canvas id="edgeCanvas"></canvas>
+    <div class="node-layer" id="nodeLayer"></div>
+
+    <!-- 右侧 AI 助手面板（默认隐藏，由 localStorage 记忆开关状态） -->
+    <div class="ai-panel collapsed" id="aiPanel">
+      <div class="ai-panel-resizer" id="aiPanelResizer"></div>
+      <div class="ai-panel-header">
+        <select class="ai-model-select" id="aiModelSelect" title="选择模型">
+          <optgroup label="GPT">
+            <option value="gpt-5.4">GPT-5.4</option>
+            <option value="gpt-5.4-mini">GPT-5.4 Mini</option>
+            <option value="gpt-5.5">GPT-5.5</option>
+            <option value="gpt-5.5-openai-compact">GPT-5.5 Compact</option>
+            <option value="gpt-5.6-luna">GPT-5.6 Luna</option>
+            <option value="gpt-5.6-sol">GPT-5.6 Sol</option>
+            <option value="gpt-5.6-terra">GPT-5.6 Terra</option>
+          </optgroup>
+          <optgroup label="Claude">
+            <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+            <option value="claude-sonnet-4-6-thinking">Sonnet 4.6 Thinking</option>
+            <option value="claude-sonnet-5">Sonnet 5</option>
+            <option value="claude-opus-4-6">Opus 4.6</option>
+            <option value="claude-opus-4-6-thinking">Opus 4.6 Thinking</option>
+            <option value="claude-opus-4-7">Opus 4.7</option>
+            <option value="claude-opus-4-8">Opus 4.8</option>
+            <option value="claude-opus-5">Opus 5</option>
+            <option value="claude-haiku-4-5">Haiku 4.5</option>
+            <option value="claude-fable-5">Fable 5</option>
+            <option value="claude-ccmax">CCMax</option>
+          </optgroup>
+          <optgroup label="Gemini">
+            <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
+            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
+            <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image</option>
+            <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image</option>
+            <option value="gemini-anti">Gemini Anti</option>
+            <option value="gemini-anti-0.25">Gemini Anti 0.25</option>
+          </optgroup>
+          <optgroup label="Grok">
+            <option value="grok-4">Grok 4</option>
+            <option value="grok-4-deepsearch">Grok 4 DeepSearch</option>
+            <option value="grok-4.3">Grok 4.3</option>
+            <option value="grok-4.3-fast">Grok 4.3 Fast</option>
+            <option value="grok-4.5">Grok 4.5</option>
+            <option value="grok-4.5-fast">Grok 4.5 Fast</option>
+            <option value="grok-420-fast">Grok 420 Fast</option>
+            <option value="grok-420-thinking">Grok 420 Thinking</option>
+            <option value="grok-auto">Grok Auto</option>
+          </optgroup>
+          <optgroup label="其他">
+            <option value="codex">Codex</option>
+            <option value="codex-auto-review">Codex Auto Review</option>
+            <option value="kiro">Kiro</option>
+            <option value="vertex">Vertex</option>
+            <option value="default">Default</option>
+            <option value="test">Test</option>
+          </optgroup>
+          <optgroup label="特殊">
+            <option value="gpt-image-2">GPT Image 2（生图）</option>
+            <option value="deepseek">DeepSeek V3（自有 Key）</option>
+          </optgroup>
+        </select>
+        <div class="ai-title" id="aiSessionTitle">AI 设计助手</div>
+        <div class="ai-panel-actions">
+          <button class="ai-btn" id="aiSettingsBtn" title="API 设置">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3"/></svg>
+          </button>
+          <button class="ai-btn" id="aiClearBtn" title="清空对话">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10"/></svg>
+          </button>
+          <button class="ai-btn" id="aiCollapseBtn" title="收起面板">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3l5 5-5 5"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="ai-settings" id="aiSettingsPanel">
+        <div class="ai-settings-title" id="aiSettingsTitle">API Key 设置</div>
+        <div class="ai-settings-row">
+          <span class="ai-settings-label">Deepseek</span>
+          <input type="password" id="deepseekKeyInput" placeholder="对话 / 提示词扩写 API Key" autocomplete="off" spellcheck="false" />
+          <button class="ai-btn small" id="deepseekKeySave">保存</button>
+        </div>
+        <div class="ai-settings-row">
+          <span class="ai-settings-label">OpenAI</span>
+          <input type="password" id="openaiKeyInput" placeholder="生图 + 中转对话 API Key" autocomplete="off" spellcheck="false" />
+          <button class="ai-btn small" id="openaiKeySave">保存</button>
+        </div>
+        <div class="ai-settings-row">
+          <select id="openaiBasePreset" class="ai-base-preset" title="常用 API 中转地址">
+            <option value="">自定义</option>
+            <option value="https://www.zeoapi.com/v1">zeoapi.com</option>
+            <option value="https://api.openai.com/v1">OpenAI 官方</option>
+          </select>
+          <input type="text" id="openaiBaseInput" placeholder="API 地址（留空默认 https://api.openai.com/v1）" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="ai-settings-hint">Key 仅保存在本机浏览器（localStorage），不会上传到任何第三方服务器。</div>
+        <div class="ai-settings-status" id="deepseekKeyStatus"></div>
+        <div class="ai-settings-status" id="openaiKeyStatus"></div>
+      </div>
+      <div class="ai-chat" id="aiChat">
+        <div class="ai-welcome">
+          <div class="ai-welcome-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a4 4 0 00-4 4v1H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-8a2 2 0 00-2-2h-2V6a4 4 0 00-4-4z"/><path d="M12 14v3"/><circle cx="12" cy="11" r="1"/></svg>
+          </div>
+          <div class="ai-welcome-title">AI 设计助手</div>
+          <div class="ai-welcome-desc">描述你的设计需求，我会帮你生成参考图、线稿、材质、灯光与布局方案。</div>
+        </div>
+      </div>
+      <div class="ai-input-area">
+        <div class="ai-quick-chips" id="aiQuickChips">
+          <button class="ai-quick-chip" data-action="expand">✨ 提示词扩写</button>
+          <button class="ai-quick-chip">生成餐厅方案</button>
+          <button class="ai-quick-chip">优化灯光氛围</button>
+          <button class="ai-quick-chip">推荐材质搭配</button>
+          <button class="ai-quick-chip">出 3 套布局</button>
+        </div>
+        <div class="ai-input-wrap">
+          <textarea id="aiInput" rows="1" placeholder="输入提示词，例如：现代简约餐厅，暖色调灯光..."></textarea>
+          <button class="ai-send-btn" id="aiSendBtn" title="发送">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l9 6-9 6z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI 面板展开/折叠按钮 -->
+    <button class="ai-toggle-btn" id="aiToggleBtn" title="AI 助手">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 2v3M8 11v3M2 8h3M11 8h3"/>
+        <path d="M4.5 4.5l1.5 1.5M10 10l1.5 1.5M11.5 4.5l-1.5 1.5M4.5 11.5l1.5-1.5"/>
+      </svg>
+      <span class="ai-toggle-badge"></span>
+    </button>
+
+    <!-- 顶部工具栏 -->
+    <div class="canvas-toolbar" id="canvasToolbar">
+      <button class="tb-btn" id="btnUndo" title="撤销 (Ctrl+Z)" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8h7a3 3 0 013 3v0a3 3 0 01-3 3H6"/><path d="M3 8l3-3M3 8l3 3"/></svg>
+      </button>
+      <button class="tb-btn" id="btnRedo" title="重做 (Ctrl+Y)" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 8H6a3 3 0 00-3 3v0a3 3 0 003 3h4"/><path d="M13 8l-3-3M13 8l-3 3"/></svg>
+      </button>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" id="btnRecycle" title="回收站">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10"/></svg>
+        <span class="tb-badge" id="recycleBadge" style="display:none">0</span>
+      </button>
+      <button class="tb-btn" id="btnWorkflow" title="工作流管理（保存 / 加载 / 导出）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4a2 2 0 012-2h3l2 2h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V4z"/></svg>
+      </button>
+      <button class="tb-btn" id="btnAssets" title="素材库（图片资产管理）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>
+      </button>
+      <button class="tb-btn" id="btnRunLog" title="运行日志（生成历史）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h6"/></svg>
+      </button>
+      <button class="tb-btn" id="btnRegen" title="重生成归档（失败 / 重生成记录）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 8a5 5 0 11-1.5-3.5M13 3v3h-3"/></svg>
+        <span class="tb-badge" id="regenBadge" style="display:none">0</span>
+      </button>
+      <button class="tb-btn" id="btnShots" title="镜头清单（场景表 / 分镜管理）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12M6 3v3M10 3v3"/></svg>
+      </button>
+      <button class="tb-btn" id="btnScenes" title="场景分组（把节点归类管理）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h5v5H2zM9 4h5v5H9zM2 11h5v3H2zM9 11h5v3H9z"/></svg>
+      </button>
+      <button class="tb-btn" id="btnTemplates" title="开箱模板（一键加载预置工作流）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h5v5H2zM9 3h5v5H9zM2 10h5v4H2zM9 10h5v4H9z"/></svg>
+      </button>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" id="btnExport" title="导出 JSON">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3 14h10"/></svg>
+      </button>
+      <button class="tb-btn" id="btnDelivery" title="导出交付包（场景表 + 每镜提示词 + 资产清单 + 工作流）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10v9H3zM3 7h10M6 4v3"/><path d="M11 11l2 2M13 11l-2 2"/></svg>
+      </button>
+      <button class="tb-btn" id="btnImport" title="导入 JSON">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10V2M5 5l3-3 3 3M3 14h10"/></svg>
+      </button>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" id="btnClearSave" title="清空已保存数据">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h10M6 5V3h4v2M5 5l1 9h4l1-9M7 8v3M9 8v3"/></svg>
+      </button>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" id="btnShortcuts" title="快捷键设置">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="1.5"/><path d="M5 7h2M5 10h2M9 7h2M9 10h2"/></svg>
+      </button>
+      <button class="tb-btn" id="btnTheme" title="切换主题（黑底 / 白底 / 护眼）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M3.5 12.5l1.4-1.4M11.1 4.9l1.4-1.4"/></svg>
+      </button>
+      <button class="tb-btn tb-arrange" id="btnArrange" title="自动整理布局（按连线分层排列）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="5" height="4" rx="1"/><rect x="9" y="9" width="5" height="4" rx="1"/><path d="M7 5h2a2 2 0 012 2v2"/></svg>
+        <span class="tb-arrange-label">自动整理</span>
+      </button>
+      <button class="tb-btn tb-run-all" id="btnRunAll" title="运行整个工作流 (数据沿连线流动)">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg>
+        <span class="tb-run-label">运行工作流</span>
+      </button>
+    </div>
+
+    <!-- 小地图导航 -->
+    <div class="minimap" id="minimap">
+      <div class="minimap-header">
+        <span class="minimap-title">导航</span>
+        <button class="minimap-toggle" id="minimapToggle" title="折叠/展开">−</button>
+      </div>
+      <canvas class="minimap-canvas" id="minimapCanvas" width="210" height="130"></canvas>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- 状态栏 -->
+    <div class="statusbar">
+      <div class="statusbar-left">
+        <div class="stat-item">
+          <span class="stat-label">节点</span>
+          <span class="stat-value" id="statNodes">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">连线</span>
+          <span class="stat-value" id="statEdges">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">缩放</span>
+          <span class="stat-value" id="statZoom">100%</span>
+        </div>
+      </div>
+      <div class="statusbar-right">
+        <div class="stat-item">
+          <span class="stat-label">保存</span>
+          <span class="stat-value" id="statSave">已保存</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">FlowCraft</span>
+          <span class="stat-value" id="statVersion">v3.0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 缩放控件 -->
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoomIn" title="放大">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 3v10M3 8h10"/>
+        </svg>
+      </button>
+      <div class="zoom-display" id="zoomDisplay">100%</div>
+      <button class="zoom-btn" id="zoomOut" title="缩小">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 8h10"/>
+        </svg>
+      </button>
+      <button class="zoom-btn" id="zoomFit" title="适应内容">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 6V3h3M10 3h3v3M13 10v3h-3M6 13H3v-3"/>
+        </svg>
+      </button>
+    </div>
+  </main>
+</div>
+
+<!-- 回收站面板 (侧边抽屉) -->
+<div class="recycle-overlay" id="recycleOverlay"></div>
+<div class="recycle-panel" id="recyclePanel">
+  <div class="recycle-header">
+    <div class="recycle-icon">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10"/></svg>
+    </div>
+    <div class="recycle-title">回收站</div>
+    <div class="recycle-count" id="recycleCount">0</div>
+    <button class="recycle-close" id="recycleClose" title="关闭">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  </div>
+  <div class="recycle-actions">
+    <button class="ra-btn" id="btnRestoreAll" disabled>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8h7a3 3 0 013 3v0a3 3 0 01-3 3H6"/><path d="M3 8l3-3M3 8l3 3"/></svg>
+      全部还原
+    </button>
+    <button class="ra-btn danger" id="btnEmptyRecycle" disabled>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h10M6 5V3h4v2M5 5l1 9h4l1-9M7 8v3M9 8v3"/></svg>
+      清空回收站
+    </button>
+  </div>
+  <div class="recycle-list" id="recycleList">
+    <div class="recycle-empty">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10"/></svg>
+      <div class="empty-text">回收站为空</div>
+    </div>
+  </div>
+</div>
+
+<!-- 工作流管理面板 -->
+<div class="recycle-overlay" id="workflowOverlay"></div>
+<div class="recycle-panel" id="workflowPanel">
+  <div class="recycle-header">
+    <div class="recycle-icon">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4a2 2 0 012-2h3l2 2h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V4z"/></svg>
+    </div>
+    <div class="recycle-title">工作流管理</div>
+    <div class="recycle-count" id="workflowCount">0</div>
+    <button class="recycle-close" id="workflowClose" title="关闭">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  </div>
+  <div class="recycle-actions">
+    <button class="ra-btn" id="btnSaveWorkflow">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h8l2 2v8H3zM11 3v2h2"/><path d="M5 8h6M5 11h6"/></svg>
+      保存当前为…
+    </button>
+    <button class="ra-btn" id="btnNewWorkflow">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h8l2 2v8H3z"/><path d="M8 7v4M6 9h4"/></svg>
+      新建空白
+    </button>
+    <button class="ra-btn" id="btnImportWorkflow">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10V2M5 5l3-3 3 3M3 14h10"/></svg>
+      导入文件
+    </button>
+  </div>
+  <div class="recycle-list" id="workflowList">
+    <div class="recycle-empty">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4a2 2 0 012-2h3l2 2h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V4z"/></svg>
+      <div class="empty-text">暂无保存的工作流<br>点击「保存当前为…」创建</div>
+    </div>
+  </div>
+</div>
+
+<!-- 素材库面板 -->
+<div class="recycle-overlay" id="assetOverlay"></div>
+<div class="recycle-panel" id="assetPanel">
+  <div class="recycle-header">
+    <div class="recycle-icon">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>
+    </div>
+    <div class="recycle-title">素材库</div>
+    <div class="recycle-count" id="assetCount">0</div>
+    <button class="recycle-close" id="assetClose" title="关闭">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  </div>
+  <div class="recycle-actions">
+    <button class="ra-btn" id="btnRefreshAssets">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 8a5 5 0 11-1.5-3.5M13 3v3h-3"/></svg>
+      刷新素材
+    </button>
+  </div>
+  <div class="recycle-list" id="assetList">
+  <div class="asset-filters" id="assetFilters">
+    <button class="asset-filter-chip active" data-cat="" type="button">全部</button>
+    <button class="asset-filter-chip" data-cat="角色" type="button">角色</button>
+    <button class="asset-filter-chip" data-cat="道具" type="button">道具</button>
+    <button class="asset-filter-chip" data-cat="场景" type="button">场景</button>
+    <button class="asset-filter-chip" data-cat="通用" type="button">通用</button>
+  </div>
+    <div class="asset-grid" id="assetGrid"></div>
+    <div class="recycle-empty" id="assetEmpty">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>
+      <div class="empty-text">暂无素材<br>上传图片或运行工作流后自动出现</div>
+    </div>
+  </div>
+</div>
+
+<!-- 镜头清单面板（场景表 / 分镜管理） -->
+<div class="shot-overlay" id="shotOverlay"></div>
+<div class="shot-panel" id="shotPanel">
+  <div class="shot-header">
+    <div class="shot-icon">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12M6 3v3M10 3v3"/></svg>
+    </div>
+    <div class="shot-title">镜头清单</div>
+    <div class="shot-count" id="shotCount">0</div>
+    <button class="shot-close" id="shotClose" title="关闭">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  </div>
+  <div class="shot-actions">
+    <button class="ra-btn" id="btnAddShot">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
+      新增镜头
+    </button>
+    <button class="ra-btn" id="btnGenerateAllShots" title="依次生成全部镜头">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l4 3-4 3M9 11h4"/></svg>
+      全部生成
+    </button>
+  </div>
+  <div class="shot-list" id="shotList"></div>
+</div>
+
+<!-- 图片大图查看器 (点击空白关闭，滚轮缩放，拖拽平移，双击还原) -->
+<div class="image-lightbox" id="imageLightbox">
+  <button class="lb-close" id="imageLightboxClose" title="关闭 (Esc)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+  </button>
+  <button class="lb-reset" id="imageLightboxReset" title="重置缩放 (双击图片)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 0 1 8-8V4l4 3-4 3V8a6 6 0 0 0-6 6h2a4 4 0 0 1-4-4z"/></svg>
+  </button>
+  <button class="lb-nav lb-prev" id="imageLightboxPrev" title="上一张 (←)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <button class="lb-nav lb-next" id="imageLightboxNext" title="下一张 (→)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+  <div class="lb-stage" id="imageLightboxStage">
+    <div class="lb-img-wrapper" id="imageLightboxWrapper">
+      <img id="imageLightboxImg" src="" alt="预览图" draggable="false">
+    </div>
+  </div>
+  <div class="lb-counter" id="imageLightboxCounter"></div>
+  <div class="lb-hint">← → 切换图片 · 滚轮缩放 · 拖拽平移 · 双击还原 · 空白处关闭</div>
+</div>
+
+<!-- 隐藏的文件输入 (导入 JSON) -->
+<input type="file" id="importFileInput" class="hidden-file-input" accept="application/json,.json" />
+
+<!-- 连线节点快捷组合菜单 -->
+<div id="connectionNodeMenu" class="connection-node-menu"></div>
+
+<!-- 快捷键设置面板 -->
+<div class="shortcuts-panel-overlay" id="shortcutsPanelOverlay"></div>
+<div class="shortcuts-panel" id="shortcutsPanel">
+  <div class="shortcuts-panel-header">
+    <div class="shortcuts-panel-title">快捷键设置</div>
+    <button class="shortcuts-panel-close" id="shortcutsPanelClose" title="关闭 (Esc)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  </div>
+  <div class="shortcuts-panel-body" id="shortcutsPanelBody">
+    <div class="shortcuts-list" id="shortcutsList"></div>
+    <div class="shortcuts-hint">
+      点击输入框后按目标组合键即可设置新快捷键；按 <kbd>Esc</kbd> 取消录制。<br>
+      部分基础操作（如滚轮缩放、右键菜单、拖端口连线）由鼠标直接完成，暂不支持改键。
+    </div>
+  </div>
+  <div class="shortcuts-panel-footer">
+    <button class="wf-btn" id="shortcutsResetBtn">恢复默认</button>
+    <button class="wf-btn primary" id="shortcutsSaveBtn">保存</button>
+  </div>
+</div>
+
+  <!-- 运行日志面板（生成历史） -->
+  <div class="run-log-panel" id="runLogPanel">
+    <div class="run-log-header">
+      <div class="run-log-title">运行日志</div>
+      <div class="run-log-actions">
+        <select id="runLogFilter" class="run-log-filter" title="筛选">
+          <option value="all">全部</option>
+          <option value="success">成功</option>
+          <option value="error">失败</option>
+        </select>
+        <button class="ai-btn small" id="runLogClear" title="清空日志">清空</button>
+        <button class="ai-btn" id="runLogClose" title="收起面板">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="run-log-list" id="runLogList"></div>
+    <div class="run-log-empty" id="runLogEmpty">暂无运行记录<br>运行工作流后，这里会自动记录每次生成的<br>模型 · 参数 · 耗时 · 错误</div>
+  </div>
+
+  <!-- 重生成归档面板（Regenerations，借鉴 Hell Grind：失败/重生成独立归档，不污染正式结果）-->
+  <div class="run-log-panel" id="regenPanel">
+    <div class="run-log-header">
+      <div class="run-log-title">重生成归档</div>
+      <div class="run-log-actions">
+        <select id="regenFilter" class="run-log-filter" title="筛选">
+          <option value="all">全部</option>
+          <option value="failed">失败</option>
+          <option value="regenerated">已重生成</option>
+        </select>
+        <button class="ai-btn small" id="regenClear" title="清空归档">清空</button>
+        <button class="ai-btn" id="regenClose" title="收起面板">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="run-log-list" id="regenList"></div>
+    <div class="run-log-empty" id="regenEmpty">暂无重生成记录<br>节点运行失败时，会自动归档到这里，<br>可集中重试，不污染正式结果</div>
+  </div>
+
+  <!-- 场景分组面板 -->
+  <div class="scene-panel" id="scenePanel">
+    <div class="scene-header">
+      <div class="scene-title">场景分组 <span class="scene-count" id="sceneCount">0</span></div>
+      <div class="scene-actions">
+        <button class="ai-btn small" id="sceneNew" title="新建场景">新建</button>
+        <button class="ai-btn" id="sceneClose" title="收起面板">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="scene-list" id="sceneList"></div>
+    <div class="scene-empty" id="sceneEmpty">暂无场景<br>点击「新建」创建分组，再把节点归入其中</div>
+  </div>
+
+  <!-- 开箱模板面板 -->
+  <div class="template-panel" id="templatePanel">
+    <div class="template-header">
+      <div class="template-title">开箱模板</div>
+      <button class="ai-btn" id="templateClose" title="收起面板">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="template-tip">选择模板后，可「追加」到当前画布，或「清空并加载」。</div>
+    <div class="template-list" id="templateList"></div>
+  </div>
+
+
+<script>
+<!--BUILD_APP-->
+</script>
+<script>
+<!--BUILD_COMPAT-->
+</script>
+
+
+</body>
+</html>
