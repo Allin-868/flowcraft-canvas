@@ -14,7 +14,21 @@ window.FlowCraft.runner = Runner;
 window.FlowCraft.nodes = NodeContract;
 window.FlowCraft.proxy = ProxyClient;
 window.FlowCraft.fee = FeeModel;
-window.FlowCraft.version = '3.5-task-engine';
+window.FlowCraft.version = '3.6-api-proxy';
+
+// 阶段 4：代理启用（opt-in）。默认不启用 → legacy 回退直连（本地开发兼容）。
+// 部署时由启动脚本注入 window.__FC_PROXY_BASE__ / window.__FC_PROXY_TOKEN__（短期用户令牌，非生产 Key）。
+(function configureProxy() {
+  var base = (typeof window !== 'undefined') && (window.__FC_PROXY_BASE__ || '');
+  var token = (typeof window !== 'undefined') && (window.__FC_PROXY_TOKEN__ || '');
+  if (base) {
+    ProxyClient.configure({ base: base, token: token });
+    window.FlowCraft.__userToken = token;
+    console.log('[FlowCraft] API 代理已启用：' + base + '（浏览器不持有生产 Key）');
+  } else {
+    console.log('[FlowCraft] API 代理未启用（legacy 直连模式）');
+  }
+})();
 
 if (typeof console !== 'undefined') {
   console.log('[FlowCraft] 兼容层已挂载：storage=IndexedDB runner=' + Runner.getMode());

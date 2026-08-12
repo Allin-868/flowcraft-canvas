@@ -6380,7 +6380,24 @@ function normalizeApiBase(raw) {
   if (!/\/v1$/.test(b)) b += '/v1';
   return b;
 }
+// 阶段 4：代理是否启用（opt-in）。启用则所有模型调用经 FlowCraft.proxy，浏览器不持有生产 Key。
+function _fcProxy() {
+  var p = window.FlowCraft && window.FlowCraft.proxy;
+  return (p && typeof p.enabled === 'function' && p.enabled()) ? p : null;
+}
+
 function openaiPostJSON(base, path, key, body) {
+  var proxy = _fcProxy();
+  if (proxy) {
+    return proxy.call({ provider: 'openai', endpoint: path, body: body, token: window.FlowCraft.__userToken || undefined })
+      .catch(function(err) {
+        if (err && err.kind) {
+          var m = new Error(err.message || 'proxy error'); m.status = err.status || 0; m.bodyText = ''; m.proxyKind = err.kind;
+          throw m;
+        }
+        throw err;
+      });
+  }
   return fetch(base + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
@@ -8215,7 +8232,7 @@ function runPromptEnhance(text, opts) {
     if (!t) { reject(new Error('请先输入要增强的提示词')); return; }
     opts = opts || {};
     var apiKey = opts.apiKey || '';
-    if (!apiKey) { reject(new Error('请先配置 Deepseek API Key')); return; }
+    if (!apiKey && !_fcProxy()) { reject(new Error('请先配置 Deepseek API Key')); return; }
 
     var sys = GENERIC_PROMPT_EXPAND_SYSTEM;
     if (opts.useLibrary !== false) {
@@ -8261,7 +8278,7 @@ function expandPromptWithAI() {
 
   // 提示词扩写始终走 Deepseek 真实模型，与画布文本节点共用 runPromptEnhance
   var apiKey = localStorage.getItem(DEEPSEEK_KEY_STORAGE);
-  if (!apiKey) {
+  if (!apiKey && !_fcProxy()) {
     bubble.innerHTML = '<div class="ai-reply-text">提示词扩写需要 Deepseek API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，配置后即可一键扩写。</div>';
     scrollAIToBottom();
     aiIsGenerating = false;
@@ -8328,7 +8345,8 @@ function sendAIMessage() {
   // Deepseek 真实调用分支
   if (aiCurrentModel === 'deepseek') {
     var apiKey = localStorage.getItem(DEEPSEEK_KEY_STORAGE);
-    if (!apiKey) {
+    var _proxyOn = !!_fcProxy();
+    if (!apiKey && !_proxyOn) {
       bubble.innerHTML = '<div class="ai-reply-text">尚未配置 Deepseek API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，配置后即可使用 Deepseek 真实回复。</div>';
       scrollAIToBottom();
       aiIsGenerating = false;
@@ -8389,7 +8407,8 @@ function generateChatImage(text, bubble) {
 // --- 中转对话（OpenAI 格式 /chat/completions，支持 GPT/Claude/Gemini/Grok 等）---
 function callRelayChat(model, bubble) {
   var key = localStorage.getItem(OPENAI_KEY_STORAGE);
-  if (!key) {
+  var proxy = _fcProxy();
+  if (!key && !proxy) {
     bubble.innerHTML = '<div class="ai-reply-text">尚未配置中转 API Key。请点击面板右上角的 ⚙ 图标粘贴你的中转 Key 并保存，即可使用 ' + escapeHtml(model) + ' 真实回复。</div>';
     scrollAIToBottom();
     aiIsGenerating = false;
@@ -8399,17 +8418,21 @@ function callRelayChat(model, bubble) {
   }
   var base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
   var messages = [{ role: 'system', content: SYSTEM_PROMPT }].concat(aiConversation);
-  fetch(base + '/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-    body: JSON.stringify({ model: model, messages: messages, stream: false })
-  })
-  .then(function(resp) {
-    if (!resp.ok) {
-      return resp.text().then(function(t) { throw new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 120) : '')); });
-    }
-    return resp.json();
-  })
+  var relayReq;
+  if (proxy) {
+    relayReq = proxy.call({ provider: 'openai', endpoint: '/chat/completions', body: { model: model, messages: messages, stream: false }, token: window.FlowCraft.__userToken || undefined })
+      .catch(function(err) { if (err && err.kind) { var m = new Error(err.message || 'proxy error'); m.status = err.status || 0; m.proxyKind = err.kind; throw m; } throw err; });
+  } else {
+    relayReq = fetch(base + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({ model: model, messages: messages, stream: false })
+    }).then(function(resp) {
+      if (!resp.ok) { return resp.text().then(function(t) { throw new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 120) : '')); }); }
+      return resp.json();
+    });
+  }
+  relayReq
   .then(function(data) {
     var reply = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '（' + model + ' 返回内容为空）';
     aiConversation.push({ role: 'assistant', content: reply });
@@ -8430,61 +8453,64 @@ function callRelayChat(model, bubble) {
 
 // --- Deepseek SSE 流式调用（逐字增量输出）---
 // 返回 Promise<string>（完整文本）；onText(accumulated) 在每收到一段增量时回调，用于实时渲染。
+// 阶段 4：SSE 消费（代理/直连共用）
+function _consumeSSE(resp, onText) {
+  if (!resp.ok) {
+    return resp.text().then(function(t) {
+      var e = new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 200) : ''));
+      e.status = resp.status; throw e;
+    });
+  }
+  if (!resp.body || !resp.body.getReader) {
+    return resp.json().then(function(data) {
+      var t = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      if (onText) onText(t);
+      return t;
+    });
+  }
+  var reader = resp.body.getReader();
+  var decoder = new TextDecoder('utf-8');
+  var buffer = '';
+  var full = '';
+  function pump() {
+    return reader.read().then(function(step) {
+      if (step.done) return full;
+      buffer += decoder.decode(step.value, { stream: true });
+      var lines = buffer.split('\n');
+      buffer = lines.pop(); // 保留可能未完整的一行
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        if (!line || line.indexOf('data:') !== 0) continue;
+        var payload = line.slice(5).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          var json = JSON.parse(payload);
+          var delta = json.choices && json.choices[0] && json.choices[0].delta;
+          var piece = delta && delta.content;
+          if (piece) { full += piece; if (onText) onText(full); }
+        } catch (e) { /* 跳过不完整的片段 */ }
+      }
+      return pump();
+    });
+  }
+  return pump();
+}
+
 function streamDeepseek(apiKey, messages, onText) {
+  var proxy = _fcProxy();
+  if (proxy) {
+    return proxy.stream({ provider: 'deepseek', endpoint: '/chat/completions', body: { model: 'deepseek-chat', messages: messages, temperature: 0.7, stream: true }, token: window.FlowCraft.__userToken || undefined })
+      .then(function(resp) { return _consumeSSE(resp, onText); })
+      .catch(function(err) {
+        if (err && err.kind) { var m = new Error(err.message || 'proxy error'); m.status = err.status || 0; m.proxyKind = err.kind; throw m; }
+        throw err;
+      });
+  }
   return fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + apiKey
-    },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
-      messages: messages,
-      temperature: 0.7,
-      stream: true
-    })
-  })
-  .then(function(resp) {
-    if (!resp.ok) {
-      return resp.text().then(function(t) {
-        throw new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 200) : ''));
-      });
-    }
-    // 环境不支持流式读取（无 body/reader）→ 回退一次性 JSON
-    if (!resp.body || !resp.body.getReader) {
-      return resp.json().then(function(data) {
-        var t = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-        if (onText) onText(t);
-        return t;
-      });
-    }
-    var reader = resp.body.getReader();
-    var decoder = new TextDecoder('utf-8');
-    var buffer = '';
-    var full = '';
-    function pump() {
-      return reader.read().then(function(step) {
-        if (step.done) return full;
-        buffer += decoder.decode(step.value, { stream: true });
-        var lines = buffer.split('\n');
-        buffer = lines.pop(); // 保留可能未完整的一行
-        for (var i = 0; i < lines.length; i++) {
-          var line = lines[i].trim();
-          if (!line || line.indexOf('data:') !== 0) continue;
-          var payload = line.slice(5).trim();
-          if (payload === '[DONE]') continue;
-          try {
-            var json = JSON.parse(payload);
-            var delta = json.choices && json.choices[0] && json.choices[0].delta;
-            var piece = delta && delta.content;
-            if (piece) { full += piece; if (onText) onText(full); }
-          } catch (e) { /* 跳过不完整的片段 */ }
-        }
-        return pump();
-      });
-    }
-    return pump();
-  });
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+    body: JSON.stringify({ model: 'deepseek-chat', messages: messages, temperature: 0.7, stream: true })
+  }).then(function(resp) { return _consumeSSE(resp, onText); });
 }
 
 // --- Deepseek 真实 API 调用（流式，带错误处理）---
