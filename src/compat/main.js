@@ -4,17 +4,17 @@
 //        并注入多项目面板 UI（T1-3）与恢复点 UI（T1-5）。
 import { StorageAdapter } from '../storage/storage.js';
 import { Runner } from '../execution/runner.js';
-import { NodeRegistry } from '../nodes/registry.js';
+import { NodeContract } from '../nodes/registry.js';
 import { ProxyClient } from '../providers/proxy-client.js';
 import { FeeModel } from '../providers/fee-model.js';
 
 window.FlowCraft = window.FlowCraft || {};
 window.FlowCraft.storage = StorageAdapter;
 window.FlowCraft.runner = Runner;
-window.FlowCraft.nodes = NodeRegistry;
+window.FlowCraft.nodes = NodeContract;
 window.FlowCraft.proxy = ProxyClient;
 window.FlowCraft.fee = FeeModel;
-window.FlowCraft.version = '3.3-projects';
+window.FlowCraft.version = '3.4-node-contract';
 
 if (typeof console !== 'undefined') {
   console.log('[FlowCraft] 兼容层已挂载：storage=IndexedDB runner=' + Runner.getMode());
@@ -336,4 +336,35 @@ function downloadBlob(blob, filename) {
       });
     }).catch(() => { el.innerHTML = ''; });
   }
+})();
+
+// —— 阶段 2：T2-5 节点数据规范 UI ——
+// 为 tier='stub'（未实现）节点显式加「未实现」徽标，提示用户该节点尚不可运行。
+(function bootstrapNodeContractUI() {
+  if (typeof document === 'undefined') return;
+  // 注入徽标样式
+  const style = document.createElement('style');
+  style.textContent =
+    '.node-stub-badge{position:absolute;top:6px;right:6px;background:#7a1f1f;color:#ffd9d9;' +
+    'font-size:10px;line-height:1.4;padding:2px 7px;border-radius:7px;z-index:6;pointer-events:none;' +
+    'box-shadow:0 1px 3px rgba(0,0,0,.4);max-width:70%;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
+  document.head.appendChild(style);
+
+  if (typeof window.buildNodeBody === 'function') {
+    const _origBuildNodeBody = window.buildNodeBody;
+    window.buildNodeBody = function (el, node) {
+      _origBuildNodeBody(el, node);
+      const meta = (window.FlowCraft && window.FlowCraft.nodes && window.FlowCraft.nodes.getNodeMeta)
+        ? window.FlowCraft.nodes.getNodeMeta(node && node.type) : null;
+      if (meta && meta.tier === 'stub' && el) {
+        if (!el.querySelector('.node-stub-badge')) {
+          const b = document.createElement('div');
+          b.className = 'node-stub-badge';
+          b.textContent = '⚠ 未实现 · ' + (meta.note || '演示态');
+          el.appendChild(b);
+        }
+      }
+    };
+  }
+  if (typeof console !== 'undefined') console.log('[FlowCraft] 节点数据规范 UI 已挂载（stub 徽标）');
 })();

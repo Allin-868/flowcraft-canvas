@@ -5067,15 +5067,27 @@ window.addEventListener('mousemove', (e) => {
     const isOpposite = connecting.fromKind !== toKind;
     if (isOpposite) {
       const toType = portEl.dataset.portType;
-      valid = connecting.fromType === toType;
+      const toNodeId = portEl.dataset.node;
+      // T2-3 节点数据契约：优先用 FlowCraft.nodes.validateConnection（含原因），未注入时回退原类型相等校验
+      const vres = (window.FlowCraft && window.FlowCraft.nodes && window.FlowCraft.nodes.validateConnection)
+        ? window.FlowCraft.nodes.validateConnection({
+            from: { nodeType: connecting.fromNode.type, portIdx: connecting.fromIdx, kind: connecting.fromKind, portType: connecting.fromType },
+            to:   { nodeType: toNodeId, portIdx: parseInt(portEl.dataset.portIdx), kind: toKind, portType: toType },
+          })
+        : null;
+      if (vres) { valid = vres.ok; connecting.reason = vres.reason || ''; }
+      else { valid = connecting.fromType === toType; connecting.reason = ''; }
       hovered = {
-        node: workflow.nodes.get(portEl.dataset.node),
+        node: workflow.nodes.get(toNodeId),
         kind: toKind,
         idx: parseInt(portEl.dataset.portIdx),
       };
       // 高亮兼容/不兼容端口
       if (valid) portEl.classList.add('compatible');
-      else portEl.classList.add('incompatible');
+      else {
+        portEl.classList.add('incompatible');
+        portEl.title = connecting.reason || '类型不匹配';
+      }
     }
   }
 
@@ -5135,17 +5147,21 @@ window.addEventListener('mouseup', (e) => {
       scheduleAutosave();
     }
   } else {
-    // 拖拽到空白处：弹出节点快捷组合菜单
-    const rect = canvasWrap.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
-    const wx = (e.clientX - rect.left - workflow.camera.x) / workflow.camera.zoom;
-    const wy = (e.clientY - rect.top - workflow.camera.y) / workflow.camera.zoom;
-    showConnectionNodeMenu(
-      e.clientX, e.clientY,
-      connecting.fromNode, connecting.fromKind, connecting.fromIdx, connecting.fromType,
-      wx, wy
-    );
+    // 拖到端口但类型不符：提示具体原因（T2-3）；否则（拖到空白处）弹出节点快捷组合菜单
+    if (workflow.hoveredPort && !workflow.pendingConnection.valid && connecting.reason) {
+      showToast(connecting.reason, 'error');
+    } else {
+      const rect = canvasWrap.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      const wx = (e.clientX - rect.left - workflow.camera.x) / workflow.camera.zoom;
+      const wy = (e.clientY - rect.top - workflow.camera.y) / workflow.camera.zoom;
+      showConnectionNodeMenu(
+        e.clientX, e.clientY,
+        connecting.fromNode, connecting.fromKind, connecting.fromIdx, connecting.fromType,
+        wx, wy
+      );
+    }
   }
 
   connecting = null;
@@ -6218,6 +6234,20 @@ function executeNodeAsync(node, delay) {
     node.status = 'running';
     updateNodeStatus(node);
     markEdgesDirty();
+
+    // T2-4 运行前校验：节点数据契约（stub 硬拦截 + validate 拦截），错误归档进 REGEN
+    if (window.FlowCraft && window.FlowCraft.nodes && window.FlowCraft.nodes.beforeRun) {
+      const br = window.FlowCraft.nodes.beforeRun(node);
+      if (!br.ok) {
+        node.status = 'failure';
+        updateNodeStatus(node);
+        markEdgesDirty();
+        if (typeof showToast === 'function') showToast(br.reason || '节点不可运行', 'error');
+        try { if (typeof logRegen === 'function') logRegen({ nodeId: node.id, nodeType: node.type, error: br.reason || 'param-validation', kind: 'param-validation' }); } catch (e) {}
+        resolve();
+        return;
+      }
+    }
 
         setTimeout(async () => {
           const _t0 = Date.now();

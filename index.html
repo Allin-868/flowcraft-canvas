@@ -9591,15 +9591,27 @@ window.addEventListener('mousemove', (e) => {
     const isOpposite = connecting.fromKind !== toKind;
     if (isOpposite) {
       const toType = portEl.dataset.portType;
-      valid = connecting.fromType === toType;
+      const toNodeId = portEl.dataset.node;
+      // T2-3 节点数据契约：优先用 FlowCraft.nodes.validateConnection（含原因），未注入时回退原类型相等校验
+      const vres = (window.FlowCraft && window.FlowCraft.nodes && window.FlowCraft.nodes.validateConnection)
+        ? window.FlowCraft.nodes.validateConnection({
+            from: { nodeType: connecting.fromNode.type, portIdx: connecting.fromIdx, kind: connecting.fromKind, portType: connecting.fromType },
+            to:   { nodeType: toNodeId, portIdx: parseInt(portEl.dataset.portIdx), kind: toKind, portType: toType },
+          })
+        : null;
+      if (vres) { valid = vres.ok; connecting.reason = vres.reason || ''; }
+      else { valid = connecting.fromType === toType; connecting.reason = ''; }
       hovered = {
-        node: workflow.nodes.get(portEl.dataset.node),
+        node: workflow.nodes.get(toNodeId),
         kind: toKind,
         idx: parseInt(portEl.dataset.portIdx),
       };
       // 高亮兼容/不兼容端口
       if (valid) portEl.classList.add('compatible');
-      else portEl.classList.add('incompatible');
+      else {
+        portEl.classList.add('incompatible');
+        portEl.title = connecting.reason || '类型不匹配';
+      }
     }
   }
 
@@ -9659,17 +9671,21 @@ window.addEventListener('mouseup', (e) => {
       scheduleAutosave();
     }
   } else {
-    // 拖拽到空白处：弹出节点快捷组合菜单
-    const rect = canvasWrap.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
-    const wx = (e.clientX - rect.left - workflow.camera.x) / workflow.camera.zoom;
-    const wy = (e.clientY - rect.top - workflow.camera.y) / workflow.camera.zoom;
-    showConnectionNodeMenu(
-      e.clientX, e.clientY,
-      connecting.fromNode, connecting.fromKind, connecting.fromIdx, connecting.fromType,
-      wx, wy
-    );
+    // 拖到端口但类型不符：提示具体原因（T2-3）；否则（拖到空白处）弹出节点快捷组合菜单
+    if (workflow.hoveredPort && !workflow.pendingConnection.valid && connecting.reason) {
+      showToast(connecting.reason, 'error');
+    } else {
+      const rect = canvasWrap.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      const wx = (e.clientX - rect.left - workflow.camera.x) / workflow.camera.zoom;
+      const wy = (e.clientY - rect.top - workflow.camera.y) / workflow.camera.zoom;
+      showConnectionNodeMenu(
+        e.clientX, e.clientY,
+        connecting.fromNode, connecting.fromKind, connecting.fromIdx, connecting.fromType,
+        wx, wy
+      );
+    }
   }
 
   connecting = null;
@@ -10742,6 +10758,20 @@ function executeNodeAsync(node, delay) {
     node.status = 'running';
     updateNodeStatus(node);
     markEdgesDirty();
+
+    // T2-4 运行前校验：节点数据契约（stub 硬拦截 + validate 拦截），错误归档进 REGEN
+    if (window.FlowCraft && window.FlowCraft.nodes && window.FlowCraft.nodes.beforeRun) {
+      const br = window.FlowCraft.nodes.beforeRun(node);
+      if (!br.ok) {
+        node.status = 'failure';
+        updateNodeStatus(node);
+        markEdgesDirty();
+        if (typeof showToast === 'function') showToast(br.reason || '节点不可运行', 'error');
+        try { if (typeof logRegen === 'function') logRegen({ nodeId: node.id, nodeType: node.type, error: br.reason || 'param-validation', kind: 'param-validation' }); } catch (e) {}
+        resolve();
+        return;
+      }
+    }
 
         setTimeout(async () => {
           const _t0 = Date.now();
@@ -16130,21 +16160,317 @@ init();
   };
 
   // src/nodes/registry.js
-  var NodeRegistry = {
-    _ready: false,
-    register() {
-      return false;
+  var NodeContract = {
+    // —— T2-1：6 类数据类型契约 ——
+    DATA_TYPES: ["text", "image", "video", "audio", "json", "asset-reference"],
+    // 类型友好名（用于错误提示）
+    TYPE_LABEL: {
+      text: "\u6587\u672C",
+      image: "\u56FE\u7247",
+      video: "\u89C6\u9891",
+      audio: "\u97F3\u9891",
+      json: "\u7ED3\u6784\u5316\u6570\u636E",
+      "asset-reference": "\u8D44\u4EA7\u5F15\u7528"
     },
-    get() {
-      return null;
+    // —— T2-2：全部节点元数据契约 ——
+    // tier: 'input'（输入类，不运行）| 'production'（真实接入）| 'demo'（演示/模拟）| 'stub'（未实现）
+    // runnable: 是否真正执行（输入节点=false；aiVideo stub=false）
+    CONTRACT: {
+      image: {
+        label: "\u56FE\u7247\u8F93\u5165",
+        tier: "input",
+        runnable: false,
+        note: "\u4E0A\u4F20\u6216\u62D6\u5165\u56FE\u7247\uFF0C\u63D0\u4F9B image \u6570\u636E",
+        inputs: [],
+        outputs: [{ type: "image", label: "\u56FE\u7247" }]
+      },
+      videoInput: {
+        label: "\u89C6\u9891\u8F93\u5165",
+        tier: "input",
+        runnable: false,
+        note: "\u4E0A\u4F20\u6216\u9009\u62E9\u89C6\u9891\uFF0C\u63D0\u4F9B video \u6570\u636E",
+        inputs: [],
+        outputs: [{ type: "video", label: "\u89C6\u9891" }]
+      },
+      text: {
+        label: "\u6587\u672C\u8F93\u5165",
+        tier: "input",
+        runnable: false,
+        note: "\u8F93\u5165\u63D0\u793A\u8BCD/\u6587\u672C\uFF0C\u63D0\u4F9B text \u6570\u636E",
+        inputs: [],
+        outputs: [{ type: "text", label: "\u6587\u672C" }]
+      },
+      aiImage: {
+        label: "AI \u7ED8\u56FE",
+        tier: "production",
+        runnable: true,
+        note: "GPT Image 2 \u771F\u5B9E\u63A5\u5165\uFF08\u6587\u751F\u56FE/\u56FE\u751F\u56FE\uFF09",
+        inputs: [
+          { type: "image", label: "\u56FE\u7247", required: false },
+          { type: "text", label: "\u63D0\u793A\u8BCD", required: false }
+        ],
+        outputs: [{ type: "image", label: "\u56FE\u7247" }]
+      },
+      aiVideo: {
+        label: "AI \u89C6\u9891",
+        tier: "stub",
+        runnable: false,
+        note: "\u56FE\u751F\u89C6\u9891/\u6587\u751F\u89C6\u9891\uFF0C\u5F53\u524D\u672A\u63A5\u5165\u771F\u5B9E\u89C6\u9891 API\uFF08\u6F14\u793A\u6001\uFF09",
+        inputs: [
+          { type: "image", label: "\u56FE\u7247", required: false },
+          { type: "text", label: "\u63D0\u793A\u8BCD", required: false }
+        ],
+        outputs: [{ type: "video", label: "\u89C6\u9891" }]
+      },
+      upscale: {
+        label: "\u667A\u80FD\u8D85\u6E05",
+        tier: "demo",
+        runnable: true,
+        note: "\u56FE\u7247\u65E0\u635F\u653E\u5927\uFF08\u6709 Key \u8D70 images/edits\uFF0C\u5426\u5219\u900F\u4F20\u539F\u56FE\uFF09",
+        inputs: [{ type: "image", label: "\u56FE\u7247", required: false }],
+        outputs: [{ type: "image", label: "\u56FE\u7247" }]
+      },
+      compare: {
+        label: "\u5BF9\u6BD4",
+        tier: "demo",
+        runnable: true,
+        note: "\u5DE6\u53F3\u5BF9\u6BD4\u5C55\u793A",
+        inputs: [
+          { type: "image", label: "\u539F\u56FE", required: false },
+          { type: "image", label: "\u7ED3\u679C", required: false }
+        ],
+        outputs: [{ type: "image", label: "\u5BF9\u6BD4\u56FE" }]
+      },
+      videoBreak: {
+        label: "\u89C6\u9891\u62C6\u89E3",
+        tier: "demo",
+        runnable: true,
+        note: "\u62C6\u89E3\u89C6\u9891\u4E3A\u5173\u952E\u5E27/\u7247\u6BB5",
+        inputs: [{ type: "video", label: "\u89C6\u9891", required: false }],
+        outputs: [
+          { type: "image", label: "\u5173\u952E\u5E27" },
+          { type: "video", label: "\u7247\u6BB5" }
+        ]
+      },
+      save: {
+        label: "\u4FDD\u5B58",
+        tier: "demo",
+        runnable: true,
+        note: "\u4E0B\u8F7D\u5230\u672C\u5730",
+        inputs: [
+          { type: "image", label: "\u56FE\u7247", required: false },
+          { type: "text", label: "\u6587\u672C", required: false }
+        ],
+        outputs: []
+      },
+      lineart: {
+        label: "\u7EBF\u7A3F",
+        tier: "demo",
+        runnable: true,
+        note: "\u63D0\u53D6/\u4E0A\u4F20\u7EBF\u7A3F\u56FE",
+        inputs: [{ type: "image", label: "\u53C2\u8003\u56FE", required: false }],
+        outputs: [{ type: "image", label: "\u7EBF\u7A3F" }]
+      },
+      aiSet: {
+        label: "AI \u56FE\u96C6",
+        tier: "demo",
+        runnable: true,
+        note: "\u6279\u91CF\u751F\u6210\u56FE\u7247\u96C6",
+        inputs: [
+          { type: "image", label: "\u53C2\u8003\u56FE", required: false },
+          { type: "text", label: "\u63D0\u793A\u8BCD", required: false }
+        ],
+        outputs: [{ type: "image", label: "\u56FE\u96C6" }]
+      },
+      material: {
+        label: "\u6750\u8D28",
+        tier: "demo",
+        runnable: true,
+        note: "\u6750\u8D28\u8D34\u56FE\u4E0E\u53C2\u6570",
+        inputs: [{ type: "image", label: "\u53C2\u8003\u56FE", required: false }],
+        outputs: [{ type: "image", label: "\u6750\u8D28" }]
+      },
+      light: {
+        label: "\u706F\u5149",
+        tier: "demo",
+        runnable: true,
+        note: "\u706F\u5149\u6548\u679C\u4E0E\u6C1B\u56F4",
+        inputs: [{ type: "image", label: "\u53C2\u8003\u56FE", required: false }],
+        outputs: [{ type: "image", label: "\u6548\u679C\u56FE" }]
+      },
+      layout: {
+        label: "\u5E03\u5C40\u65B9\u6848",
+        tier: "demo",
+        runnable: true,
+        note: "\u751F\u6210\u5E73\u9762\u5E03\u5C40\u65B9\u6848",
+        inputs: [
+          { type: "image", label: "\u53C2\u8003\u56FE", required: false },
+          { type: "text", label: "\u9700\u6C42", required: false }
+        ],
+        outputs: [{ type: "image", label: "\u5E03\u5C40" }]
+      },
+      loop: {
+        label: "\u5FAA\u73AF",
+        tier: "demo",
+        runnable: true,
+        note: "\u6279\u91CF\u91CD\u590D\u6267\u884C\u4E0B\u6E38",
+        inputs: [
+          { type: "image", label: "\u56FE\u7247", required: false },
+          { type: "text", label: "\u63D0\u793A\u8BCD", required: false }
+        ],
+        outputs: [{ type: "image", label: "\u56FE\u96C6" }]
+      },
+      comfyui: {
+        label: "ComfyUI",
+        tier: "production",
+        runnable: true,
+        note: "\u672C\u5730 ComfyUI \u6587\u751F\u56FE/\u56FE\u751F\u56FE\uFF08\u771F\u5B9E\u8C03\u7528\uFF09",
+        inputs: [{ type: "image", label: "\u8F93\u5165\u56FE", required: false }],
+        outputs: [{ type: "image", label: "\u56FE\u7247" }]
+      },
+      script: {
+        label: "\u811A\u672C",
+        tier: "demo",
+        runnable: true,
+        note: "AI \u5199\u7A3F",
+        inputs: [{ type: "text", label: "\u4E3B\u9898", required: true }],
+        outputs: [{ type: "text", label: "\u811A\u672C" }],
+        validate(params) {
+          const s = params && (params.script || params.subject) || "";
+          if (!String(s).trim()) return { ok: false, errors: ["\u811A\u672C\u5185\u5BB9\u4E3A\u7A7A\uFF1A\u9700\u8FDE\u63A5\u6587\u672C\u8F93\u5165\u6216\u586B\u5199\u4E3B\u9898"] };
+          return { ok: true };
+        }
+      },
+      footage: {
+        label: "\u7D20\u6750",
+        tier: "demo",
+        runnable: true,
+        note: "Pexels \u5339\u914D\uFF08\u6F14\u793A\u6570\u636E\uFF09",
+        inputs: [{ type: "text", label: "\u811A\u672C", required: true }],
+        outputs: [{ type: "video", label: "\u7D20\u6750\u96C6" }],
+        validate() {
+          return { ok: true };
+        }
+      },
+      voiceover: {
+        label: "\u914D\u97F3",
+        tier: "demo",
+        runnable: true,
+        note: "Edge TTS \u914D\u97F3",
+        inputs: [{ type: "text", label: "\u811A\u672C", required: true }],
+        outputs: [{ type: "audio", label: "\u97F3\u9891" }],
+        validate(params) {
+          const t = params && params.text || "";
+          if (!String(t).trim()) return { ok: false, errors: ["\u914D\u97F3\u6587\u672C\u4E3A\u7A7A\uFF1A\u9700\u8FDE\u63A5\u811A\u672C\u6587\u672C\u6216\u586B\u5199\u6587\u672C"] };
+          return { ok: true };
+        }
+      },
+      subtitle: {
+        label: "\u5B57\u5E55",
+        tier: "demo",
+        runnable: true,
+        note: "\u81EA\u52A8\u751F\u6210\u5B57\u5E55\uFF08\u6F14\u793A\u6570\u636E\uFF09",
+        inputs: [{ type: "audio", label: "\u97F3\u9891", required: true }],
+        outputs: [{ type: "text", label: "\u5B57\u5E55" }]
+      },
+      bgm: {
+        label: "\u914D\u4E50",
+        tier: "demo",
+        runnable: true,
+        note: "BGM \u5E93\uFF08\u6F14\u793A\u6570\u636E\uFF09",
+        inputs: [],
+        outputs: [{ type: "audio", label: "\u97F3\u9891" }]
+      },
+      compose: {
+        label: "\u5408\u6210",
+        tier: "demo",
+        runnable: true,
+        note: "MoviePy \u5408\u6210\uFF08\u6F14\u793A\u6570\u636E\uFF09",
+        inputs: [
+          { type: "video", label: "\u7D20\u6750", required: true },
+          { type: "audio", label: "\u914D\u97F3", required: false },
+          { type: "text", label: "\u5B57\u5E55", required: false },
+          { type: "audio", label: "\u914D\u4E50", required: false }
+        ],
+        outputs: [{ type: "video", label: "\u89C6\u9891" }]
+      },
+      publish: {
+        label: "\u53D1\u5E03",
+        tier: "demo",
+        runnable: true,
+        note: "\u591A\u5E73\u53F0\u53D1\u5E03\uFF08\u6F14\u793A\u6570\u636E\uFF09",
+        inputs: [{ type: "video", label: "\u89C6\u9891", required: true }],
+        outputs: []
+      }
     },
-    list() {
-      return [];
-    },
-    validate() {
+    // —— T2-3：连线合法性校验（输出端口 ↔ 输入端口，类型必须匹配）——
+    validateConnection({ from, to }) {
+      if (!from || !to) return { ok: false, reason: "\u7F3A\u5931\u7AEF\u53E3\u4FE1\u606F" };
+      if (from.kind === to.kind) {
+        return { ok: false, reason: "\u5FC5\u987B\u8FDE\u63A5\u300C\u8F93\u51FA\u7AEF\u53E3\u300D\u4E0E\u300C\u8F93\u5165\u7AEF\u53E3\u300D\uFF08\u4E0D\u80FD\u540C\u7C7B\u76F8\u8FDE\uFF09" };
+      }
+      const out = from.kind === "output" ? from : to;
+      const inp = from.kind === "input" ? from : to;
+      const outMeta = this.CONTRACT[out.nodeType];
+      const inMeta = this.CONTRACT[inp.nodeType];
+      if (!outMeta || !inMeta) return { ok: false, reason: "\u672A\u77E5\u8282\u70B9\u7C7B\u578B" };
+      const outPort = (outMeta.outputs || [])[out.portIdx];
+      const inPort = (inMeta.inputs || [])[inp.portIdx];
+      if (!outPort) return { ok: false, reason: `\u300C${outMeta.label}\u300D\u4E0D\u5B58\u5728\u8F93\u51FA\u7AEF\u53E3 #${out.portIdx}` };
+      if (!inPort) return { ok: false, reason: `\u300C${inMeta.label}\u300D\u4E0D\u5B58\u5728\u8F93\u5165\u7AEF\u53E3 #${inp.portIdx}` };
+      if (outPort.type !== inPort.type) {
+        const ot = this.TYPE_LABEL[outPort.type] || outPort.type;
+        const it = this.TYPE_LABEL[inPort.type] || inPort.type;
+        return {
+          ok: false,
+          reason: `\u7C7B\u578B\u4E0D\u5339\u914D\uFF1A${ot} \u2192 ${it}\u3002\u300C${outMeta.label}\u300D\u7684\u8F93\u51FA\u300C${outPort.label}\u300D\uFF08${ot}\uFF09\u4E0D\u80FD\u8FDE\u300C${inMeta.label}\u300D\u7684\u8F93\u5165\u300C${inPort.label}\u300D\uFF08${it}\uFF09`
+        };
+      }
       return { ok: true };
+    },
+    // —— T2-4：运行前校验。返回 { ok, reason }；stub 硬拦截，其余默认放行 ——
+    beforeRun(node) {
+      if (!node || !node.type) return { ok: true };
+      const meta = this.CONTRACT[node.type];
+      if (!meta) return { ok: true };
+      if (meta.tier === "stub") {
+        return { ok: false, reason: `\u8282\u70B9\u300C${meta.label}\u300D\u5F53\u524D\u4E3A\u300C\u672A\u5B9E\u73B0\uFF08${meta.tier}\uFF09\u300D\uFF1A${meta.note}\uFF0C\u6682\u4E0D\u53EF\u8FD0\u884C` };
+      }
+      if (typeof meta.validate === "function") {
+        const r = meta.validate(node.params || {}, node);
+        if (r && r.ok === false) {
+          return { ok: false, reason: (r.errors || []).join("\uFF1B") || "\u53C2\u6570\u6821\u9A8C\u672A\u901A\u8FC7" };
+        }
+      }
+      return { ok: true };
+    },
+    getNodeMeta(type) {
+      return this.CONTRACT[type] || null;
+    },
+    listTypes() {
+      return Object.keys(this.CONTRACT);
+    },
+    // 契约完整性自检（供测试/启动诊断）
+    selfCheck() {
+      const issues = [];
+      for (const [type, meta] of Object.entries(this.CONTRACT)) {
+        if (!Array.isArray(meta.inputs)) issues.push(`${type}: inputs \u975E\u6570\u7EC4`);
+        if (!Array.isArray(meta.outputs)) issues.push(`${type}: outputs \u975E\u6570\u7EC4`);
+        if (!["input", "production", "demo", "stub"].includes(meta.tier)) issues.push(`${type}: \u975E\u6CD5 tier=${meta.tier}`);
+        if (typeof meta.runnable !== "boolean") issues.push(`${type}: runnable \u975E\u5E03\u5C14`);
+        (meta.inputs || []).forEach((p, i) => {
+          if (!this.DATA_TYPES.includes(p.type)) issues.push(`${type}: input#${i} \u975E\u6CD5\u7C7B\u578B ${p.type}`);
+        });
+        (meta.outputs || []).forEach((p, i) => {
+          if (!this.DATA_TYPES.includes(p.type)) issues.push(`${type}: output#${i} \u975E\u6CD5\u7C7B\u578B ${p.type}`);
+        });
+      }
+      return { ok: issues.length === 0, issues };
     }
   };
+  if (typeof window !== "undefined") {
+    window.__NODE_CONTRACT__ = NodeContract;
+  }
 
   // src/providers/proxy-client.js
   var ProxyClient = {
@@ -16169,10 +16495,10 @@ init();
   window.FlowCraft = window.FlowCraft || {};
   window.FlowCraft.storage = StorageAdapter;
   window.FlowCraft.runner = Runner;
-  window.FlowCraft.nodes = NodeRegistry;
+  window.FlowCraft.nodes = NodeContract;
   window.FlowCraft.proxy = ProxyClient;
   window.FlowCraft.fee = FeeModel;
-  window.FlowCraft.version = "3.3-projects";
+  window.FlowCraft.version = "3.4-node-contract";
   if (typeof console !== "undefined") {
     console.log("[FlowCraft] \u517C\u5BB9\u5C42\u5DF2\u6302\u8F7D\uFF1Astorage=IndexedDB runner=" + Runner.getMode());
   }
@@ -16476,6 +16802,28 @@ init();
         el.innerHTML = "";
       });
     }
+  })();
+  (function bootstrapNodeContractUI() {
+    if (typeof document === "undefined") return;
+    const style = document.createElement("style");
+    style.textContent = ".node-stub-badge{position:absolute;top:6px;right:6px;background:#7a1f1f;color:#ffd9d9;font-size:10px;line-height:1.4;padding:2px 7px;border-radius:7px;z-index:6;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.4);max-width:70%;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}";
+    document.head.appendChild(style);
+    if (typeof window.buildNodeBody === "function") {
+      const _origBuildNodeBody = window.buildNodeBody;
+      window.buildNodeBody = function(el, node) {
+        _origBuildNodeBody(el, node);
+        const meta = window.FlowCraft && window.FlowCraft.nodes && window.FlowCraft.nodes.getNodeMeta ? window.FlowCraft.nodes.getNodeMeta(node && node.type) : null;
+        if (meta && meta.tier === "stub" && el) {
+          if (!el.querySelector(".node-stub-badge")) {
+            const b = document.createElement("div");
+            b.className = "node-stub-badge";
+            b.textContent = "\u26A0 \u672A\u5B9E\u73B0 \xB7 " + (meta.note || "\u6F14\u793A\u6001");
+            el.appendChild(b);
+          }
+        }
+      };
+    }
+    if (typeof console !== "undefined") console.log("[FlowCraft] \u8282\u70B9\u6570\u636E\u89C4\u8303 UI \u5DF2\u6302\u8F7D\uFF08stub \u5FBD\u6807\uFF09");
   })();
 })();
 /*! Bundled license information:
