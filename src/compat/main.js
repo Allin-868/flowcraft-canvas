@@ -8,6 +8,7 @@ import { NodeContract } from '../nodes/registry.js';
 import { ProxyClient } from '../providers/proxy-client.js';
 import { FeeModel } from '../providers/fee-model.js';
 import { ModelRegistry, ModelRouter, ModelHealth } from '../providers/model-router.js';
+import { COMFY_TEMPLATES, listTemplates, getTemplate, parseWorkflow, applyFormValues, importWorkflow, exportWorkflow } from '../providers/comfyui-workflow.js';
 
 window.FlowCraft = window.FlowCraft || {};
 window.FlowCraft.storage = StorageAdapter;
@@ -18,7 +19,7 @@ window.FlowCraft.fee = FeeModel;
 window.FlowCraft.models = ModelRegistry.init();
 window.FlowCraft.router = ModelRouter.init();
 window.FlowCraft.health = ModelHealth.init();
-window.FlowCraft.version = '3.10-multi-model';
+window.FlowCraft.version = '3.11-comfyui';
 
 // 阶段 4：代理启用（opt-in）。默认不启用 → legacy 回退直连（本地开发兼容）。
 // 部署时由启动脚本注入 window.__FC_PROXY_BASE__ / window.__FC_PROXY_TOKEN__（短期用户令牌，非生产 Key）。
@@ -498,5 +499,148 @@ function downloadBlob(blob, filename) {
   document.getElementById('fcMrReset').onclick = () => { if (window.confirm && window.confirm('恢复默认模型清单？当前改动将丢失。')) { Reg.reset(); render(); } };
 
   if (typeof console !== 'undefined') console.log('[FlowCraft] 多模型路由 UI 已挂载（opt-in）');
+})();
+
+// 阶段 9.2 — ComfyUI 工作流编辑器面板（opt-in，浮动）
+(function mountComfyUIWorkflowEditor() {
+  if (!window.FlowCraft.comfyui) return;
+  const Cw = window.FlowCraft.comfyui;
+
+  let currentNode = null;
+  let currentJson = '';
+
+  const style = document.createElement('style');
+  style.textContent =
+    '#fcCwToggle{position:fixed;left:14px;bottom:54px;z-index:60;background:#6C5CE7;color:#fff;' +
+    'border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35)}' +
+    '#fcCwPanel{position:fixed;left:14px;bottom:94px;z-index:61;width:360px;max-height:78vh;overflow:auto;' +
+    'background:var(--panel,#1b1f27);color:var(--text,#e8ebf0);border:1px solid var(--border,#2a2f3a);border-radius:12px;' +
+    'padding:14px;font-size:12px;box-shadow:0 8px 30px rgba(0,0,0,.5);display:none}' +
+    '#fcCwPanel h3{margin:0 0 8px;font-size:13px;display:flex;justify-content:space-between;align-items:center}' +
+    '#fcCwPanel textarea{width:100%;box-sizing:border-box;min-height:120px;font-family:monospace;font-size:11px;' +
+    'background:#11141a;color:#cfe3ff;border:1px solid var(--border,#2a2f3a);border-radius:8px;padding:8px}' +
+    '#fcCwForm .fcw-f{display:flex;align-items:center;gap:8px;margin:5px 0}' +
+    '#fcCwForm .fcw-f label{flex:1;font-size:11px;color:var(--text-2,#9aa3b2)}' +
+    '#fcCwForm .fcw-f input{flex:1;max-width:170px;background:#11141a;color:#e8ebf0;border:1px solid var(--border,#2a2f3a);border-radius:6px;padding:4px 6px}' +
+    '#fcCwForm .fcw-node{margin:8px 0;padding:6px 8px;border:1px dashed var(--border,#2a2f3a);border-radius:8px}' +
+    '#fcCwForm .fcw-node .fcw-title{font-weight:600;font-size:11px;margin-bottom:4px}' +
+    '.fcw-err{color:#e15353;font-size:11px;margin:6px 0}' +
+    '.fcw-muted{color:var(--text-2,#9aa3b2);font-size:11px;margin:4px 0}';
+  document.head.appendChild(style);
+
+  const toggle = document.createElement('button');
+  toggle.id = 'fcCwToggle';
+  toggle.textContent = '🎛 ComfyUI 工作流';
+  document.body.appendChild(toggle);
+
+  const panel = document.createElement('div');
+  panel.id = 'fcCwPanel';
+  panel.innerHTML =
+    '<h3>ComfyUI 工作流 <span style="font-size:11px;cursor:pointer" id="fcCwClose">✕</span></h3>' +
+    '<div class="fc-row"><label>模板：<select id="fcCwTpl"></select></label></div>' +
+    '<div id="fcCwForm"></div>' +
+    '<div class="fc-row" style="margin-top:8px"><button class="ra-btn" id="fcCwImport">导入文件</button>' +
+    '<button class="ra-btn" id="fcCwExport">导出 JSON</button>' +
+    '<button class="ra-btn" id="fcCwApply">应用到节点</button></div>' +
+    '<div id="fcCwErr" class="fcw-err"></div>' +
+    '<textarea id="fcCwJson" placeholder="标准 ComfyUI API 格式 JSON"></textarea>' +
+    '<div class="fcw-muted">编辑模板/表单/JSON 任一处即同步；应用后写入节点 customJson（runComfyUINode 优先使用）。</div>';
+  document.body.appendChild(panel);
+
+  const tplSel = panel.querySelector('#fcCwTpl');
+  const formBox = panel.querySelector('#fcCwForm');
+  const jsonTa = panel.querySelector('#fcCwJson');
+  const errBox = panel.querySelector('#fcCwErr');
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file'; fileInput.accept = '.json,application/json'; fileInput.style.display = 'none';
+  panel.appendChild(fileInput);
+
+  listTemplates().forEach((t) => {
+    const o = document.createElement('option'); o.value = t.id; o.textContent = t.label; tplSel.appendChild(o);
+  });
+
+  function setJson(str) { currentJson = str; jsonTa.value = str; errBox.textContent = ''; renderForm(); }
+  function renderForm() {
+    formBox.innerHTML = '';
+    let parsed;
+    try { parsed = parseWorkflow(currentJson); }
+    catch (e) { errBox.textContent = 'JSON 解析失败：' + e.message; return; }
+    parsed.nodes.forEach((nd) => {
+      const box = document.createElement('div'); box.className = 'fcw-node';
+      const title = document.createElement('div'); title.className = 'fcw-title';
+      title.textContent = nd.id + ' · ' + nd.class_type; box.appendChild(title);
+      nd.fields.forEach((f) => {
+        const row = document.createElement('div'); row.className = 'fcw-f';
+        const lab = document.createElement('label'); lab.textContent = f.name; row.appendChild(lab);
+        const inp = document.createElement('input');
+        inp.type = (f.type === 'number') ? 'number' : 'text';
+        inp.value = (f.value == null) ? '' : f.value;
+        inp.oninput = (ev) => {
+          let v = ev.target.value;
+          if (f.type === 'number') v = (v === '' ? 0 : Number(v));
+          try {
+            currentJson = exportWorkflow(applyFormValues(currentJson, { [nd.id]: { [f.name]: v } }));
+            jsonTa.value = currentJson; errBox.textContent = '';
+          } catch (e2) { errBox.textContent = e2.message; }
+        };
+        inp.onmousedown = (ev) => ev.stopPropagation();
+        row.appendChild(inp); box.appendChild(row);
+      });
+      formBox.appendChild(box);
+    });
+  }
+
+  tplSel.onchange = () => { const wf = getTemplate(tplSel.value); if (wf) setJson(exportWorkflow(wf)); };
+  jsonTa.oninput = () => { currentJson = jsonTa.value; renderForm(); };
+  jsonTa.onmousedown = (e) => e.stopPropagation();
+  panel.querySelector('#fcCwClose').onclick = () => { panel.style.display = 'none'; };
+  toggle.onclick = () => { panel.style.display = (panel.style.display === 'block') ? 'none' : 'block'; };
+
+  panel.querySelector('#fcCwImport').onclick = () => { fileInput.click(); };
+  fileInput.onchange = () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try { setJson(exportWorkflow(importWorkflow(String(reader.result)))); }
+      catch (e) { errBox.textContent = '导入失败：' + e.message; }
+    };
+    reader.readAsText(file);
+    fileInput.value = '';
+  };
+  panel.querySelector('#fcCwExport').onclick = () => {
+    try {
+      const text = exportWorkflow(importWorkflow(currentJson));
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'comfyui-workflow.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { errBox.textContent = '导出失败：' + e.message; }
+  };
+  panel.querySelector('#fcCwApply').onclick = () => {
+    try {
+      const obj = importWorkflow(currentJson);
+      if (!currentNode) { errBox.textContent = '未选中节点：请点击画布上 ComfyUI 节点的「工作流编辑器」按钮打开。'; return; }
+      currentNode.params = currentNode.params || {};
+      currentNode.params.customJson = exportWorkflow(obj);
+      if (currentNode.el && typeof buildNodeBody === 'function') buildNodeBody(currentNode.el, currentNode);
+      if (typeof scheduleAutosave === 'function') scheduleAutosave();
+      if (typeof showToast === 'function') showToast('已应用工作流到节点', 'success');
+    } catch (e) { errBox.textContent = '应用失败：' + e.message; }
+  };
+
+  // 由 comfyui 节点体「工作流编辑器」按钮调用
+  window.FlowCraft._openComfyEditor = function (node) {
+    currentNode = node || null;
+    const wfKey = (node && node.params && node.params.wf && COMFY_TEMPLATES[node.params.wf]) ? node.params.wf : 'txt2img';
+    let initial = (node && node.params && node.params.customJson) ? node.params.customJson : getTemplate(wfKey);
+    if (typeof initial === 'object') initial = exportWorkflow(initial);
+    tplSel.value = wfKey;
+    setJson(initial || exportWorkflow(getTemplate('txt2img')));
+    panel.style.display = 'block';
+  };
+
+  if (typeof console !== 'undefined') console.log('[FlowCraft] ComfyUI 工作流编辑器已挂载（opt-in）');
 })();
 

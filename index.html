@@ -4958,6 +4958,9 @@ function bindEditHistory(elm) {
     callRelayChat: callRelayChat,
     generateChatImage: generateChatImage,
     _routeModel: _routeModel,
+    _comfyExecTarget: _comfyExecTarget,
+    getNode: function (id) { return workflow.nodes.get(id); },
+    renderComfyNodeBody: renderComfyNodeBody,
   };
 })();
 
@@ -10629,27 +10632,37 @@ async function runComfyUINode(node) {
   const values = node.params.fields || {};
   node._comfyErr = '';
 
-  // 1) 探测本地 ComfyUI 是否可达（loopback 豁免混合内容拦截）
+  // 0) 执行目标：默认本地直连；配置 comfyProxyBase（或全局 __comfyuiProxyBase__）则走用户隧道/代理
+  const _target = _comfyExecTarget(node);
+  const base = (_target === 'proxy')
+    ? String(node.params.comfyProxyBase || (window.FlowCraft && window.FlowCraft.__comfyuiProxyBase__) || addr)
+    : addr;
+
+  // 1) 探测是否可达（loopback 豁免混合内容拦截）
   let reachable = false;
   try {
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 2500);
-    const r = await fetch(addr + '/system_stats', { signal: ctrl.signal });
+    const r = await fetch(base + '/system_stats', { signal: ctrl.signal });
     clearTimeout(to);
     reachable = r.ok;
   } catch (e) { reachable = false; }
 
   if (!reachable) {
     node.status = 'error';
-    node._comfyErr = '未检测到本地 ComfyUI 服务（' + addr + '）。请先启动 ComfyUI（建议加参数 --enable-cors-header *），再运行此节点。';
+    node._comfyErr = '未检测到 ComfyUI 服务（' + base + '）。请先启动 ComfyUI（建议加参数 --enable-cors-header *），再运行此节点。';
     showToast(node._comfyErr, 'danger');
     return false;
   }
 
-  // 2) 构建提示词
+  // 2) 构建提示词（优先使用标准格式 customJson，否则用内置模板）
   let promptObj;
   try {
-    promptObj = tmpl.build(values);
+    if (node.params.customJson) {
+      const imp = window.FlowCraft && window.FlowCraft.comfyui && window.FlowCraft.comfyui.importWorkflow;
+      promptObj = imp ? imp(node.params.customJson) : JSON.parse(node.params.customJson);
+    }
+    if (!promptObj) promptObj = tmpl.build(values);
   } catch (e) {
     node.status = 'error';
     node._comfyErr = 'ComfyUI 工作流构建失败：' + localizeError(e);
@@ -10672,7 +10685,7 @@ async function runComfyUINode(node) {
   const clientId = 'flowcraft-' + Math.random().toString(36).slice(2, 10);
   let promptId;
   try {
-    const r = await fetch(addr + '/prompt', {
+    const r = await fetch(base + '/prompt', {
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({ prompt: promptObj, client_id: clientId })
@@ -10706,7 +10719,7 @@ async function runComfyUINode(node) {
   const deadline = Date.now() + 1800000;
   while (Date.now() < deadline) {
     try {
-      const hr = await fetch(addr + '/history/' + promptId);
+      const hr = await fetch(base + '/history/' + promptId);
       if (hr.ok) {
         const hj = await hr.json();
         if (hj[promptId]) { historyItem = hj[promptId]; break; }
@@ -10736,7 +10749,7 @@ async function runComfyUINode(node) {
   }
 
   // 6) 提取输出图
-  const imgs = comfyExtractImages(addr, historyItem);
+  const imgs = comfyExtractImages(base, historyItem);
   if (!imgs.length) {
     node.status = 'error';
     node._comfyErr = 'ComfyUI 未返回任何图像（请确认工作流含 SaveImage 节点）';
@@ -10802,6 +10815,26 @@ function renderComfyNodeBody(node) {
   runBtn.onmousedown = (e) => e.stopPropagation();
   actRow.appendChild(runBtn);
   wrap.appendChild(actRow);
+
+  // 打开工作流编辑器按钮
+  const editRow = document.createElement('div');
+  editRow.className = 'comfy-edit-row';
+  const editBtn = document.createElement('button');
+  editBtn.className = 'ra-btn comfy-edit-btn';
+  editBtn.type = 'button';
+  editBtn.textContent = '⚙ 工作流编辑器';
+  editBtn.onclick = (e) => { e.stopPropagation(); if (window.FlowCraft && window.FlowCraft._openComfyEditor) window.FlowCraft._openComfyEditor(node); };
+  editBtn.onmousedown = (e) => e.stopPropagation();
+  editRow.appendChild(editBtn);
+  wrap.appendChild(editRow);
+
+  // 自定义工作流标记
+  if (node.params.customJson) {
+    const badge = document.createElement('div');
+    badge.className = 'comfy-custom-badge';
+    badge.textContent = '已加载自定义工作流 JSON';
+    wrap.appendChild(badge);
+  }
 
   // 提示
   const hint = document.createElement('div');
@@ -11041,6 +11074,15 @@ function _routeModel(capability) {
     var sel = r.select({ capability: capability || 'text', strategy: (r.strategy && r.strategy()) || 'quality' });
     return sel || null;
   } catch (_) { return null; }
+}
+
+// 阶段 9.2：ComfyUI 执行目标决策（opt-in）。ComfyUI 为本地自托管、无生产 Key，默认本地直连；
+// 仅当用户配置 comfyProxyBase（节点参数）或全局 __comfyuiProxyBase__（用户隧道/代理）时走代理。
+// 接受 node 或纯 params 对象。
+function _comfyExecTarget(p) {
+  var params = (p && p.params) ? p.params : (p || {});
+  var proxyBase = params.comfyProxyBase || (window.FlowCraft && window.FlowCraft.__comfyuiProxyBase__);
+  return proxyBase ? 'proxy' : 'local';
 }
 
 function openaiPostJSON(base, path, key, body) {
@@ -17480,6 +17522,176 @@ init();
     window.__FlowCraftModelRouter = { ModelRegistry, ModelRouter, ModelHealth, SEED_MODELS };
   }
 
+  // src/providers/comfyui-workflow.js
+  var COMFY_TEMPLATES = {
+    txt2img: {
+      label: "\u6587\u751F\u56FE (SDXL)",
+      desc: "Checkpoint + \u7A7A\u6F5C\u7A7A\u95F4 + \u6B63\u8D1F\u63D0\u793A\u8BCD + KSampler + VAE \u89E3\u7801 + \u4FDD\u5B58",
+      workflow: {
+        "3": { class_type: "KSampler", inputs: { seed: 0, steps: 25, cfg: 7, sampler_name: "euler", scheduler: "normal", denoise: 1, model: ["4", 0], positive: ["6", 0], negative: ["7", 0], latent_image: ["5", 0] }, _meta: { title: "\u91C7\u6837" } },
+        "4": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "sd_xl_base_1.0.safetensors" }, _meta: { title: "\u8F7D\u5165\u6A21\u578B" } },
+        "5": { class_type: "EmptyLatentImage", inputs: { width: 1024, height: 1024, batch_size: 1 }, _meta: { title: "\u7A7A\u767D\u6F5C\u7A7A\u95F4" } },
+        "6": { class_type: "CLIPTextEncode", inputs: { text: "(masterpiece, best quality), 1girl, sunny day", clip: ["4", 1] }, _meta: { title: "\u6B63\u5411\u63D0\u793A\u8BCD" } },
+        "7": { class_type: "CLIPTextEncode", inputs: { text: "lowres, bad anatomy, worst quality", clip: ["4", 1] }, _meta: { title: "\u8D1F\u5411\u63D0\u793A\u8BCD" } },
+        "8": { class_type: "VAEDecode", inputs: { samples: ["3", 0], vae: ["4", 2] }, _meta: { title: "VAE \u89E3\u7801" } },
+        "9": { class_type: "SaveImage", inputs: { images: ["8", 0] }, _meta: { title: "\u4FDD\u5B58\u56FE\u50CF" } }
+      }
+    },
+    img2img: {
+      label: "\u56FE\u751F\u56FE (SDXL)",
+      desc: "LoadImage + VAEEncode + KSampler(denoise) + \u89E3\u7801\uFF0C\u9700\u8FDE\u63A5\u4E0A\u6E38\u56FE\u7247",
+      workflow: {
+        "10": { class_type: "LoadImage", inputs: { image: "__COMFY_INPUT__" }, _meta: { title: "\u8F7D\u5165\u56FE\u50CF" } },
+        "3": { class_type: "KSampler", inputs: { seed: 0, steps: 25, cfg: 7, sampler_name: "euler", scheduler: "normal", denoise: 0.6, model: ["4", 0], positive: ["6", 0], negative: ["7", 0], latent_image: ["12", 0] }, _meta: { title: "\u91C7\u6837" } },
+        "4": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "sd_xl_base_1.0.safetensors" }, _meta: { title: "\u8F7D\u5165\u6A21\u578B" } },
+        "11": { class_type: "VAELoader", inputs: { vae_name: "ae.safetensors" }, _meta: { title: "\u8F7D\u5165 VAE" } },
+        "12": { class_type: "VAEEncode", inputs: { pixels: ["10", 0], vae: ["11", 0] }, _meta: { title: "VAE \u7F16\u7801" } },
+        "6": { class_type: "CLIPTextEncode", inputs: { text: "(masterpiece), 1girl", clip: ["4", 1] }, _meta: { title: "\u6B63\u5411\u63D0\u793A\u8BCD" } },
+        "7": { class_type: "CLIPTextEncode", inputs: { text: "lowres", clip: ["4", 1] }, _meta: { title: "\u8D1F\u5411\u63D0\u793A\u8BCD" } },
+        "8": { class_type: "VAEDecode", inputs: { samples: ["3", 0], vae: ["11", 0] }, _meta: { title: "VAE \u89E3\u7801" } },
+        "9": { class_type: "SaveImage", inputs: { images: ["8", 0] }, _meta: { title: "\u4FDD\u5B58\u56FE\u50CF" } }
+      }
+    },
+    upscale: {
+      label: "\u8D85\u6E05\u653E\u5927",
+      desc: "LoadImage + ImageScaleBy + \u4FDD\u5B58\uFF0C\u9700\u8FDE\u63A5\u4E0A\u6E38\u56FE\u7247",
+      workflow: {
+        "10": { class_type: "LoadImage", inputs: { image: "__COMFY_INPUT__" }, _meta: { title: "\u8F7D\u5165\u56FE\u50CF" } },
+        "20": { class_type: "ImageScaleBy", inputs: { image: ["10", 0], scale_by: 2, method: "lanczos" }, _meta: { title: "\u653E\u5927" } },
+        "9": { class_type: "SaveImage", inputs: { images: ["20", 0] }, _meta: { title: "\u4FDD\u5B58\u56FE\u50CF" } }
+      }
+    },
+    sdxl: {
+      label: "SDXL \u7CBE\u70BC (refiner)",
+      desc: "base + refiner \u4E24\u6BB5\u91C7\u6837\uFF0C\u8D28\u91CF\u66F4\u9AD8",
+      workflow: {
+        "3": { class_type: "KSampler", inputs: { seed: 0, steps: 20, cfg: 6, sampler_name: "dpmpp_2m", scheduler: "karras", denoise: 1, model: ["4", 0], positive: ["6", 0], negative: ["7", 0], latent_image: ["5", 0] }, _meta: { title: "base \u91C7\u6837" } },
+        "4": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "sd_xl_base_1.0.safetensors" }, _meta: { title: "\u8F7D\u5165 base" } },
+        "13": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "sd_xl_refiner_1.0.safetensors" }, _meta: { title: "\u8F7D\u5165 refiner" } },
+        "5": { class_type: "EmptyLatentImage", inputs: { width: 1024, height: 1024, batch_size: 1 }, _meta: { title: "\u7A7A\u767D\u6F5C\u7A7A\u95F4" } },
+        "6": { class_type: "CLIPTextEncode", inputs: { text: "(masterpiece), 1girl", clip: ["4", 1] }, _meta: { title: "\u6B63\u5411" } },
+        "7": { class_type: "CLIPTextEncode", inputs: { text: "lowres", clip: ["4", 1] }, _meta: { title: "\u8D1F\u5411" } },
+        "8": { class_type: "VAEDecode", inputs: { samples: ["3", 0], vae: ["4", 2] }, _meta: { title: "VAE \u89E3\u7801" } },
+        "9": { class_type: "SaveImage", inputs: { images: ["8", 0] }, _meta: { title: "\u4FDD\u5B58\u56FE\u50CF" } }
+      }
+    },
+    controlnet: {
+      label: "ControlNet \u59FF\u6001\u63A7\u5236",
+      desc: "LoadImage + ControlNetLoader + \u5E94\u7528\u63A7\u5236\u7F51\uFF0C\u9700\u8FDE\u63A5\u4E0A\u6E38\u56FE\u7247",
+      workflow: {
+        "10": { class_type: "LoadImage", inputs: { image: "__COMFY_INPUT__" }, _meta: { title: "\u63A7\u5236\u56FE" } },
+        "3": { class_type: "KSampler", inputs: { seed: 0, steps: 25, cfg: 7, sampler_name: "euler", scheduler: "normal", denoise: 1, model: ["14", 0], positive: ["6", 0], negative: ["7", 0], latent_image: ["5", 0] }, _meta: { title: "\u91C7\u6837" } },
+        "4": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "sd_xl_base_1.0.safetensors" }, _meta: { title: "\u8F7D\u5165\u6A21\u578B" } },
+        "5": { class_type: "EmptyLatentImage", inputs: { width: 1024, height: 1024, batch_size: 1 }, _meta: { title: "\u7A7A\u767D\u6F5C\u7A7A\u95F4" } },
+        "14": { class_type: "ControlNetLoader", inputs: { control_net_name: "control_v11p_sd15_openpose.pth" }, _meta: { title: "\u8F7D\u5165 ControlNet" } },
+        "15": { class_type: "ControlNetApply", inputs: { conditioning: ["6", 0], control_net: ["14", 0], image: ["10", 0], strength: 1 }, _meta: { title: "\u5E94\u7528\u63A7\u5236\u7F51" } },
+        "6": { class_type: "CLIPTextEncode", inputs: { text: "(masterpiece), 1girl", clip: ["4", 1] }, _meta: { title: "\u6B63\u5411" } },
+        "7": { class_type: "CLIPTextEncode", inputs: { text: "lowres", clip: ["4", 1] }, _meta: { title: "\u8D1F\u5411" } },
+        "8": { class_type: "VAEDecode", inputs: { samples: ["3", 0], vae: ["4", 2] }, _meta: { title: "VAE \u89E3\u7801" } },
+        "9": { class_type: "SaveImage", inputs: { images: ["8", 0] }, _meta: { title: "\u4FDD\u5B58\u56FE\u50CF" } }
+      }
+    },
+    lora: {
+      label: "LoRA \u98CE\u683C\u53E0\u52A0",
+      desc: "Load LoRA \u6CE8\u5165\u6A21\u578B/CLIP \u540E\u91C7\u6837",
+      workflow: {
+        "3": { class_type: "KSampler", inputs: { seed: 0, steps: 25, cfg: 7, sampler_name: "euler", scheduler: "normal", denoise: 1, model: ["16", 0], positive: ["17", 0], negative: ["7", 0], latent_image: ["5", 0] }, _meta: { title: "\u91C7\u6837" } },
+        "4": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "sd_xl_base_1.0.safetensors" }, _meta: { title: "\u8F7D\u5165\u6A21\u578B" } },
+        "5": { class_type: "EmptyLatentImage", inputs: { width: 1024, height: 1024, batch_size: 1 }, _meta: { title: "\u7A7A\u767D\u6F5C\u7A7A\u95F4" } },
+        "16": { class_type: "LoraLoader", inputs: { model: ["4", 0], clip: ["4", 1], lora_name: "my_style.safetensors", strength_model: 0.8, strength_clip: 0.8 }, _meta: { title: "\u8F7D\u5165 LoRA" } },
+        "17": { class_type: "CLIPTextEncode", inputs: { text: "(masterpiece), 1girl", clip: ["16", 1] }, _meta: { title: "\u6B63\u5411" } },
+        "7": { class_type: "CLIPTextEncode", inputs: { text: "lowres", clip: ["4", 1] }, _meta: { title: "\u8D1F\u5411" } },
+        "8": { class_type: "VAEDecode", inputs: { samples: ["3", 0], vae: ["4", 2] }, _meta: { title: "VAE \u89E3\u7801" } },
+        "9": { class_type: "SaveImage", inputs: { images: ["8", 0] }, _meta: { title: "\u4FDD\u5B58\u56FE\u50CF" } }
+      }
+    }
+  };
+  function isValidWorkflow(obj) {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+    const keys = Object.keys(obj);
+    if (!keys.length) return false;
+    return keys.every((k) => {
+      const n = obj[k];
+      return n && typeof n === "object" && typeof n.class_type === "string" && n.inputs && typeof n.inputs === "object";
+    });
+  }
+  function parseWorkflow(json) {
+    const obj = typeof json === "string" ? JSON.parse(json) : json;
+    if (!isValidWorkflow(obj)) throw new Error("\u975E\u6807\u51C6 ComfyUI \u5DE5\u4F5C\u6D41\uFF1A\u6BCF\u4E2A\u8282\u70B9\u9700\u542B class_type \u4E0E inputs");
+    const nodes = [];
+    Object.keys(obj).forEach((id) => {
+      const n = obj[id];
+      const fields = [];
+      Object.keys(n.inputs || {}).forEach((name) => {
+        const v = n.inputs[name];
+        if (Array.isArray(v)) return;
+        fields.push({
+          name,
+          value: v,
+          type: typeof v === "number" ? "number" : typeof v === "boolean" ? "boolean" : "string"
+        });
+      });
+      nodes.push({ id, class_type: n.class_type, fields });
+    });
+    return { nodes };
+  }
+  var buildForm = parseWorkflow;
+  function applyFormValues(json, edits) {
+    const obj = typeof json === "string" ? JSON.parse(json) : JSON.parse(JSON.stringify(json));
+    if (!isValidWorkflow(obj)) throw new Error("\u5DE5\u4F5C\u6D41\u975E\u6CD5\uFF0C\u65E0\u6CD5\u56DE\u586B");
+    edits = edits || {};
+    Object.keys(edits).forEach((nodeId) => {
+      const node = obj[nodeId];
+      if (!node || !node.inputs) return;
+      const vals = edits[nodeId] || {};
+      Object.keys(vals).forEach((field) => {
+        if (!(field in node.inputs)) return;
+        const cur = node.inputs[field];
+        if (Array.isArray(cur)) return;
+        let nv = vals[field];
+        if (typeof cur === "number") nv = Number(nv);
+        else if (typeof cur === "boolean") nv = !!nv;
+        node.inputs[field] = nv;
+      });
+    });
+    return obj;
+  }
+  function importWorkflow(text) {
+    let obj;
+    try {
+      obj = JSON.parse(String(text || ""));
+    } catch (e) {
+      throw new Error("JSON \u89E3\u6790\u5931\u8D25\uFF1A" + e.message);
+    }
+    if (!isValidWorkflow(obj)) throw new Error("\u975E\u6807\u51C6 ComfyUI \u5DE5\u4F5C\u6D41\u683C\u5F0F\uFF08\u9700 {\u8282\u70B9id:{class_type, inputs}}\uFF09");
+    return obj;
+  }
+  function exportWorkflow(json) {
+    const obj = typeof json === "string" ? JSON.parse(json) : json;
+    if (!isValidWorkflow(obj)) throw new Error("\u5DE5\u4F5C\u6D41\u975E\u6CD5\uFF0C\u65E0\u6CD5\u5BFC\u51FA");
+    return JSON.stringify(obj, null, 2);
+  }
+  function listTemplates() {
+    return Object.keys(COMFY_TEMPLATES).map((k) => ({ id: k, label: COMFY_TEMPLATES[k].label, desc: COMFY_TEMPLATES[k].desc }));
+  }
+  function getTemplate(id) {
+    return COMFY_TEMPLATES[id] ? JSON.parse(JSON.stringify(COMFY_TEMPLATES[id].workflow)) : null;
+  }
+  if (typeof window !== "undefined") {
+    window.FlowCraft = window.FlowCraft || {};
+    window.FlowCraft.comfyui = {
+      templates: COMFY_TEMPLATES,
+      listTemplates,
+      getTemplate,
+      isValidWorkflow,
+      parseWorkflow,
+      buildForm,
+      applyFormValues,
+      importWorkflow,
+      exportWorkflow
+    };
+  }
+
   // src/compat/main.js
   window.FlowCraft = window.FlowCraft || {};
   window.FlowCraft.storage = StorageAdapter;
@@ -17490,7 +17702,7 @@ init();
   window.FlowCraft.models = ModelRegistry.init();
   window.FlowCraft.router = ModelRouter.init();
   window.FlowCraft.health = ModelHealth.init();
-  window.FlowCraft.version = "3.10-multi-model";
+  window.FlowCraft.version = "3.11-comfyui";
   (function configureProxy() {
     var base = typeof window !== "undefined" && (window.__FC_PROXY_BASE__ || "");
     var token = typeof window !== "undefined" && (window.__FC_PROXY_TOKEN__ || "");
@@ -17935,6 +18147,161 @@ init();
       }
     };
     if (typeof console !== "undefined") console.log("[FlowCraft] \u591A\u6A21\u578B\u8DEF\u7531 UI \u5DF2\u6302\u8F7D\uFF08opt-in\uFF09");
+  })();
+  (function mountComfyUIWorkflowEditor() {
+    if (!window.FlowCraft.comfyui) return;
+    const Cw = window.FlowCraft.comfyui;
+    let currentNode = null;
+    let currentJson = "";
+    const style = document.createElement("style");
+    style.textContent = "#fcCwToggle{position:fixed;left:14px;bottom:54px;z-index:60;background:#6C5CE7;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35)}#fcCwPanel{position:fixed;left:14px;bottom:94px;z-index:61;width:360px;max-height:78vh;overflow:auto;background:var(--panel,#1b1f27);color:var(--text,#e8ebf0);border:1px solid var(--border,#2a2f3a);border-radius:12px;padding:14px;font-size:12px;box-shadow:0 8px 30px rgba(0,0,0,.5);display:none}#fcCwPanel h3{margin:0 0 8px;font-size:13px;display:flex;justify-content:space-between;align-items:center}#fcCwPanel textarea{width:100%;box-sizing:border-box;min-height:120px;font-family:monospace;font-size:11px;background:#11141a;color:#cfe3ff;border:1px solid var(--border,#2a2f3a);border-radius:8px;padding:8px}#fcCwForm .fcw-f{display:flex;align-items:center;gap:8px;margin:5px 0}#fcCwForm .fcw-f label{flex:1;font-size:11px;color:var(--text-2,#9aa3b2)}#fcCwForm .fcw-f input{flex:1;max-width:170px;background:#11141a;color:#e8ebf0;border:1px solid var(--border,#2a2f3a);border-radius:6px;padding:4px 6px}#fcCwForm .fcw-node{margin:8px 0;padding:6px 8px;border:1px dashed var(--border,#2a2f3a);border-radius:8px}#fcCwForm .fcw-node .fcw-title{font-weight:600;font-size:11px;margin-bottom:4px}.fcw-err{color:#e15353;font-size:11px;margin:6px 0}.fcw-muted{color:var(--text-2,#9aa3b2);font-size:11px;margin:4px 0}";
+    document.head.appendChild(style);
+    const toggle = document.createElement("button");
+    toggle.id = "fcCwToggle";
+    toggle.textContent = "\u{1F39B} ComfyUI \u5DE5\u4F5C\u6D41";
+    document.body.appendChild(toggle);
+    const panel = document.createElement("div");
+    panel.id = "fcCwPanel";
+    panel.innerHTML = '<h3>ComfyUI \u5DE5\u4F5C\u6D41 <span style="font-size:11px;cursor:pointer" id="fcCwClose">\u2715</span></h3><div class="fc-row"><label>\u6A21\u677F\uFF1A<select id="fcCwTpl"></select></label></div><div id="fcCwForm"></div><div class="fc-row" style="margin-top:8px"><button class="ra-btn" id="fcCwImport">\u5BFC\u5165\u6587\u4EF6</button><button class="ra-btn" id="fcCwExport">\u5BFC\u51FA JSON</button><button class="ra-btn" id="fcCwApply">\u5E94\u7528\u5230\u8282\u70B9</button></div><div id="fcCwErr" class="fcw-err"></div><textarea id="fcCwJson" placeholder="\u6807\u51C6 ComfyUI API \u683C\u5F0F JSON"></textarea><div class="fcw-muted">\u7F16\u8F91\u6A21\u677F/\u8868\u5355/JSON \u4EFB\u4E00\u5904\u5373\u540C\u6B65\uFF1B\u5E94\u7528\u540E\u5199\u5165\u8282\u70B9 customJson\uFF08runComfyUINode \u4F18\u5148\u4F7F\u7528\uFF09\u3002</div>';
+    document.body.appendChild(panel);
+    const tplSel = panel.querySelector("#fcCwTpl");
+    const formBox = panel.querySelector("#fcCwForm");
+    const jsonTa = panel.querySelector("#fcCwJson");
+    const errBox = panel.querySelector("#fcCwErr");
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".json,application/json";
+    fileInput.style.display = "none";
+    panel.appendChild(fileInput);
+    listTemplates().forEach((t) => {
+      const o = document.createElement("option");
+      o.value = t.id;
+      o.textContent = t.label;
+      tplSel.appendChild(o);
+    });
+    function setJson(str) {
+      currentJson = str;
+      jsonTa.value = str;
+      errBox.textContent = "";
+      renderForm();
+    }
+    function renderForm() {
+      formBox.innerHTML = "";
+      let parsed;
+      try {
+        parsed = parseWorkflow(currentJson);
+      } catch (e) {
+        errBox.textContent = "JSON \u89E3\u6790\u5931\u8D25\uFF1A" + e.message;
+        return;
+      }
+      parsed.nodes.forEach((nd) => {
+        const box = document.createElement("div");
+        box.className = "fcw-node";
+        const title = document.createElement("div");
+        title.className = "fcw-title";
+        title.textContent = nd.id + " \xB7 " + nd.class_type;
+        box.appendChild(title);
+        nd.fields.forEach((f) => {
+          const row = document.createElement("div");
+          row.className = "fcw-f";
+          const lab = document.createElement("label");
+          lab.textContent = f.name;
+          row.appendChild(lab);
+          const inp = document.createElement("input");
+          inp.type = f.type === "number" ? "number" : "text";
+          inp.value = f.value == null ? "" : f.value;
+          inp.oninput = (ev) => {
+            let v = ev.target.value;
+            if (f.type === "number") v = v === "" ? 0 : Number(v);
+            try {
+              currentJson = exportWorkflow(applyFormValues(currentJson, { [nd.id]: { [f.name]: v } }));
+              jsonTa.value = currentJson;
+              errBox.textContent = "";
+            } catch (e2) {
+              errBox.textContent = e2.message;
+            }
+          };
+          inp.onmousedown = (ev) => ev.stopPropagation();
+          row.appendChild(inp);
+          box.appendChild(row);
+        });
+        formBox.appendChild(box);
+      });
+    }
+    tplSel.onchange = () => {
+      const wf = getTemplate(tplSel.value);
+      if (wf) setJson(exportWorkflow(wf));
+    };
+    jsonTa.oninput = () => {
+      currentJson = jsonTa.value;
+      renderForm();
+    };
+    jsonTa.onmousedown = (e) => e.stopPropagation();
+    panel.querySelector("#fcCwClose").onclick = () => {
+      panel.style.display = "none";
+    };
+    toggle.onclick = () => {
+      panel.style.display = panel.style.display === "block" ? "none" : "block";
+    };
+    panel.querySelector("#fcCwImport").onclick = () => {
+      fileInput.click();
+    };
+    fileInput.onchange = () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          setJson(exportWorkflow(importWorkflow(String(reader.result))));
+        } catch (e) {
+          errBox.textContent = "\u5BFC\u5165\u5931\u8D25\uFF1A" + e.message;
+        }
+      };
+      reader.readAsText(file);
+      fileInput.value = "";
+    };
+    panel.querySelector("#fcCwExport").onclick = () => {
+      try {
+        const text = exportWorkflow(importWorkflow(currentJson));
+        const blob = new Blob([text], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "comfyui-workflow.json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1e3);
+      } catch (e) {
+        errBox.textContent = "\u5BFC\u51FA\u5931\u8D25\uFF1A" + e.message;
+      }
+    };
+    panel.querySelector("#fcCwApply").onclick = () => {
+      try {
+        const obj = importWorkflow(currentJson);
+        if (!currentNode) {
+          errBox.textContent = "\u672A\u9009\u4E2D\u8282\u70B9\uFF1A\u8BF7\u70B9\u51FB\u753B\u5E03\u4E0A ComfyUI \u8282\u70B9\u7684\u300C\u5DE5\u4F5C\u6D41\u7F16\u8F91\u5668\u300D\u6309\u94AE\u6253\u5F00\u3002";
+          return;
+        }
+        currentNode.params = currentNode.params || {};
+        currentNode.params.customJson = exportWorkflow(obj);
+        if (currentNode.el && typeof buildNodeBody === "function") buildNodeBody(currentNode.el, currentNode);
+        if (typeof scheduleAutosave === "function") scheduleAutosave();
+        if (typeof showToast === "function") showToast("\u5DF2\u5E94\u7528\u5DE5\u4F5C\u6D41\u5230\u8282\u70B9", "success");
+      } catch (e) {
+        errBox.textContent = "\u5E94\u7528\u5931\u8D25\uFF1A" + e.message;
+      }
+    };
+    window.FlowCraft._openComfyEditor = function(node) {
+      currentNode = node || null;
+      const wfKey = node && node.params && node.params.wf && COMFY_TEMPLATES[node.params.wf] ? node.params.wf : "txt2img";
+      let initial = node && node.params && node.params.customJson ? node.params.customJson : getTemplate(wfKey);
+      if (typeof initial === "object") initial = exportWorkflow(initial);
+      tplSel.value = wfKey;
+      setJson(initial || exportWorkflow(getTemplate("txt2img")));
+      panel.style.display = "block";
+    };
+    if (typeof console !== "undefined") console.log("[FlowCraft] ComfyUI \u5DE5\u4F5C\u6D41\u7F16\u8F91\u5668\u5DF2\u6302\u8F7D\uFF08opt-in\uFF09");
   })();
 })();
 /*! Bundled license information:

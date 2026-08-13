@@ -434,6 +434,9 @@ function bindEditHistory(elm) {
     callRelayChat: callRelayChat,
     generateChatImage: generateChatImage,
     _routeModel: _routeModel,
+    _comfyExecTarget: _comfyExecTarget,
+    getNode: function (id) { return workflow.nodes.get(id); },
+    renderComfyNodeBody: renderComfyNodeBody,
   };
 })();
 
@@ -6105,27 +6108,37 @@ async function runComfyUINode(node) {
   const values = node.params.fields || {};
   node._comfyErr = '';
 
-  // 1) 探测本地 ComfyUI 是否可达（loopback 豁免混合内容拦截）
+  // 0) 执行目标：默认本地直连；配置 comfyProxyBase（或全局 __comfyuiProxyBase__）则走用户隧道/代理
+  const _target = _comfyExecTarget(node);
+  const base = (_target === 'proxy')
+    ? String(node.params.comfyProxyBase || (window.FlowCraft && window.FlowCraft.__comfyuiProxyBase__) || addr)
+    : addr;
+
+  // 1) 探测是否可达（loopback 豁免混合内容拦截）
   let reachable = false;
   try {
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 2500);
-    const r = await fetch(addr + '/system_stats', { signal: ctrl.signal });
+    const r = await fetch(base + '/system_stats', { signal: ctrl.signal });
     clearTimeout(to);
     reachable = r.ok;
   } catch (e) { reachable = false; }
 
   if (!reachable) {
     node.status = 'error';
-    node._comfyErr = '未检测到本地 ComfyUI 服务（' + addr + '）。请先启动 ComfyUI（建议加参数 --enable-cors-header *），再运行此节点。';
+    node._comfyErr = '未检测到 ComfyUI 服务（' + base + '）。请先启动 ComfyUI（建议加参数 --enable-cors-header *），再运行此节点。';
     showToast(node._comfyErr, 'danger');
     return false;
   }
 
-  // 2) 构建提示词
+  // 2) 构建提示词（优先使用标准格式 customJson，否则用内置模板）
   let promptObj;
   try {
-    promptObj = tmpl.build(values);
+    if (node.params.customJson) {
+      const imp = window.FlowCraft && window.FlowCraft.comfyui && window.FlowCraft.comfyui.importWorkflow;
+      promptObj = imp ? imp(node.params.customJson) : JSON.parse(node.params.customJson);
+    }
+    if (!promptObj) promptObj = tmpl.build(values);
   } catch (e) {
     node.status = 'error';
     node._comfyErr = 'ComfyUI 工作流构建失败：' + localizeError(e);
@@ -6148,7 +6161,7 @@ async function runComfyUINode(node) {
   const clientId = 'flowcraft-' + Math.random().toString(36).slice(2, 10);
   let promptId;
   try {
-    const r = await fetch(addr + '/prompt', {
+    const r = await fetch(base + '/prompt', {
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({ prompt: promptObj, client_id: clientId })
@@ -6182,7 +6195,7 @@ async function runComfyUINode(node) {
   const deadline = Date.now() + 1800000;
   while (Date.now() < deadline) {
     try {
-      const hr = await fetch(addr + '/history/' + promptId);
+      const hr = await fetch(base + '/history/' + promptId);
       if (hr.ok) {
         const hj = await hr.json();
         if (hj[promptId]) { historyItem = hj[promptId]; break; }
@@ -6212,7 +6225,7 @@ async function runComfyUINode(node) {
   }
 
   // 6) 提取输出图
-  const imgs = comfyExtractImages(addr, historyItem);
+  const imgs = comfyExtractImages(base, historyItem);
   if (!imgs.length) {
     node.status = 'error';
     node._comfyErr = 'ComfyUI 未返回任何图像（请确认工作流含 SaveImage 节点）';
@@ -6278,6 +6291,26 @@ function renderComfyNodeBody(node) {
   runBtn.onmousedown = (e) => e.stopPropagation();
   actRow.appendChild(runBtn);
   wrap.appendChild(actRow);
+
+  // 打开工作流编辑器按钮
+  const editRow = document.createElement('div');
+  editRow.className = 'comfy-edit-row';
+  const editBtn = document.createElement('button');
+  editBtn.className = 'ra-btn comfy-edit-btn';
+  editBtn.type = 'button';
+  editBtn.textContent = '⚙ 工作流编辑器';
+  editBtn.onclick = (e) => { e.stopPropagation(); if (window.FlowCraft && window.FlowCraft._openComfyEditor) window.FlowCraft._openComfyEditor(node); };
+  editBtn.onmousedown = (e) => e.stopPropagation();
+  editRow.appendChild(editBtn);
+  wrap.appendChild(editRow);
+
+  // 自定义工作流标记
+  if (node.params.customJson) {
+    const badge = document.createElement('div');
+    badge.className = 'comfy-custom-badge';
+    badge.textContent = '已加载自定义工作流 JSON';
+    wrap.appendChild(badge);
+  }
 
   // 提示
   const hint = document.createElement('div');
@@ -6517,6 +6550,15 @@ function _routeModel(capability) {
     var sel = r.select({ capability: capability || 'text', strategy: (r.strategy && r.strategy()) || 'quality' });
     return sel || null;
   } catch (_) { return null; }
+}
+
+// 阶段 9.2：ComfyUI 执行目标决策（opt-in）。ComfyUI 为本地自托管、无生产 Key，默认本地直连；
+// 仅当用户配置 comfyProxyBase（节点参数）或全局 __comfyuiProxyBase__（用户隧道/代理）时走代理。
+// 接受 node 或纯 params 对象。
+function _comfyExecTarget(p) {
+  var params = (p && p.params) ? p.params : (p || {});
+  var proxyBase = params.comfyProxyBase || (window.FlowCraft && window.FlowCraft.__comfyuiProxyBase__);
+  return proxyBase ? 'proxy' : 'local';
 }
 
 function openaiPostJSON(base, path, key, body) {
