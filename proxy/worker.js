@@ -7,7 +7,8 @@
 //   [[kv_namespaces]] id = <KV_ID> binding = "KV"
 // 密钥（secrets）：
 //   OPENAI_KEY / DEEPSEEK_KEY / KLING_KEY / RUNWAY_KEY
-//   JWKS / INVITE_SIGNING_KEY（用于校验短期用户令牌）
+//   INVITE_SIGNING_KEY（HMAC 校验短期用户邀请令牌，必须与 issue-token.mjs 所用密钥一致）
+//   ADMIN_KEY（管理员吊销令牌用，POST /proxy/admin/revoke 的 X-Admin-Key）
 
 const UPSTREAM = {
   openai: 'https://api.openai.com/v1',
@@ -31,12 +32,58 @@ function proxyError(code, kind, retryable, message, status) {
     { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 }
 
-// 校验短期用户令牌（邀请制最简可用：HMAC 签名邀请码，可吊销）
-// 真实实现应验 JWT/JWS + 查黑名单；此处给出骨架。
+// ---- 邀请令牌：HMAC 签名 + 可吊销黑名单 ----
+// 令牌格式： <payloadB64>.<sigB64>
+//   payloadB64 = base64url( JSON{ sub, exp(秒), plan?, quota? } )
+//   sigB64    = base64url( HMAC-SHA256( payloadB64, env.INVITE_SIGNING_KEY ) )
+// 校验：① 签名正确 ② 未过期 ③ 不在 KV 黑名单 bl:<sub>
+// 吊销：管理员经 POST /proxy/admin/revoke 写入 bl:<sub>（见下方 fetch 分支）。
+// ⚠️ 与 proxy/issue-token.mjs 的签发算法必须保持一致（HMAC-SHA256 over payloadB64，base64url 无填充）。
+
+function b64urlEncode(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64urlDecode(str) {
+  str = String(str).replace(/-/g, '+').replace(/_/g, '/');
+  const pad = str.length % 4 ? '='.repeat(4 - (str.length % 4)) : '';
+  const bin = atob(str + pad);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+function timingSafeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a[i] ^ b[i];
+  return r === 0;
+}
+async function hmacSign(messageUtf8, keyStr) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(keyStr),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(messageUtf8));
+  return b64urlEncode(new Uint8Array(sig));
+}
 async function verifyToken(token, env) {
   if (!token) return false;
-  // TODO: 用 env.INVITE_SIGNING_KEY 验签 + 查 env.KV 黑名单
-  return true; // mock 放行，部署前补全
+  const key = env && env.INVITE_SIGNING_KEY;
+  if (!key) { console.error('[auth] INVITE_SIGNING_KEY 未配置，拒绝所有令牌'); return false; }
+  const parts = String(token).split('.');
+  if (parts.length !== 2) return false;
+  const [payloadB64, sigB64] = parts;
+  const expected = await hmacSign(payloadB64, key);
+  if (!timingSafeEqual(b64urlDecode(expected), b64urlDecode(sigB64))) return false; // 签名不符
+  let payload;
+  try { payload = JSON.parse(new TextDecoder().decode(b64urlDecode(payloadB64))); }
+  catch { return false; }
+  if (!payload || typeof payload !== 'object' || typeof payload.sub !== 'string') return false;
+  if (typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now()) return false; // 已过期
+  try {
+    const bl = env.KV && await env.KV.get('bl:' + payload.sub);
+    if (bl) return false; // 已吊销
+  } catch (_) { /* KV 不可用：签名已校验，放行 */ }
+  return true;
 }
 
 function rateLimitKey(token, provider) { return 'rl:' + token + ':' + provider; }
@@ -46,13 +93,33 @@ function idemKey(k) { return 'idem:' + k; }
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const origin = request.headers.get('Origin') || '';
+    const cors = { 'Access-Control-Allow-Origin': (env.PROXY_ALLOWED_ORIGINS || '').split(',').includes(origin) ? origin : '', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Idempotency-Key, X-Admin-Key', 'Access-Control-Allow-Methods': 'POST, GET, OPTIONS' };
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+
+    // 视频异步任务结果轮询（taskId 不可猜测，1h 过期；结果仅含生成物 URL）
+    const taskMatch = url.pathname.match(/^\/proxy\/task\/([\w-]+)$/);
+    if (request.method === 'GET' && taskMatch) {
+      const task = await env.KV.get('task:' + taskMatch[1], 'json').catch(() => null);
+      if (!task) return proxyError('not_found', 'param', false, '任务不存在', 404);
+      return new Response(JSON.stringify(task), { status: 200, headers: { 'Content-Type': 'application/json', ...cors } });
+    }
+
+    // 管理员吊销邀请令牌（写入 KV 黑名单 bl:<sub>）——需 X-Admin-Key
+    if (request.method === 'POST' && url.pathname === '/proxy/admin/revoke') {
+      const adminKey = request.headers.get('X-Admin-Key') || '';
+      if (adminKey !== (env.ADMIN_KEY || '')) return proxyError('unauthorized', 'auth', false, '管理员密钥错误', 401);
+      let body; try { body = await request.json(); } catch { return proxyError('invalid_param', 'param', false, '请求体非 JSON', 400); }
+      const sub = body && body.sub;
+      if (typeof sub !== 'string' || !sub) return proxyError('invalid_param', 'param', false, '缺少 sub', 400);
+      const ttl = Number(body.ttl || 86400 * 30);
+      await env.KV.put('bl:' + sub, String(Date.now()), { expirationTtl: ttl });
+      return new Response(JSON.stringify({ ok: true, revoked: sub }), { status: 200, headers: { 'Content-Type': 'application/json', ...cors } });
+    }
+
     if (request.method !== 'POST' || url.pathname !== '/proxy') {
       return proxyError('not_found', 'param', false, '仅支持 POST /proxy', 404);
     }
-    // CORS（仅允许站点来源）
-    const origin = request.headers.get('Origin') || '';
-    const cors = { 'Access-Control-Allow-Origin': (env.PROXY_ALLOWED_ORIGINS || '').split(',').includes(origin) ? origin : '', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Idempotency-Key', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
 
     let payload;
     try { payload = await request.json(); } catch { return proxyError('invalid_param', 'param', false, '请求体非 JSON', 400); }
@@ -117,3 +184,6 @@ export default {
     return new Response(JSON.stringify(out), { status: 200, headers: { 'Content-Type': 'application/json', ...cors } });
   }
 };
+
+// 导出供 Node 单测直接调用（proxy/verify-token-scheme.mjs）
+export { verifyToken, hmacSign, b64urlEncode, b64urlDecode, timingSafeEqual };
