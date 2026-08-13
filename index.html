@@ -4715,11 +4715,12 @@ const workflow = {
 const recycleBin = []; // 已删除节点快照数组，每项: { node, edges, deletedAt }
 
 //================ 4c. 撤销/重做 (Undo / Redo) ================
-const HISTORY_LIMIT = 50; // 历史栈上限
+const HISTORY_LIMIT = 100; // 历史栈上限（阶段7 验收：容量 100）
 let undoStack = [];       // 撤销栈
 let redoStack = [];       // 重做栈
 let isRestoringHistory = false; // 标记正在执行 undo/redo，避免重复压栈
 let isBatchRestore = false;    // 标记批量还原操作，避免 restoreFromRecycle 内部重复压栈
+let _suppressPush = false;     // 复合操作期间抑制内部 pushHistory，使其合并为单条撤销项
 
 // 深拷贝可序列化的工作流状态（不包含 DOM 引用和 selection）
 function snapshotWorkflow() {
@@ -4762,12 +4763,14 @@ function snapshotWorkflow() {
       edges: item.edges.map(e => ({ ...e })),
       deletedAt: item.deletedAt,
     })),
+    shots: (workflow.shots || []).map(s => Object.assign({}, s)),
+    scenes: (workflow.scenes || []).map(s => Object.assign({}, s)),
   };
 }
 
 // 压入历史栈（在状态变更前调用）
 function pushHistory() {
-  if (isRestoringHistory) return;
+  if (isRestoringHistory || _suppressPush) return;
   const snap = snapshotWorkflow();
   undoStack.push(snap);
   if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
@@ -4836,6 +4839,12 @@ function restoreFromSnapshot(snap) {
       });
     }
 
+    // 恢复镜头清单与场景分组（阶段7：撤销/重做须覆盖 shot/scene 两类操作）
+    workflow.shots = snap.shots ? snap.shots.map(s => Object.assign({}, s)) : [];
+    workflow.scenes = snap.scenes ? snap.scenes.map(s => Object.assign({}, s)) : [];
+    if (typeof renderShotPanel === 'function') renderShotPanel();
+    if (typeof renderScenePanel === 'function') renderScenePanel();
+
     applyTransform();
     updateStatusbar();
     updateRecycleUI();
@@ -4874,6 +4883,72 @@ function updateUndoRedoButtons() {
   if (btnUndo) btnUndo.disabled = undoStack.length === 0;
   if (btnRedo) btnRedo.disabled = redoStack.length === 0;
 }
+
+// 复合操作包装：先压一次「操作前」快照，期间抑制内部 pushHistory，使整段计为单条撤销项
+// （例如「生成镜头节点组」内部多次 addNode/connect/createScene 合并为一次可撤销动作）
+function withHistory(fn) {
+  pushHistory();
+  const prev = _suppressPush; _suppressPush = true;
+  try { fn(); } finally { _suppressPush = prev; }
+}
+
+// 表单编辑历史：聚焦时抓取「编辑前」快照，change（失焦/选择）时入栈，避免逐字符压栈
+function bindEditHistory(elm) {
+  let pre = null;
+  elm.addEventListener('focus', () => { if (pre === null) pre = snapshotWorkflow(); });
+  elm.addEventListener('change', () => {
+    if (pre !== null) {
+      undoStack.push(pre);
+      if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+      redoStack = [];
+      pre = null;
+      updateUndoRedoButtons();
+    }
+  });
+}
+
+// 阶段7：对外暴露历史栈与编辑器操作（opt-in，供单测/扩展驱动；不改动既有交互）
+(function mountHistoryApi() {
+  window.FlowCraft = window.FlowCraft || {};
+  window.FlowCraft.history = {
+    push: pushHistory,
+    undo, redo,
+    canUndo: () => undoStack.length > 0,
+    canRedo: () => redoStack.length > 0,
+    size: () => undoStack.length,
+    redoSize: () => redoStack.length,
+    limit: () => HISTORY_LIMIT,
+    clear: () => { undoStack = []; redoStack = []; updateUndoRedoButtons(); },
+  };
+  window.FlowCraft.editor = {
+    addNode, deleteNode,
+    moveNode: (id, x, y) => { const n = workflow.nodes.get(id); if (!n) return; pushHistory(); n.x = x; n.y = y; if (n.el) { n.el.style.left = x + 'px'; n.el.style.top = y + 'px'; } applyTransform(); },
+    connectNodes: (aId, aPort, bId, bPort) => { const a = workflow.nodes.get(aId), b = workflow.nodes.get(bId); if (!a || !b) return; pushHistory(); const e = new Edge(a, aPort, b, bPort); workflow.edges.set(e.id, e); resetNodeData(b); markEdgesDirty(); },
+    setParam: (id, key, val) => { const n = workflow.nodes.get(id); if (!n) return; pushHistory(); n.params.fields = n.params.fields || {}; n.params.fields[key] = val; if (key === 'prompt') n.prompt = val; },
+    addShot: (data) => { pushHistory(); workflow.shots = workflow.shots || []; const shot = Object.assign({ id: 'shot_' + Date.now().toString(36), status: 'idle', nodeId: null }, data || {}); workflow.shots.push(shot); renderShotPanel(); return shot; },
+    deleteShot: (id) => { pushHistory(); workflow.shots = (workflow.shots || []).filter(x => x.id !== id); renderShotPanel(); },
+    createScene: (name) => createScene(name),
+    deleteScene: (id) => { pushHistory(); deleteScene(id); },
+    createGroup: (id) => generateShotNodeGroup(id),
+    clear: () => { clearGraph(); workflow.shots = []; workflow.scenes = []; if (typeof renderShotPanel === 'function') renderShotPanel(); if (typeof renderScenePanel === 'function') renderScenePanel(); },
+    // 只读快照：供单测断言（节点/连线/场景/镜头计数 + 位置 + 参数 + 历史栈状态）
+    state: () => {
+      const nodes = {};
+      workflow.nodes.forEach((n, id) => { nodes[id] = { x: n.x, y: n.y, type: n.type, params: n.params.fields ? Object.assign({}, n.params.fields) : {} }; });
+      return {
+        nodeCount: workflow.nodes.size,
+        edgeCount: workflow.edges.size,
+        sceneCount: (workflow.scenes || []).length,
+        shotCount: (workflow.shots || []).length,
+        nodes,
+        canUndo: undoStack.length > 0,
+        canRedo: redoStack.length > 0,
+        historySize: undoStack.length,
+        redoSize: redoStack.length,
+      };
+    },
+  };
+})();
 
 //================ 4d. 自动保存 (localStorage 持久化) ================
 const AUTOSAVE_KEY = 'flowcraft:autosave:v1';
@@ -5652,6 +5727,7 @@ function toggleScenePanel(show) {
 }
 
 function createScene(name, color) {
+  pushHistory();
   const id = 'scene_' + Math.random().toString(36).slice(2, 9);
   const c = color || SCENE_COLORS[workflow.scenes.length % SCENE_COLORS.length];
   const scene = { id: id, name: name || ('场景 ' + (workflow.scenes.length + 1)), color: c, nodeIds: [] };
@@ -5663,6 +5739,7 @@ function createScene(name, color) {
 }
 
 function deleteScene(id) {
+  pushHistory();
   workflow.scenes = workflow.scenes.filter(s => s.id !== id);
   scheduleAutosave();
   renderScenePanel();
@@ -6026,6 +6103,7 @@ function openShotModal(shot) {
     };
     if (!data.name && !data.prompt) { showToast('请至少填写镜头名称或提示词', 'info'); return; }
     if (!data.name) data.name = (data.shotNo ? data.shotNo + ' ' : '') + (data.scene || '镜头');
+    pushHistory();
     if (isEdit) {
       Object.assign(shot, data);
     } else {
@@ -6047,6 +6125,7 @@ function deleteShot(id) {
   const s = (workflow.shots || []).find(x => x.id === id);
   if (!s) return;
   if (!confirm('确定删除镜头「' + (s.name || s.shotNo || '未命名') + '」？')) return;
+  pushHistory();
   workflow.shots = workflow.shots.filter(x => x.id !== id);
   scheduleAutosave();
   renderShotPanel();
@@ -6100,6 +6179,7 @@ function generateShotNodeGroup(id) {
   if (!s) return;
   const basePrompt = (s.prompt && s.prompt.trim()) ? s.prompt.trim() : (s.desc || s.name || '');
   if (!basePrompt) { showToast('请先在「编辑」中填写提示词或画面描述', 'info'); return; }
+  withHistory(() => {
   // 落点：排在现有内容右下方，避免重叠
   let maxX = 0, maxY = 0;
   workflow.nodes.forEach(n => { maxX = Math.max(maxX, n.x + (n.width || 280)); maxY = Math.max(maxY, n.y + (n.height || 200)); });
@@ -6136,6 +6216,7 @@ function generateShotNodeGroup(id) {
   renderShotPanel();
   focusScene(scene.id);
   showToast('已为镜头「' + (s.name || s.shotNo || '') + '」生成导演提示词 + 节点组（' + sceneName + '）', 'success');
+  });
 }
 
 function locateShotNode(id) {
@@ -10736,26 +10817,26 @@ function comfyFieldRow(node, f) {
     ta.className = 'comfy-ta'; ta.rows = 2; ta.value = String(cur);
     ta.oninput = (e) => { node.params.fields[f.key] = e.target.value; if (f.key === 'prompt') node.prompt = e.target.value; scheduleAutosave(); };
     ta.onmousedown = (e) => e.stopPropagation();
-    row.appendChild(ta);
+    row.appendChild(ta); bindEditHistory(ta);
   } else if (f.type === 'dropdown') {
     const sel = document.createElement('select'); sel.className = 'comfy-sel';
     (f.options||[]).forEach(opt => { const o=document.createElement('option'); o.value=opt; o.textContent=opt; sel.appendChild(o); });
     sel.value = String(cur);
     sel.onchange = (e) => { node.params.fields[f.key] = e.target.value; scheduleAutosave(); };
     sel.onmousedown = (e) => e.stopPropagation();
-    row.appendChild(sel);
+    row.appendChild(sel); bindEditHistory(sel);
   } else if (f.type === 'slider') {
     const rng = document.createElement('input'); rng.type='range';
     rng.min = f.min!=null?f.min:0; rng.max = f.max!=null?f.max:100; rng.step = f.step!=null?f.step:1; rng.value = cur;
     const out = document.createElement('span'); out.className='comfy-range-val'; out.textContent = cur;
     rng.oninput = (e) => { out.textContent = e.target.value; node.params.fields[f.key] = parseFloat(e.target.value); scheduleAutosave(); };
     rng.onmousedown = (e) => e.stopPropagation();
-    row.appendChild(rng); row.appendChild(out);
+    row.appendChild(rng); row.appendChild(out); bindEditHistory(rng);
   } else if (f.type === 'boolean') {
     const chk = document.createElement('input'); chk.type='checkbox'; chk.checked = !!cur;
     chk.onchange = (e) => { node.params.fields[f.key] = e.target.checked; scheduleAutosave(); };
     chk.onmousedown = (e) => e.stopPropagation();
-    row.appendChild(chk);
+    row.appendChild(chk); bindEditHistory(chk);
   } else {
     const inp = document.createElement('input'); inp.type = (f.type === 'number') ? 'number' : 'text';
     inp.className = 'comfy-inp'; inp.value = cur;
@@ -10763,7 +10844,7 @@ function comfyFieldRow(node, f) {
     if (f.max != null) inp.max = f.max;
     inp.oninput = (e) => { node.params.fields[f.key] = (f.type === 'number') ? e.target.value : e.target.value; scheduleAutosave(); };
     inp.onmousedown = (e) => e.stopPropagation();
-    row.appendChild(inp);
+    row.appendChild(inp); bindEditHistory(inp);
   }
   return row;
 }
