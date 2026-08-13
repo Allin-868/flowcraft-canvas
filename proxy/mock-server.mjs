@@ -20,6 +20,7 @@ const state = {
   upstreamCount: 0,        // 实际"上游"模拟次数（幂等命中不计）
   logs: [],                // 脱敏日志（最近 50 条）
   tasks: new Map(),        // taskId -> {status, result, readyAt}
+  failNext: null,          // {count, code, kind, retryable, status, message}：后续 N 次调用模拟失败（供 e2e 重试测试）
 };
 
 function maskKey(auth) {
@@ -124,6 +125,16 @@ const server = http.createServer(async (req, res) => {
     if (typeof b.ratelimit === 'number') { state.config.ratelimit = b.ratelimit; state.rate.clear(); }
     if (typeof b.quota === 'number') { state.config.quota = b.quota; state.quotaUsed.clear(); }
     if (typeof b.token === 'string') state.tokens.add(b.token);
+    if (b.failNext && typeof b.failNext === 'object') {
+      state.failNext = {
+        count: b.failNext.count || 0,
+        code: b.failNext.code || 'rate_limited',
+        kind: b.failNext.kind || 'transient',
+        retryable: b.failNext.retryable !== false,
+        status: b.failNext.status || 429,
+        message: b.failNext.message || '模拟失败（测试）'
+      };
+    }
     return sendJSON(res, 200, { ok: true, config: state.config });
   }
   if (req.method === 'GET' && url.pathname === '/__debug/state') {
@@ -149,6 +160,13 @@ const server = http.createServer(async (req, res) => {
     const auth = req.headers['authorization'] || '';
     const token = (auth.replace(/^Bearer\s+/i, '') || '').trim();
     if (!token) return sendJSON(res, 401, errPayload('unauthorized', 'auth', false, '缺少用户令牌', 401));
+
+    // ① 失败注入（供 e2e 重试测试：failNext.count 次后恢复正常）
+    if (state.failNext && state.failNext.count > 0) {
+      state.failNext.count--;
+      const f = state.failNext;
+      return sendJSON(res, f.status, errPayload(f.code, f.kind, f.retryable, f.message, f.status));
+    }
 
     // ② 限流
     const rl = checkRate(token);

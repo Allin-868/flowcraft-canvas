@@ -14,7 +14,7 @@ window.FlowCraft.runner = Runner;
 window.FlowCraft.nodes = NodeContract;
 window.FlowCraft.proxy = ProxyClient;
 window.FlowCraft.fee = FeeModel;
-window.FlowCraft.version = '3.6-api-proxy';
+window.FlowCraft.version = '3.7-e2e-sample';
 
 // 阶段 4：代理启用（opt-in）。默认不启用 → legacy 回退直连（本地开发兼容）。
 // 部署时由启动脚本注入 window.__FC_PROXY_BASE__ / window.__FC_PROXY_TOKEN__（短期用户令牌，非生产 Key）。

@@ -2685,6 +2685,7 @@ function runSaveNode(node) {
   const inData = collectSaveInputs(node);
   const imgIn = inData.find(d => d && d.type === 'image' && typeof d.value === 'string');
   const textIn = inData.find(d => d && d.type === 'text' && typeof d.value === 'string');
+  const videoIn = inData.find(d => d && d.type === 'video' && typeof d.value === 'string');
 
   if (imgIn && /^data:image\//i.test(imgIn.value)) {
     const m = imgIn.value.match(/data:image\/(\w+);/i);
@@ -2710,6 +2711,21 @@ function runSaveNode(node) {
       showToast('已保存文本：' + filename + '.txt', 'success');
       node.status = 'done';
     }
+  } else if (videoIn) {
+    // 视频保存：远程 URL 或 data URL 均尽力下载（跨域 URL 浏览器可能忽略 download 属性，降级为导航）
+    showToast('已保存视频：' + filename + '.mp4', 'success');
+    node.status = 'done'; // 先置成功，避免跨域下载导航打断状态
+    try {
+      const vu = videoIn.value;
+      if (/^data:/i.test(vu)) {
+        downloadDataURL(vu, filename + '.mp4');
+      } else {
+        const a = document.createElement('a');
+        a.href = vu; a.download = filename + '.mp4';
+        a.target = '_blank'; a.rel = 'noopener'; // 跨域 URL 忽略 download 属性，新标签页打开避免导航走画布
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+    } catch (e) { /* 下载失败不影响节点成功态（资产已生成）*/ }
   } else {
     showToast('没有可保存的内容，请先连接图片或文本输入', 'warn');
     node.status = 'error';
@@ -6236,9 +6252,10 @@ function executeNodeAsync(node, delay) {
     markEdgesDirty();
 
     // T2-4 运行前校验：节点数据契约（stub 硬拦截 + validate 拦截），错误归档进 REGEN
+    // 例外：tier='stub' 但已启用 API 代理的节点（依赖服务端能力的真实视频生成等）视为可运行
     if (window.FlowCraft && window.FlowCraft.nodes && window.FlowCraft.nodes.beforeRun) {
       const br = window.FlowCraft.nodes.beforeRun(node);
-      if (!br.ok) {
+      if (!br.ok && !(br.stub && _fcProxy())) {
         node.status = 'failure';
         updateNodeStatus(node);
         markEdgesDirty();
@@ -6327,12 +6344,25 @@ function executeNodeAsync(node, delay) {
         }
 
         const isGptImage = node.type === 'aiImage' && node.params && node.params.model === 'GPT Image 2';
-        if (isGptImage) {
-          // 真实调用 gpt-image-2 生成图片
+        if (node.type === 'aiVideo') {
+          // 阶段 5：经 API 安全代理异步生成视频；未启用代理则回退 computeNodeOutput 占位（保 four-features 等价）
+          if (_fcProxy()) {
+            const v = await runVideoNodeViaProxy(node);
+            node.thumb = v.thumb;
+            node.outputsData = v.outputsData;
+          } else {
+            node.outputsData = computeNodeOutput(node);
+          }
+          node.status = 'done';
+          logRun(node, true, Date.now() - _t0);
+        } else if (isGptImage) {
+          // 真实调用 gpt-image-2 生成图片（代理启用时经 FlowCraft.proxy）
           const img = await generateOpenAIImage(node);
           if (!img) { resolve(); return; } // 失败时状态已置 error
           node.thumb = img;
           node.outputsData = [{ type: 'image', value: img }];
+          node.status = 'done';
+          logRun(node, true, Date.now() - _t0);
         } else {
           const out = computeNodeOutput(node);
           node.outputsData = out;
@@ -6344,9 +6374,9 @@ function executeNodeAsync(node, delay) {
               && imgTypes.includes(node.type)) {
             node.thumb = imgOut.value;
           }
+          node.status = 'done';
+          logRun(node, true, Date.now() - _t0);
         }
-        node.status = 'done';
-        logRun(node, true, Date.now() - _t0);
       } catch (err) {
         node.status = 'error';
         const loc = localizeError(err);
@@ -6756,7 +6786,99 @@ function generateImageWithRefs(base, key, prompt, images, count, size) {
   return attempt(models.slice());
 }
 
+// 阶段 5：经 API 安全代理生成图片（浏览器不持有生产 Key）。
+// 代理返回上游原始 JSON：{data:[{b64_json}]} 或 {output:[{image:{url}}]}。
+// 失败时抛出 ProxyError，由 executeNodeAsync 的 catch 交由执行引擎分类（transient 可重试）。
+async function generateImageViaProxy(node) {
+  const proxy = _fcProxy();
+  const prompt = (node.effectivePrompt || node.prompt || '').trim();
+  if (!prompt) {
+    throw new ProxyError('请先输入提示词（或在节点内输入）', { kind: 'param', retryable: false, code: 'empty_prompt' });
+  }
+  const countMap = { '1张': 1, '2张': 2, '4张': 4, '6张': 6, '8张': 8 };
+  const count = countMap[node.params.count] || 1;
+  const size = pickOpenAISize(node.params.aspect, node.params.resolution);
+  node.status = 'running';
+  updateNodeStatus(node);
+
+  const json = await proxy.call({
+    provider: 'openai',
+    endpoint: '/images/generations',
+    token: (window.FlowCraft && window.FlowCraft.__userToken) || undefined,
+    body: { model: 'gpt-image-2', prompt: prompt, n: count, size: size }
+  });
+
+  let imgs = [];
+  if (Array.isArray(json && json.data)) {
+    imgs = json.data.map(d => 'data:image/png;base64,' + (d && d.b64_json ? d.b64_json : ''));
+  } else if (Array.isArray(json && json.output)) {
+    imgs = json.output.filter(o => o && o.image && o.image.url).map(o => o.image.url);
+  }
+  imgs = imgs.filter(Boolean);
+  if (!imgs.length) {
+    throw new ProxyError('代理未返回图片数据', { kind: 'system', retryable: false, code: 'empty_image' });
+  }
+
+  node._galleryImages = imgs.slice();
+  if (count > 1) {
+    const grid = await composeImageGrid(imgs, node.params.aspect);
+    node._imageCount = imgs.length;
+    return grid;
+  }
+  return imgs[0];
+}
+
+// 阶段 5：经 API 安全代理异步生成视频（图生视频 / 文生视频）。
+// 代理采用异步任务架构（9.2）：提交 → 立即返回 taskId → 轮询 GET /proxy/task/<id> 直至 success。
+// 浏览器不持有视频 API Key（可灵/Runway 等密钥在代理服务端 env）。
+// 失败抛出 ProxyError，交由执行引擎分类（transient/system/timeout 可重试）。
+async function runVideoNodeViaProxy(node) {
+  const proxy = _fcProxy();
+  const prompt = (node.effectivePrompt || node.prompt || '').trim() || '生成一段视频';
+  const imgIn = (node.inputsData || []).find(d => d && d.type === 'image' && typeof d.value === 'string' && d.value.startsWith('data:'));
+  const body = {
+    model: (node.params && node.params.model) || 'Sora 2',
+    prompt: prompt,
+    image: imgIn ? imgIn.value : null,
+    aspect: (node.params && node.params.aspect) || '9:16',
+    duration: (node.params && node.params.duration) || '5秒'
+  };
+
+  const submit = await proxy.call({
+    provider: 'kling',
+    endpoint: '/videos',
+    token: (window.FlowCraft && window.FlowCraft.__userToken) || undefined,
+    body: body
+  });
+  if (!submit || !submit.taskId) {
+    throw new ProxyError('视频任务提交未返回 taskId', { kind: 'system', retryable: true, code: 'video_submit' });
+  }
+
+  const taskId = submit.taskId;
+  const deadline = Date.now() + 120000; // 与 nodeTimeout 对齐
+  let task = submit;
+  while (Date.now() < deadline) {
+    if (node._abort) {
+      throw new ProxyError('视频生成已被取消', { kind: 'param', retryable: false, code: 'video_aborted' });
+    }
+    task = await proxy.getTask(taskId);
+    if (task && task.status === 'success') break;
+    if (task && task.status === 'failed') {
+      throw new ProxyError('视频生成任务失败', { kind: 'system', retryable: true, code: 'video_failed' });
+    }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  if (!task || task.status !== 'success') {
+    throw new ProxyError('视频生成超时', { kind: 'timeout', retryable: true, code: 'video_timeout' });
+  }
+  const videoUrl = (task.result && (task.result.video_url || task.result.url)) || '';
+  return { thumb: videoUrl, outputsData: [{ type: 'video', value: videoUrl }] };
+}
+
 function generateOpenAIImage(node) {
+  // 阶段 5：代理启用时，浏览器不持有本地 Key，经 FlowCraft.proxy 生成（生产 Key 在代理侧）
+  if (_fcProxy()) return generateImageViaProxy(node);
+
   const key = localStorage.getItem(OPENAI_KEY_STORAGE);
   if (!key) {
     node.status = 'error';

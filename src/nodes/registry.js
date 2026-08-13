@@ -237,7 +237,9 @@ export const NodeContract = {
     const meta = this.CONTRACT[node.type];
     if (!meta) return { ok: true };
     if (meta.tier === 'stub') {
-      return { ok: false, reason: `节点「${meta.label}」当前为「未实现（${meta.tier}）」：${meta.note}，暂不可运行` };
+      // stub：默认（无代理）不可运行；但依赖服务端能力的节点（如真实视频 API）在启用 API 代理后视为可运行
+      const proxyOn = !!(window && window.FlowCraft && window.FlowCraft.proxy && window.FlowCraft.proxy.enabled && window.FlowCraft.proxy.enabled());
+      return { ok: false, stub: true, reason: `节点「${meta.label}」当前为「未实现（${meta.tier}）」：${meta.note}${proxyOn ? '（已启用 API 代理，可经代理真实运行）' : '，暂不可运行'}` };
     }
     if (typeof meta.validate === 'function') {
       const r = meta.validate(node.params || {}, node);

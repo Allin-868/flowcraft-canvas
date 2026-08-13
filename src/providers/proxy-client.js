@@ -121,6 +121,21 @@ export const ProxyClient = {
     return resp; // SSE 流
   },
 
+  // 轮询异步任务状态（视频生成）：GET /proxy/task/<id>
+  async getTask(taskId) {
+    if (!this._enabled) throw new ProxyError('代理未配置', { kind: 'system', retryable: false, code: 'proxy_not_configured' });
+    if (!taskId) throw new ProxyError('任务 ID 缺失', { kind: 'param', retryable: false, code: 'task_id_missing' });
+    const resp = await fetch(this._base + '/proxy/task/' + encodeURIComponent(String(taskId)), {
+      method: 'GET',
+      headers: this._headers(null, null)
+    });
+    const text = await resp.text();
+    let json;
+    try { json = text ? JSON.parse(text) : {}; } catch (_) { json = { _raw: text }; }
+    if (!resp.ok) this._raiseFromPayload(json, resp.status);
+    return json; // { taskId, status: 'pending'|'success'|'failed', result? }
+  },
+
   // 把 ProxyError 映射为 legacy 节点状态（供执行引擎分类）
   errorToNodeStatus(err) {
     if (err && err.kind && (err.kind === 'param' || err.kind === 'quota' || err.kind === 'auth')) return 'failure';
