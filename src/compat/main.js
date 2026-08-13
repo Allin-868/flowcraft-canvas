@@ -7,6 +7,7 @@ import { Runner } from '../execution/runner.js';
 import { NodeContract } from '../nodes/registry.js';
 import { ProxyClient } from '../providers/proxy-client.js';
 import { FeeModel } from '../providers/fee-model.js';
+import { ModelRegistry, ModelRouter, ModelHealth } from '../providers/model-router.js';
 
 window.FlowCraft = window.FlowCraft || {};
 window.FlowCraft.storage = StorageAdapter;
@@ -14,7 +15,10 @@ window.FlowCraft.runner = Runner;
 window.FlowCraft.nodes = NodeContract;
 window.FlowCraft.proxy = ProxyClient;
 window.FlowCraft.fee = FeeModel;
-window.FlowCraft.version = '3.7-e2e-sample';
+window.FlowCraft.models = ModelRegistry.init();
+window.FlowCraft.router = ModelRouter.init();
+window.FlowCraft.health = ModelHealth.init();
+window.FlowCraft.version = '3.10-multi-model';
 
 // 阶段 4：代理启用（opt-in）。默认不启用 → legacy 回退直连（本地开发兼容）。
 // 部署时由启动脚本注入 window.__FC_PROXY_BASE__ / window.__FC_PROXY_TOKEN__（短期用户令牌，非生产 Key）。
@@ -385,3 +389,114 @@ function downloadBlob(blob, filename) {
   }
   if (typeof console !== 'undefined') console.log('[FlowCraft] 节点数据规范 UI 已挂载（stub 徽标）');
 })();
+
+// —— 阶段 9：多模型路由设置面板（浮动，opt-in，默认隐藏）——
+// 仅维护模型清单（provider + model id + 能力 + 评分），不含任何 Key；
+// 真实 Key 由代理环境变量统一管理。文本/生图经 FlowCraft.router 选模型后透传给代理。
+(function bootstrapMultiModel() {
+  if (typeof document === 'undefined') return;
+  const Reg = window.FlowCraft.models;
+  const Router = window.FlowCraft.router;
+  const Health = window.FlowCraft.health;
+
+  const style = document.createElement('style');
+  style.textContent =
+    '#fcMrToggle{position:fixed;left:14px;bottom:14px;z-index:60;background:var(--accent,#4f8cff);color:#fff;' +
+    'border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35)}' +
+    '#fcMrPanel{position:fixed;left:14px;bottom:54px;z-index:61;width:320px;max-height:72vh;overflow:auto;' +
+    'background:var(--panel,#1b1f27);color:var(--text,#e8ebf0);border:1px solid var(--border,#2a2f3a);border-radius:12px;' +
+    'padding:14px;font-size:12px;box-shadow:0 8px 30px rgba(0,0,0,.5);display:none}' +
+    '#fcMrPanel h3{margin:0 0 8px;font-size:13px;display:flex;justify-content:space-between;align-items:center}' +
+    '#fcMrPanel .fc-row{display:flex;align-items:center;gap:8px;margin:6px 0}' +
+    '#fcMrPanel .fc-muted{color:var(--text-2,#9aa3b2);font-size:11px;margin:4px 0 10px}' +
+    '#fcMrList .fc-m{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;border:1px solid var(--border,#2a2f3a);border-radius:8px;margin:5px 0}' +
+    '#fcMrList .fc-m .fc-meta{display:flex;flex-direction:column}' +
+    '#fcMrList .fc-m .fc-name{font-weight:600}' +
+    '#fcMrList .fc-m .fc-cap{font-size:10px;color:var(--text-2,#9aa3b2)}' +
+    '#fcMrList .fc-m button{font-size:11px;padding:2px 7px;cursor:pointer}' +
+    '#fcMrHealth .fc-h{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--border,#2a2f3a)}' +
+    '.fc-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}' +
+    '.fc-dot.ok{background:#3ec97a}.fc-dot.degraded{background:#e0a93e}.fc-dot.down{background:#e15353}.fc-dot.unknown{background:#888}';
+  document.head.appendChild(style);
+
+  const toggle = document.createElement('button');
+  toggle.id = 'fcMrToggle';
+  toggle.textContent = '🧭 模型路由';
+  document.body.appendChild(toggle);
+
+  const panel = document.createElement('div');
+  panel.id = 'fcMrPanel';
+  panel.innerHTML =
+    '<h3>模型路由 <span style="font-size:11px;cursor:pointer" id="fcMrClose">✕</span></h3>' +
+    '<div class="fc-row"><label><input type="checkbox" id="fcMrEnabled"> 启用智能路由（覆盖 AI 助手模型选择）</label></div>' +
+    '<div class="fc-row">策略：' +
+    '<label><input type="radio" name="fcMrStrat" value="quality" checked> 质量</label>' +
+    '<label><input type="radio" name="fcMrStrat" value="cost"> 成本</label>' +
+    '<label><input type="radio" name="fcMrStrat" value="speed"> 速度</label></div>' +
+    '<div class="fc-muted">前端仅选模型，不持有任何 Key；真实 Key 由代理环境变量管理。</div>' +
+    '<div id="fcMrList"></div>' +
+    '<div class="fc-row"><button class="ra-btn" id="fcMrAdd">+ 添加模型</button>' +
+    '<button class="ra-btn" id="fcMrReset">恢复默认</button></div>' +
+    '<h3 style="margin-top:12px">健康监控</h3><div id="fcMrHealth"></div>';
+
+  document.body.appendChild(panel);
+
+  function render() {
+    const enabled = Router.enabled();
+    document.getElementById('fcMrEnabled').checked = enabled;
+    const strat = Router.strategy();
+    panel.querySelectorAll('input[name=fcMrStrat]').forEach((r) => { r.checked = (r.value === strat); });
+    const list = document.getElementById('fcMrList');
+    list.innerHTML = '';
+    Reg.list().forEach((m) => {
+      const row = document.createElement('div');
+      row.className = 'fc-m';
+      row.innerHTML =
+        '<div class="fc-meta"><span class="fc-name">' + escapeHtml(m.label) + '</span>' +
+        '<span class="fc-cap">' + escapeHtml(m.provider + ' / ' + m.model) + ' · ' + (m.capabilities || []).join(',') + '</span></div>';
+      const ctl = document.createElement('div');
+      const en = document.createElement('input');
+      en.type = 'checkbox'; en.checked = m.enabled; en.title = '启用';
+      en.onchange = () => { Reg.setEnabled(m.id, en.checked); render(); };
+      const del = document.createElement('button'); del.textContent = '删';
+      del.onclick = () => { if (window.confirm && window.confirm('删除模型 ' + m.label + '？')) { Reg.remove(m.id); render(); } };
+      ctl.appendChild(en); ctl.appendChild(del);
+      row.appendChild(ctl);
+      list.appendChild(row);
+    });
+    const h = document.getElementById('fcMrHealth');
+    const all = Health.all();
+    const ids = Object.keys(all);
+    if (!ids.length) { h.innerHTML = '<div class="fc-muted">暂无调用记录</div>'; return; }
+    h.innerHTML = '';
+    ids.forEach((id) => {
+      const s = all[id];
+      const row = document.createElement('div');
+      row.className = 'fc-h';
+      const rate = s.successRate == null ? '—' : (s.successRate * 100).toFixed(0) + '%';
+      const avg = s.avgMs == null ? '—' : s.avgMs + 'ms';
+      row.innerHTML = '<span><span class="fc-dot ' + s.status + '"></span>' + escapeHtml(id) + '</span>' +
+        '<span>成功率 ' + rate + ' · 均耗时 ' + avg + '</span>';
+      h.appendChild(row);
+    });
+  }
+
+  toggle.onclick = () => { panel.style.display = (panel.style.display === 'block') ? 'none' : 'block'; if (panel.style.display === 'block') render(); };
+  document.getElementById('fcMrClose').onclick = () => { panel.style.display = 'none'; };
+  document.getElementById('fcMrEnabled').onchange = (e) => { Router.setEnabled(e.target.checked); render(); };
+  panel.querySelectorAll('input[name=fcMrStrat]').forEach((r) => { r.onchange = () => { if (r.checked) { Router.setStrategy(r.value); render(); } }; });
+  document.getElementById('fcMrAdd').onclick = () => {
+    const provider = window.prompt ? window.prompt('Provider（openai/deepseek/anthropic/google/xai）', 'openai') : 'openai';
+    if (!provider) return;
+    const model = window.prompt ? window.prompt('模型 ID（如 gpt-4o、claude-3-5-sonnet-20241022）', '') : '';
+    if (!model) return;
+    const label = window.prompt ? window.prompt('显示名（可选）', model) : model;
+    const cap = window.prompt ? window.prompt('能力（逗号分隔：text/image/video）', 'text') : 'text';
+    Reg.add({ provider: provider.trim(), model: model.trim(), label: (label || model).trim(), capabilities: String(cap || 'text').split(',').map((s) => s.trim()).filter(Boolean), enabled: true });
+    render();
+  };
+  document.getElementById('fcMrReset').onclick = () => { if (window.confirm && window.confirm('恢复默认模型清单？当前改动将丢失。')) { Reg.reset(); render(); } };
+
+  if (typeof console !== 'undefined') console.log('[FlowCraft] 多模型路由 UI 已挂载（opt-in）');
+})();
+

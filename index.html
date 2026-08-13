@@ -4950,6 +4950,17 @@ function bindEditHistory(elm) {
   };
 })();
 
+// 阶段 9：测试/调试钩子（opt-in，供 verify-model-router.js 在无网络下驱动调用点并断言路由透传）。
+// 仅暴露内部函数引用，不改变任何交互行为。
+(function mountLegacyTestHook() {
+  window.FlowCraft = window.FlowCraft || {};
+  window.FlowCraft._legacy = {
+    callRelayChat: callRelayChat,
+    generateChatImage: generateChatImage,
+    _routeModel: _routeModel,
+  };
+})();
+
 //================ 4d. 自动保存 (localStorage 持久化) ================
 const AUTOSAVE_KEY = 'flowcraft:autosave:v1';
 // 自动保存数据结构版本。每次改变节点/工作流存储结构时 +1，
@@ -11021,6 +11032,17 @@ function _fcProxy() {
   return (p && typeof p.enabled === 'function' && p.enabled()) ? p : null;
 }
 
+// 阶段 9：智能模型路由（opt-in）。返回 {model, provider, reason} 或 null（未启用→沿用现网模型）。
+// 仅用于「文本对话 / 生图」两类 capability；未启用时返回 null，调用点回退到 aiCurrentModel / gpt-image-2 等现网逻辑。
+function _routeModel(capability) {
+  var r = window.FlowCraft && window.FlowCraft.router;
+  if (!r || typeof r.enabled !== 'function' || !r.enabled()) return null;
+  try {
+    var sel = r.select({ capability: capability || 'text', strategy: (r.strategy && r.strategy()) || 'quality' });
+    return sel || null;
+  } catch (_) { return null; }
+}
+
 function openaiPostJSON(base, path, key, body) {
   var proxy = _fcProxy();
   if (proxy) {
@@ -11189,9 +11211,11 @@ function openAIImageSingle(base, key, model, prompt, size) {
 }
 
 // 依次尝试候选模型名：每个先走 /images/generations，遇 404/不支持回退 /responses，再失败换下一个模型名
-function openAIImageWithFallback(base, key, prompt, count, size) {
+// 阶段 9：支持 models 覆盖（路由选中的图片模型优先尝试）
+function openAIImageWithFallback(base, key, prompt, count, size, models) {
   var lastErr = null;
   var attempts = [];
+  var _cands = (models && models.length) ? models.slice() : OPENAI_IMAGE_MODELS.slice();
   function attempt(models) {
     if (!models.length) {
       var e = new Error((lastErr && lastErr.message) || '所有模型名均不可用');
@@ -11232,7 +11256,7 @@ function openAIImageWithFallback(base, key, prompt, count, size) {
         return attempt(rest);
       });
   }
-  return attempt(OPENAI_IMAGE_MODELS.slice());
+  return attempt(_cands);
 }
 
 // 把 OpenAI 接口错误翻译成可操作的提示（区分网络/CORS 与 API 错误）
@@ -11406,11 +11430,18 @@ async function generateImageViaProxy(node) {
   node.status = 'running';
   updateNodeStatus(node);
 
+  // 阶段 9：路由选中的图片模型（默认 gpt-image-2，行为等价）
+  const _rImg = _routeModel('image');
+  const _imgModel = (_rImg && _rImg.model) || 'gpt-image-2';
+  const _imgProvider = (_rImg && _rImg.provider) || 'openai';
+  const _imgModelId = _imgProvider + '/' + _imgModel;
+  const _t0 = Date.now();
+
   const json = await proxy.call({
-    provider: 'openai',
+    provider: _imgProvider,
     endpoint: '/images/generations',
     token: (window.FlowCraft && window.FlowCraft.__userToken) || undefined,
-    body: { model: 'gpt-image-2', prompt: prompt, n: count, size: size }
+    body: { model: _imgModel, prompt: prompt, n: count, size: size }
   });
 
   let imgs = [];
@@ -11421,9 +11452,11 @@ async function generateImageViaProxy(node) {
   }
   imgs = imgs.filter(Boolean);
   if (!imgs.length) {
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _imgModelId, ok: false, ms: Date.now() - _t0 });
     throw new ProxyError('代理未返回图片数据', { kind: 'system', retryable: false, code: 'empty_image' });
   }
 
+  if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _imgModelId, ok: true, ms: Date.now() - _t0 });
   node._galleryImages = imgs.slice();
   if (count > 1) {
     const grid = await composeImageGrid(imgs, node.params.aspect);
@@ -13063,9 +13096,18 @@ function sendAIMessage() {
     '<div class="ai-thinking-dots"><span></span><span></span><span></span></div></div>';
   var bubble = appendAIMessage('ai', loadingHTML);
 
-  // GPT Image 2 真实图像生成分支
+  // 阶段 9：智能路由（opt-in，默认关闭）。启用时文本走路由选定模型，覆盖 aiCurrentModel 选择（含 Deepseek 分支）。
+  var _rt = _routeModel('text');
+  if (_rt) {
+    aiConversation.push({ role: 'user', content: text });
+    callRelayChat(_rt.model, bubble, _rt.provider);
+    return;
+  }
+
+  // GPT Image 2 真实图像生成分支（阶段 9：路由启用时改用路由选中的图片模型）
   if (aiCurrentModel === 'gpt-image-2') {
-    generateChatImage(text, bubble);
+    var _rImg = _routeModel('image');
+    generateChatImage(text, bubble, _rImg ? _rImg.model : null, _rImg ? _rImg.provider : null);
     return;
   }
 
@@ -13092,13 +13134,17 @@ function sendAIMessage() {
 
 
 // GPT Image 2 聊天图像生成（AI 助手对话内直接出图）
-function generateChatImage(text, bubble) {
+// 阶段 9：modelOverride/provider 支持路由选中的图片模型（默认 gpt-image-2，行为等价）
+function generateChatImage(text, bubble, modelOverride, provider) {
+  var _modelId = 'openai/' + (modelOverride || 'gpt-image-2');
+  var _t0 = Date.now();
   var key = localStorage.getItem(OPENAI_KEY_STORAGE);
   if (!key) {
     bubble.innerHTML = '<div class="ai-reply-text">尚未配置 OpenAI API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，即可使用 GPT Image 2 生成图片。</div>';
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: false, ms: Date.now() - _t0 });
     return;
   }
   var base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
@@ -13110,29 +13156,36 @@ function generateChatImage(text, bubble) {
     aiSendBtn.disabled = false;
     return;
   }
-  openAIImageWithFallback(base, key, prompt, 2)
+  var _cands = modelOverride ? [modelOverride].concat(OPENAI_IMAGE_MODELS) : OPENAI_IMAGE_MODELS;
+  openAIImageWithFallback(base, key, prompt, 2, undefined, _cands)
   .then(function(imgs) {
     if (!imgs || !imgs.length) throw new Error('未获取到图片');
     var html = imgs.map(function(src) {
-      return '<img src="' + src + '" alt="GPT Image 2 生成结果">';
+      return '<img src="' + src + '" alt="生成结果">';
     }).join('');
     bubble.innerHTML = '<div class="ai-reply-text">已根据您的描述生成：</div><div class="ai-gen-images">' + html + '</div>';
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: true, ms: Date.now() - _t0 });
   })
   .catch(function(err) {
-    bubble.innerHTML = '<div class="ai-reply-text" style="color:#E15353">GPT Image 2 生成失败：' + escapeHtml(describeOpenAIError(err)) +
-      '（已尝试模型：' + (err.tried || OPENAI_IMAGE_MODELS.join(' / ')) + '）。' +
+    bubble.innerHTML = '<div class="ai-reply-text" style="color:#E15353">图像生成失败：' + escapeHtml(describeOpenAIError(err)) +
+      '（已尝试模型：' + (err.tried || _cands.join(' / ')) + '）。' +
       '<br>请检查 API Key、⚙ 中自定义 API 地址，或当前服务是否支持 gpt-image-2 / gpt-image-1 / dall-e-3。</div>';
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: false, ms: Date.now() - _t0 });
   });
 }
 
 // --- 中转对话（OpenAI 格式 /chat/completions，支持 GPT/Claude/Gemini/Grok 等）---
-function callRelayChat(model, bubble) {
+// 阶段 9：provider 参数支持多厂商路由（默认 'openai'）；成功/失败回写 ModelHealth。
+function callRelayChat(model, bubble, provider) {
+  provider = provider || 'openai';
+  var _modelId = provider + '/' + model;
+  var _t0 = Date.now();
   var key = localStorage.getItem(OPENAI_KEY_STORAGE);
   var proxy = _fcProxy();
   if (!key && !proxy) {
@@ -13141,13 +13194,14 @@ function callRelayChat(model, bubble) {
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
     if (aiConversation.length && aiConversation[aiConversation.length - 1].role === 'user') aiConversation.pop();
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: false, ms: Date.now() - _t0 });
     return;
   }
   var base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
   var messages = [{ role: 'system', content: SYSTEM_PROMPT }].concat(aiConversation);
   var relayReq;
   if (proxy) {
-    relayReq = proxy.call({ provider: 'openai', endpoint: '/chat/completions', body: { model: model, messages: messages, stream: false }, token: window.FlowCraft.__userToken || undefined })
+    relayReq = proxy.call({ provider: provider, endpoint: '/chat/completions', body: { model: model, messages: messages, stream: false }, token: window.FlowCraft.__userToken || undefined })
       .catch(function(err) { if (err && err.kind) { var m = new Error(err.message || 'proxy error'); m.status = err.status || 0; m.proxyKind = err.kind; throw m; } throw err; });
   } else {
     relayReq = fetch(base + '/chat/completions', {
@@ -13165,12 +13219,14 @@ function callRelayChat(model, bubble) {
     aiConversation.push({ role: 'assistant', content: reply });
     bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(reply).replace(/\n/g, '<br>') + '</div>';
     scrollAIToBottom();
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: true, ms: Date.now() - _t0 });
   })
   .catch(function(err) {
     bubble.innerHTML = '<div class="ai-reply-text" style="color:#E15353">调用 ' + escapeHtml(model) + ' 失败：' + escapeHtml(err && err.message || err) +
       '<br>请检查中转 API Key、⚙ 中的 API 地址，或该模型是否可用。</div>';
     if (aiConversation.length && aiConversation[aiConversation.length - 1].role === 'user') aiConversation.pop();
     scrollAIToBottom();
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: false, ms: Date.now() - _t0 });
   })
   .finally(function() {
     aiIsGenerating = false;
@@ -17197,6 +17253,233 @@ init();
     }
   };
 
+  // src/providers/model-router.js
+  function num(v, d) {
+    const n = Number(v);
+    return isFinite(n) ? n : d;
+  }
+  function clamp01(v) {
+    const n = Number(v);
+    if (!isFinite(n)) return 0.5;
+    return n < 0 ? 0 : n > 1 ? 1 : n;
+  }
+  var LS = {
+    models: "fc_multimodel_models_v1",
+    strategy: "fc_multimodel_strategy_v1",
+    enabled: "fc_multimodel_enabled_v1",
+    health: "fc_multimodel_health_v1"
+  };
+  function lsGet(k, def) {
+    try {
+      const v = localStorage.getItem(k);
+      return v == null ? def : JSON.parse(v);
+    } catch (_) {
+      return def;
+    }
+  }
+  function lsSet(k, v) {
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+    } catch (_) {
+    }
+  }
+  var SEED_MODELS = [
+    { id: "openai/gpt-5.4", provider: "openai", model: "gpt-5.4", label: "GPT-5.4", capabilities: ["text"], tier: "production", cost: 0.8, speed: 0.7, quality: 0.95, enabled: true },
+    { id: "openai/gpt-image-2", provider: "openai", model: "gpt-image-2", label: "GPT Image 2", capabilities: ["image"], tier: "production", cost: 0.9, speed: 0.6, quality: 0.95, enabled: true },
+    { id: "deepseek/deepseek-chat", provider: "deepseek", model: "deepseek-chat", label: "DeepSeek V3", capabilities: ["text"], tier: "production", cost: 0.1, speed: 0.8, quality: 0.85, enabled: true },
+    { id: "anthropic/claude-3.5-sonnet", provider: "anthropic", model: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet", capabilities: ["text"], tier: "production", cost: 0.9, speed: 0.7, quality: 0.96, enabled: false },
+    { id: "google/gemini-2.0-flash", provider: "google", model: "gemini-2.0-flash", label: "Gemini 2.0 Flash", capabilities: ["text"], tier: "production", cost: 0.2, speed: 0.95, quality: 0.88, enabled: false },
+    { id: "xai/grok-2", provider: "xai", model: "grok-2", label: "Grok 2", capabilities: ["text"], tier: "production", cost: 0.5, speed: 0.8, quality: 0.9, enabled: false },
+    { id: "openai/gpt-image-1", provider: "openai", model: "gpt-image-1", label: "GPT Image 1", capabilities: ["image"], tier: "production", cost: 0.6, speed: 0.7, quality: 0.9, enabled: false }
+  ];
+  var DEFAULT_BY_CAP = {
+    text: { model: "gpt-5.4", provider: "openai" },
+    image: { model: "gpt-image-2", provider: "openai" },
+    video: { model: "", provider: "kling" }
+  };
+  var ModelRegistry = {
+    _models: [],
+    _init: false,
+    _seed() {
+      return SEED_MODELS.map((m) => Object.assign({}, m));
+    },
+    init() {
+      if (this._init) return this;
+      const saved = lsGet(LS.models, null);
+      if (Array.isArray(saved) && saved.length) this._models = saved;
+      else this._models = this._seed();
+      this._init = true;
+      return this;
+    },
+    list() {
+      return this._models.map((m) => Object.assign({}, m));
+    },
+    get(id) {
+      const m = this._models.find((x) => x.id === id);
+      return m ? Object.assign({}, m) : null;
+    },
+    add(entry) {
+      if (!entry || !entry.model) throw new Error("model required");
+      const rec = {
+        provider: entry.provider || "openai",
+        model: entry.model,
+        label: entry.label || entry.model,
+        capabilities: Array.isArray(entry.capabilities) && entry.capabilities.length ? entry.capabilities : ["text"],
+        tier: entry.tier || "production",
+        cost: clamp01(num(entry.cost, 0.5)),
+        speed: clamp01(num(entry.speed, 0.5)),
+        quality: clamp01(num(entry.quality, 0.5)),
+        enabled: entry.enabled !== false
+      };
+      rec.id = entry.id || rec.provider + "/" + rec.model;
+      if (this._models.some((x) => x.id === rec.id)) rec.id = rec.id + "#" + Date.now().toString(36);
+      this._models.push(rec);
+      this._persist();
+      return Object.assign({}, rec);
+    },
+    update(id, patch) {
+      const m = this._models.find((x) => x.id === id);
+      if (!m) return null;
+      Object.assign(m, patch || {});
+      if (patch && patch.model && !patch.id) m.id = m.provider + "/" + m.model;
+      this._persist();
+      return Object.assign({}, m);
+    },
+    remove(id) {
+      const i = this._models.findIndex((x) => x.id === id);
+      if (i < 0) return false;
+      this._models.splice(i, 1);
+      this._persist();
+      return true;
+    },
+    setEnabled(id, on) {
+      const m = this._models.find((x) => x.id === id);
+      if (!m) return false;
+      m.enabled = !!on;
+      this._persist();
+      return true;
+    },
+    reset() {
+      this._models = this._seed();
+      this._persist();
+      return this.list();
+    },
+    _persist() {
+      lsSet(LS.models, this._models);
+    }
+  };
+  var ModelRouter = {
+    _strategy: "quality",
+    _enabled: false,
+    init() {
+      const s = lsGet(LS.strategy, "quality");
+      this._strategy = s === "cost" || s === "speed" || s === "quality" ? s : "quality";
+      this._enabled = !!lsGet(LS.enabled, false);
+      return this;
+    },
+    enabled() {
+      return this._enabled;
+    },
+    setEnabled(on) {
+      this._enabled = !!on;
+      lsSet(LS.enabled, this._enabled);
+      return this._enabled;
+    },
+    strategy() {
+      return this._strategy;
+    },
+    setStrategy(s) {
+      if (s === "cost" || s === "speed" || s === "quality") {
+        this._strategy = s;
+        lsSet(LS.strategy, this._strategy);
+      }
+      return this._strategy;
+    },
+    _score(m) {
+      const s = this._strategy;
+      if (s === "cost") return 1 - clamp01(m.cost);
+      if (s === "speed") return clamp01(m.speed);
+      return clamp01(m.quality);
+    },
+    // opts: { capability: 'text'|'image'|'video', strategy?: override }
+    select(opts) {
+      opts = opts || {};
+      const cap = opts.capability || "text";
+      const strat = opts.strategy === "cost" || opts.strategy === "speed" || opts.strategy === "quality" ? opts.strategy : this._strategy;
+      const list = ModelRegistry.init().list().filter((m) => m.enabled && (m.capabilities || []).indexOf(cap) >= 0);
+      if (!list.length) {
+        const fb = DEFAULT_BY_CAP[cap] || DEFAULT_BY_CAP.text;
+        return { model: fb.model, provider: fb.provider, reason: "no-enabled-model:fallback", fallback: true, capability: cap, strategy: strat };
+      }
+      let best = list[0];
+      let bs = this._scoreFor(best, strat);
+      for (let i = 1; i < list.length; i++) {
+        const s = this._scoreFor(list[i], strat);
+        if (s > bs) {
+          bs = s;
+          best = list[i];
+        }
+      }
+      return { model: best.model, provider: best.provider, reason: strat + "-best:" + best.id, fallback: false, capability: cap, strategy: strat, id: best.id };
+    },
+    _scoreFor(m, strat) {
+      if (strat === "cost") return 1 - clamp01(m.cost);
+      if (strat === "speed") return clamp01(m.speed);
+      return clamp01(m.quality);
+    }
+  };
+  var ModelHealth = {
+    _stats: {},
+    init() {
+      this._stats = lsGet(LS.health, {}) || {};
+      return this;
+    },
+    // e: { modelId, ok, ms }
+    record(e) {
+      e = e || {};
+      const id = e.modelId;
+      if (!id) return null;
+      const st = this._stats[id] || { success: 0, fail: 0, totalMs: 0, count: 0, lastStatus: "unknown", lastAt: 0 };
+      st.count++;
+      if (e.ok) st.success++;
+      else st.fail++;
+      st.totalMs += Number(e.ms) || 0;
+      st.lastStatus = e.ok ? "ok" : "down";
+      st.lastAt = Date.now();
+      this._stats[id] = st;
+      this._persist();
+      return this.summary(id);
+    },
+    summary(id) {
+      const st = this._stats[id];
+      if (!st || !st.count) return { modelId: id, successRate: null, avgMs: null, status: "unknown", count: 0 };
+      const rate = st.success / st.count;
+      const avg = st.totalMs / st.count;
+      let status = "ok";
+      if (st.fail > 0 && rate < 0.5) status = "down";
+      else if (st.fail > 0) status = "degraded";
+      return { modelId: id, successRate: +rate.toFixed(3), avgMs: +avg.toFixed(1), status, count: st.count, success: st.success, fail: st.fail };
+    },
+    all() {
+      const out = {};
+      Object.keys(this._stats).forEach((id) => {
+        out[id] = this.summary(id);
+      });
+      return out;
+    },
+    reset() {
+      this._stats = {};
+      this._persist();
+      return this.all();
+    },
+    _persist() {
+      lsSet(LS.health, this._stats);
+    }
+  };
+  if (typeof window !== "undefined") {
+    window.__FlowCraftModelRouter = { ModelRegistry, ModelRouter, ModelHealth, SEED_MODELS };
+  }
+
   // src/compat/main.js
   window.FlowCraft = window.FlowCraft || {};
   window.FlowCraft.storage = StorageAdapter;
@@ -17204,7 +17487,10 @@ init();
   window.FlowCraft.nodes = NodeContract;
   window.FlowCraft.proxy = ProxyClient;
   window.FlowCraft.fee = FeeModel;
-  window.FlowCraft.version = "3.7-e2e-sample";
+  window.FlowCraft.models = ModelRegistry.init();
+  window.FlowCraft.router = ModelRouter.init();
+  window.FlowCraft.health = ModelHealth.init();
+  window.FlowCraft.version = "3.10-multi-model";
   (function configureProxy() {
     var base = typeof window !== "undefined" && (window.__FC_PROXY_BASE__ || "");
     var token = typeof window !== "undefined" && (window.__FC_PROXY_TOKEN__ || "");
@@ -17543,6 +17829,112 @@ init();
       };
     }
     if (typeof console !== "undefined") console.log("[FlowCraft] \u8282\u70B9\u6570\u636E\u89C4\u8303 UI \u5DF2\u6302\u8F7D\uFF08stub \u5FBD\u6807\uFF09");
+  })();
+  (function bootstrapMultiModel() {
+    if (typeof document === "undefined") return;
+    const Reg = window.FlowCraft.models;
+    const Router = window.FlowCraft.router;
+    const Health = window.FlowCraft.health;
+    const style = document.createElement("style");
+    style.textContent = "#fcMrToggle{position:fixed;left:14px;bottom:14px;z-index:60;background:var(--accent,#4f8cff);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35)}#fcMrPanel{position:fixed;left:14px;bottom:54px;z-index:61;width:320px;max-height:72vh;overflow:auto;background:var(--panel,#1b1f27);color:var(--text,#e8ebf0);border:1px solid var(--border,#2a2f3a);border-radius:12px;padding:14px;font-size:12px;box-shadow:0 8px 30px rgba(0,0,0,.5);display:none}#fcMrPanel h3{margin:0 0 8px;font-size:13px;display:flex;justify-content:space-between;align-items:center}#fcMrPanel .fc-row{display:flex;align-items:center;gap:8px;margin:6px 0}#fcMrPanel .fc-muted{color:var(--text-2,#9aa3b2);font-size:11px;margin:4px 0 10px}#fcMrList .fc-m{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;border:1px solid var(--border,#2a2f3a);border-radius:8px;margin:5px 0}#fcMrList .fc-m .fc-meta{display:flex;flex-direction:column}#fcMrList .fc-m .fc-name{font-weight:600}#fcMrList .fc-m .fc-cap{font-size:10px;color:var(--text-2,#9aa3b2)}#fcMrList .fc-m button{font-size:11px;padding:2px 7px;cursor:pointer}#fcMrHealth .fc-h{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--border,#2a2f3a)}.fc-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}.fc-dot.ok{background:#3ec97a}.fc-dot.degraded{background:#e0a93e}.fc-dot.down{background:#e15353}.fc-dot.unknown{background:#888}";
+    document.head.appendChild(style);
+    const toggle = document.createElement("button");
+    toggle.id = "fcMrToggle";
+    toggle.textContent = "\u{1F9ED} \u6A21\u578B\u8DEF\u7531";
+    document.body.appendChild(toggle);
+    const panel = document.createElement("div");
+    panel.id = "fcMrPanel";
+    panel.innerHTML = '<h3>\u6A21\u578B\u8DEF\u7531 <span style="font-size:11px;cursor:pointer" id="fcMrClose">\u2715</span></h3><div class="fc-row"><label><input type="checkbox" id="fcMrEnabled"> \u542F\u7528\u667A\u80FD\u8DEF\u7531\uFF08\u8986\u76D6 AI \u52A9\u624B\u6A21\u578B\u9009\u62E9\uFF09</label></div><div class="fc-row">\u7B56\u7565\uFF1A<label><input type="radio" name="fcMrStrat" value="quality" checked> \u8D28\u91CF</label><label><input type="radio" name="fcMrStrat" value="cost"> \u6210\u672C</label><label><input type="radio" name="fcMrStrat" value="speed"> \u901F\u5EA6</label></div><div class="fc-muted">\u524D\u7AEF\u4EC5\u9009\u6A21\u578B\uFF0C\u4E0D\u6301\u6709\u4EFB\u4F55 Key\uFF1B\u771F\u5B9E Key \u7531\u4EE3\u7406\u73AF\u5883\u53D8\u91CF\u7BA1\u7406\u3002</div><div id="fcMrList"></div><div class="fc-row"><button class="ra-btn" id="fcMrAdd">+ \u6DFB\u52A0\u6A21\u578B</button><button class="ra-btn" id="fcMrReset">\u6062\u590D\u9ED8\u8BA4</button></div><h3 style="margin-top:12px">\u5065\u5EB7\u76D1\u63A7</h3><div id="fcMrHealth"></div>';
+    document.body.appendChild(panel);
+    function render() {
+      const enabled = Router.enabled();
+      document.getElementById("fcMrEnabled").checked = enabled;
+      const strat = Router.strategy();
+      panel.querySelectorAll("input[name=fcMrStrat]").forEach((r) => {
+        r.checked = r.value === strat;
+      });
+      const list = document.getElementById("fcMrList");
+      list.innerHTML = "";
+      Reg.list().forEach((m) => {
+        const row = document.createElement("div");
+        row.className = "fc-m";
+        row.innerHTML = '<div class="fc-meta"><span class="fc-name">' + escapeHtml(m.label) + '</span><span class="fc-cap">' + escapeHtml(m.provider + " / " + m.model) + " \xB7 " + (m.capabilities || []).join(",") + "</span></div>";
+        const ctl = document.createElement("div");
+        const en = document.createElement("input");
+        en.type = "checkbox";
+        en.checked = m.enabled;
+        en.title = "\u542F\u7528";
+        en.onchange = () => {
+          Reg.setEnabled(m.id, en.checked);
+          render();
+        };
+        const del = document.createElement("button");
+        del.textContent = "\u5220";
+        del.onclick = () => {
+          if (window.confirm && window.confirm("\u5220\u9664\u6A21\u578B " + m.label + "\uFF1F")) {
+            Reg.remove(m.id);
+            render();
+          }
+        };
+        ctl.appendChild(en);
+        ctl.appendChild(del);
+        row.appendChild(ctl);
+        list.appendChild(row);
+      });
+      const h = document.getElementById("fcMrHealth");
+      const all = Health.all();
+      const ids = Object.keys(all);
+      if (!ids.length) {
+        h.innerHTML = '<div class="fc-muted">\u6682\u65E0\u8C03\u7528\u8BB0\u5F55</div>';
+        return;
+      }
+      h.innerHTML = "";
+      ids.forEach((id) => {
+        const s = all[id];
+        const row = document.createElement("div");
+        row.className = "fc-h";
+        const rate = s.successRate == null ? "\u2014" : (s.successRate * 100).toFixed(0) + "%";
+        const avg = s.avgMs == null ? "\u2014" : s.avgMs + "ms";
+        row.innerHTML = '<span><span class="fc-dot ' + s.status + '"></span>' + escapeHtml(id) + "</span><span>\u6210\u529F\u7387 " + rate + " \xB7 \u5747\u8017\u65F6 " + avg + "</span>";
+        h.appendChild(row);
+      });
+    }
+    toggle.onclick = () => {
+      panel.style.display = panel.style.display === "block" ? "none" : "block";
+      if (panel.style.display === "block") render();
+    };
+    document.getElementById("fcMrClose").onclick = () => {
+      panel.style.display = "none";
+    };
+    document.getElementById("fcMrEnabled").onchange = (e) => {
+      Router.setEnabled(e.target.checked);
+      render();
+    };
+    panel.querySelectorAll("input[name=fcMrStrat]").forEach((r) => {
+      r.onchange = () => {
+        if (r.checked) {
+          Router.setStrategy(r.value);
+          render();
+        }
+      };
+    });
+    document.getElementById("fcMrAdd").onclick = () => {
+      const provider = window.prompt ? window.prompt("Provider\uFF08openai/deepseek/anthropic/google/xai\uFF09", "openai") : "openai";
+      if (!provider) return;
+      const model = window.prompt ? window.prompt("\u6A21\u578B ID\uFF08\u5982 gpt-4o\u3001claude-3-5-sonnet-20241022\uFF09", "") : "";
+      if (!model) return;
+      const label = window.prompt ? window.prompt("\u663E\u793A\u540D\uFF08\u53EF\u9009\uFF09", model) : model;
+      const cap = window.prompt ? window.prompt("\u80FD\u529B\uFF08\u9017\u53F7\u5206\u9694\uFF1Atext/image/video\uFF09", "text") : "text";
+      Reg.add({ provider: provider.trim(), model: model.trim(), label: (label || model).trim(), capabilities: String(cap || "text").split(",").map((s) => s.trim()).filter(Boolean), enabled: true });
+      render();
+    };
+    document.getElementById("fcMrReset").onclick = () => {
+      if (window.confirm && window.confirm("\u6062\u590D\u9ED8\u8BA4\u6A21\u578B\u6E05\u5355\uFF1F\u5F53\u524D\u6539\u52A8\u5C06\u4E22\u5931\u3002")) {
+        Reg.reset();
+        render();
+      }
+    };
+    if (typeof console !== "undefined") console.log("[FlowCraft] \u591A\u6A21\u578B\u8DEF\u7531 UI \u5DF2\u6302\u8F7D\uFF08opt-in\uFF09");
   })();
 })();
 /*! Bundled license information:

@@ -426,6 +426,17 @@ function bindEditHistory(elm) {
   };
 })();
 
+// 阶段 9：测试/调试钩子（opt-in，供 verify-model-router.js 在无网络下驱动调用点并断言路由透传）。
+// 仅暴露内部函数引用，不改变任何交互行为。
+(function mountLegacyTestHook() {
+  window.FlowCraft = window.FlowCraft || {};
+  window.FlowCraft._legacy = {
+    callRelayChat: callRelayChat,
+    generateChatImage: generateChatImage,
+    _routeModel: _routeModel,
+  };
+})();
+
 //================ 4d. 自动保存 (localStorage 持久化) ================
 const AUTOSAVE_KEY = 'flowcraft:autosave:v1';
 // 自动保存数据结构版本。每次改变节点/工作流存储结构时 +1，
@@ -6497,6 +6508,17 @@ function _fcProxy() {
   return (p && typeof p.enabled === 'function' && p.enabled()) ? p : null;
 }
 
+// 阶段 9：智能模型路由（opt-in）。返回 {model, provider, reason} 或 null（未启用→沿用现网模型）。
+// 仅用于「文本对话 / 生图」两类 capability；未启用时返回 null，调用点回退到 aiCurrentModel / gpt-image-2 等现网逻辑。
+function _routeModel(capability) {
+  var r = window.FlowCraft && window.FlowCraft.router;
+  if (!r || typeof r.enabled !== 'function' || !r.enabled()) return null;
+  try {
+    var sel = r.select({ capability: capability || 'text', strategy: (r.strategy && r.strategy()) || 'quality' });
+    return sel || null;
+  } catch (_) { return null; }
+}
+
 function openaiPostJSON(base, path, key, body) {
   var proxy = _fcProxy();
   if (proxy) {
@@ -6665,9 +6687,11 @@ function openAIImageSingle(base, key, model, prompt, size) {
 }
 
 // 依次尝试候选模型名：每个先走 /images/generations，遇 404/不支持回退 /responses，再失败换下一个模型名
-function openAIImageWithFallback(base, key, prompt, count, size) {
+// 阶段 9：支持 models 覆盖（路由选中的图片模型优先尝试）
+function openAIImageWithFallback(base, key, prompt, count, size, models) {
   var lastErr = null;
   var attempts = [];
+  var _cands = (models && models.length) ? models.slice() : OPENAI_IMAGE_MODELS.slice();
   function attempt(models) {
     if (!models.length) {
       var e = new Error((lastErr && lastErr.message) || '所有模型名均不可用');
@@ -6708,7 +6732,7 @@ function openAIImageWithFallback(base, key, prompt, count, size) {
         return attempt(rest);
       });
   }
-  return attempt(OPENAI_IMAGE_MODELS.slice());
+  return attempt(_cands);
 }
 
 // 把 OpenAI 接口错误翻译成可操作的提示（区分网络/CORS 与 API 错误）
@@ -6882,11 +6906,18 @@ async function generateImageViaProxy(node) {
   node.status = 'running';
   updateNodeStatus(node);
 
+  // 阶段 9：路由选中的图片模型（默认 gpt-image-2，行为等价）
+  const _rImg = _routeModel('image');
+  const _imgModel = (_rImg && _rImg.model) || 'gpt-image-2';
+  const _imgProvider = (_rImg && _rImg.provider) || 'openai';
+  const _imgModelId = _imgProvider + '/' + _imgModel;
+  const _t0 = Date.now();
+
   const json = await proxy.call({
-    provider: 'openai',
+    provider: _imgProvider,
     endpoint: '/images/generations',
     token: (window.FlowCraft && window.FlowCraft.__userToken) || undefined,
-    body: { model: 'gpt-image-2', prompt: prompt, n: count, size: size }
+    body: { model: _imgModel, prompt: prompt, n: count, size: size }
   });
 
   let imgs = [];
@@ -6897,9 +6928,11 @@ async function generateImageViaProxy(node) {
   }
   imgs = imgs.filter(Boolean);
   if (!imgs.length) {
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _imgModelId, ok: false, ms: Date.now() - _t0 });
     throw new ProxyError('代理未返回图片数据', { kind: 'system', retryable: false, code: 'empty_image' });
   }
 
+  if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _imgModelId, ok: true, ms: Date.now() - _t0 });
   node._galleryImages = imgs.slice();
   if (count > 1) {
     const grid = await composeImageGrid(imgs, node.params.aspect);
@@ -8539,9 +8572,18 @@ function sendAIMessage() {
     '<div class="ai-thinking-dots"><span></span><span></span><span></span></div></div>';
   var bubble = appendAIMessage('ai', loadingHTML);
 
-  // GPT Image 2 真实图像生成分支
+  // 阶段 9：智能路由（opt-in，默认关闭）。启用时文本走路由选定模型，覆盖 aiCurrentModel 选择（含 Deepseek 分支）。
+  var _rt = _routeModel('text');
+  if (_rt) {
+    aiConversation.push({ role: 'user', content: text });
+    callRelayChat(_rt.model, bubble, _rt.provider);
+    return;
+  }
+
+  // GPT Image 2 真实图像生成分支（阶段 9：路由启用时改用路由选中的图片模型）
   if (aiCurrentModel === 'gpt-image-2') {
-    generateChatImage(text, bubble);
+    var _rImg = _routeModel('image');
+    generateChatImage(text, bubble, _rImg ? _rImg.model : null, _rImg ? _rImg.provider : null);
     return;
   }
 
@@ -8568,13 +8610,17 @@ function sendAIMessage() {
 
 
 // GPT Image 2 聊天图像生成（AI 助手对话内直接出图）
-function generateChatImage(text, bubble) {
+// 阶段 9：modelOverride/provider 支持路由选中的图片模型（默认 gpt-image-2，行为等价）
+function generateChatImage(text, bubble, modelOverride, provider) {
+  var _modelId = 'openai/' + (modelOverride || 'gpt-image-2');
+  var _t0 = Date.now();
   var key = localStorage.getItem(OPENAI_KEY_STORAGE);
   if (!key) {
     bubble.innerHTML = '<div class="ai-reply-text">尚未配置 OpenAI API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，即可使用 GPT Image 2 生成图片。</div>';
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: false, ms: Date.now() - _t0 });
     return;
   }
   var base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
@@ -8586,29 +8632,36 @@ function generateChatImage(text, bubble) {
     aiSendBtn.disabled = false;
     return;
   }
-  openAIImageWithFallback(base, key, prompt, 2)
+  var _cands = modelOverride ? [modelOverride].concat(OPENAI_IMAGE_MODELS) : OPENAI_IMAGE_MODELS;
+  openAIImageWithFallback(base, key, prompt, 2, undefined, _cands)
   .then(function(imgs) {
     if (!imgs || !imgs.length) throw new Error('未获取到图片');
     var html = imgs.map(function(src) {
-      return '<img src="' + src + '" alt="GPT Image 2 生成结果">';
+      return '<img src="' + src + '" alt="生成结果">';
     }).join('');
     bubble.innerHTML = '<div class="ai-reply-text">已根据您的描述生成：</div><div class="ai-gen-images">' + html + '</div>';
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: true, ms: Date.now() - _t0 });
   })
   .catch(function(err) {
-    bubble.innerHTML = '<div class="ai-reply-text" style="color:#E15353">GPT Image 2 生成失败：' + escapeHtml(describeOpenAIError(err)) +
-      '（已尝试模型：' + (err.tried || OPENAI_IMAGE_MODELS.join(' / ')) + '）。' +
+    bubble.innerHTML = '<div class="ai-reply-text" style="color:#E15353">图像生成失败：' + escapeHtml(describeOpenAIError(err)) +
+      '（已尝试模型：' + (err.tried || _cands.join(' / ')) + '）。' +
       '<br>请检查 API Key、⚙ 中自定义 API 地址，或当前服务是否支持 gpt-image-2 / gpt-image-1 / dall-e-3。</div>';
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: false, ms: Date.now() - _t0 });
   });
 }
 
 // --- 中转对话（OpenAI 格式 /chat/completions，支持 GPT/Claude/Gemini/Grok 等）---
-function callRelayChat(model, bubble) {
+// 阶段 9：provider 参数支持多厂商路由（默认 'openai'）；成功/失败回写 ModelHealth。
+function callRelayChat(model, bubble, provider) {
+  provider = provider || 'openai';
+  var _modelId = provider + '/' + model;
+  var _t0 = Date.now();
   var key = localStorage.getItem(OPENAI_KEY_STORAGE);
   var proxy = _fcProxy();
   if (!key && !proxy) {
@@ -8617,13 +8670,14 @@ function callRelayChat(model, bubble) {
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
     if (aiConversation.length && aiConversation[aiConversation.length - 1].role === 'user') aiConversation.pop();
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: false, ms: Date.now() - _t0 });
     return;
   }
   var base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
   var messages = [{ role: 'system', content: SYSTEM_PROMPT }].concat(aiConversation);
   var relayReq;
   if (proxy) {
-    relayReq = proxy.call({ provider: 'openai', endpoint: '/chat/completions', body: { model: model, messages: messages, stream: false }, token: window.FlowCraft.__userToken || undefined })
+    relayReq = proxy.call({ provider: provider, endpoint: '/chat/completions', body: { model: model, messages: messages, stream: false }, token: window.FlowCraft.__userToken || undefined })
       .catch(function(err) { if (err && err.kind) { var m = new Error(err.message || 'proxy error'); m.status = err.status || 0; m.proxyKind = err.kind; throw m; } throw err; });
   } else {
     relayReq = fetch(base + '/chat/completions', {
@@ -8641,12 +8695,14 @@ function callRelayChat(model, bubble) {
     aiConversation.push({ role: 'assistant', content: reply });
     bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(reply).replace(/\n/g, '<br>') + '</div>';
     scrollAIToBottom();
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: true, ms: Date.now() - _t0 });
   })
   .catch(function(err) {
     bubble.innerHTML = '<div class="ai-reply-text" style="color:#E15353">调用 ' + escapeHtml(model) + ' 失败：' + escapeHtml(err && err.message || err) +
       '<br>请检查中转 API Key、⚙ 中的 API 地址，或该模型是否可用。</div>';
     if (aiConversation.length && aiConversation[aiConversation.length - 1].role === 'user') aiConversation.pop();
     scrollAIToBottom();
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: false, ms: Date.now() - _t0 });
   })
   .finally(function() {
     aiIsGenerating = false;

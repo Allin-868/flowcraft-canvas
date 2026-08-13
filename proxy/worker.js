@@ -15,10 +15,15 @@ const UPSTREAM = {
   deepseek: 'https://api.deepseek.com',
   kling: 'https://api.klingai.com/v1',
   runway: 'https://api.runwayml.com/v1',
+  // 阶段 9：多模型路由（配齐对应 Key 后启用；未配置 env 时前端路由选中这些 provider 会在代理侧 401/500 失败，分类为不可重试）
+  anthropic: 'https://api.anthropic.com/v1',
+  google: 'https://api.openai.com/v1',        // Gemini 兼容 OpenAI 格式中转时使用 OpenAI 基址；直连改为 https://generativelanguage.googleapis.com/v1beta
+  xai: 'https://api.x.ai/v1',
 };
 
 const KEY_ENV = {
   openai: 'OPENAI_KEY', deepseek: 'DEEPSEEK_KEY', kling: 'KLING_KEY', runway: 'RUNWAY_KEY',
+  anthropic: 'ANTHROPIC_KEY', google: 'GOOGLE_KEY', xai: 'XAI_KEY',
 };
 
 function maskKey(auth) {
