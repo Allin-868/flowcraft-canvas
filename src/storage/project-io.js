@@ -3,6 +3,7 @@
 // 导入即完整还原，大图像素级恢复。
 // 注：本批 project.json 仍内联 dataURL（保持与现有运行时一致）；后续 T1-8 可优化为「project.json 仅引用 assetId + assets/ 二进制」以彻底避免 Base64 膨胀。
 import JSZip from 'jszip';
+import { validateProject, formatProjectValidationError } from './project-schema.js';
 
 export const FLOWCRAFT_FORMAT = 'flowcraft';
 export const FLOWCRAFT_FORMAT_VERSION = 1;
@@ -90,6 +91,8 @@ export async function importProjectZip(fileOrBlob) {
     console.warn('[FlowCraft] 项目文件格式标记为', manifest.format, '（预期', FLOWCRAFT_FORMAT, '）');
   }
   const project = JSON.parse(await projectFile.async('string'));
+  const validation = validateProject(project);
+  if (!validation.ok) throw new Error(formatProjectValidationError(validation));
 
   // 解析 assets/ 目录，转回 dataURL（用于校验/补充 project.json 中的引用式资产）
   const assets = [];

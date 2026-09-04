@@ -3,10 +3,36 @@
 // 大图策略：autosave 写 IndexedDB 完整（不剥离）；localStorage 桥由 compat 层负责（保留原行为）。
 import * as db from './db.js';
 import { exportProjectZip, importProjectZip } from './project-io.js';
+import { validateProject, formatProjectValidationError } from './project-schema.js';
 
 const CURRENT_PROJECT_ID = 'current';
 const LEGACY_AUTOSAVE_KEY = 'flowcraft:autosave:v1';
+const WORKBENCHES_KEY = 'flowcraft:workbenches:v1';
+const ACTIVE_WB_KEY = 'flowcraft:activeWorkbench:v1';
 const SAFE_AUTOSAVE_LIMIT = 4_500_000;
+
+function _errorCode(error, fallback = 'STORAGE_FAILED') {
+  const name = error && (error.name || error.code);
+  if (name === 'QuotaExceededError' || name === 22 || name === 1014) return 'QUOTA_EXCEEDED';
+  if (name === 'InvalidStateError' || name === 'NotFoundError') return 'IDB_UNAVAILABLE';
+  return fallback;
+}
+
+function _errorMessage(error, fallback) {
+  return (error && error.message) || fallback || '本地存储操作失败';
+}
+
+function _saveResult(ok, fields = {}) {
+  return {
+    ok: !!ok,
+    mode: fields.mode || (ok ? 'indexeddb' : 'failed'),
+    projectId: fields.projectId || null,
+    savedAt: fields.savedAt || null,
+    size: fields.size || 0,
+    errorCode: fields.errorCode || null,
+    errorMessage: fields.errorMessage || null,
+  };
+}
 
 // 从全局 workflow 序列化当前项目（完整不剥离）。依赖 legacy 全局函数 serializeWorkflow。
 function _readWorkflowJSON() {
@@ -35,6 +61,19 @@ function _collectHeavyAssets(project) {
   return out;
 }
 
+function _hasStrippedAssets(project) {
+  if (!project || !Array.isArray(project.nodes)) return false;
+  const scan = (value) => value === '(stripped)';
+  return project.nodes.some((n) => {
+    if (!n) return false;
+    if (scan(n.thumb)) return true;
+    if (n.params && Object.values(n.params).some(scan)) return true;
+    if (Array.isArray(n.inputsData) && n.inputsData.some((d) => d && scan(d.value))) return true;
+    if (Array.isArray(n.outputsData) && n.outputsData.some((d) => d && scan(d.value))) return true;
+    return false;
+  });
+}
+
 async function _sha256(str) {
   try {
     if (typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest) {
@@ -50,15 +89,35 @@ async function _sha256(str) {
 export const StorageAdapter = {
   _mode: 'indexeddb',
   _idbReady: false,
+  _lastSaveResult: _saveResult(false, { mode: 'idle' }),
+  _saveListeners: new Set(),
+
+  onSaveStatus(listener) {
+    if (typeof listener !== 'function') return () => {};
+    this._saveListeners.add(listener);
+    return () => this._saveListeners.delete(listener);
+  },
+  _publishSaveStatus(result) {
+    this._lastSaveResult = result;
+    this._saveListeners.forEach((listener) => {
+      try { listener(result); } catch (e) { /* UI listener must not break saving */ }
+    });
+    return result;
+  },
 
   async _ensureIDB() {
     if (this._idbReady) return true;
+    if (typeof window !== 'undefined' && window.__FC_TEST_STORAGE_FAILURE__ === 'open') {
+      this._mode = 'localStorage-legacy';
+      return false;
+    }
     try {
       await db.openDB();
       this._idbReady = true;
       return true;
     } catch (e) {
       this._mode = 'localStorage-legacy';
+      if (typeof db.resetDBConnection === 'function') db.resetDBConnection();
       return false;
     }
   },
@@ -66,26 +125,50 @@ export const StorageAdapter = {
   // —— 自动保存真源（兼容层调用，不阻塞 UI）——
   async autosaveToIDB() {
     const proj = _readWorkflowJSON();
-    if (!proj) return null;
+    if (!proj) {
+      return this._publishSaveStatus(_saveResult(false, {
+        mode: 'failed', errorCode: 'NO_PROJECT', errorMessage: '当前画布没有可保存的数据',
+      }));
+    }
     const ok = await this._ensureIDB();
-    if (!ok) { this._mode = 'localStorage-legacy'; return null; }
+    if (!ok) {
+      return this._publishSaveStatus(_saveResult(false, {
+        mode: 'unavailable', errorCode: 'IDB_UNAVAILABLE', errorMessage: 'IndexedDB 不可用或打开失败',
+      }));
+    }
     try {
       const text = JSON.stringify(proj);
+      const savedAt = new Date().toISOString();
+      if (typeof window !== 'undefined' && window.__FC_TEST_STORAGE_FAILURE__ === 'write') {
+        const error = new Error('测试注入：IndexedDB 写入失败');
+        error.name = 'QuotaExceededError';
+        throw error;
+      }
+
+      // P0-3: 根据 activeProjectId 决定写入位置
+      const activeId = await db.kvGet('activeProjectId', CURRENT_PROJECT_ID);
+      const targetId = activeId || CURRENT_PROJECT_ID;
+
       await db.idbPut('projects', {
-        id: CURRENT_PROJECT_ID,
+        id: targetId,
         data: proj,
-        savedAt: new Date().toISOString(),
+        name: proj.name,
+        savedAt,
         size: text.length,
       });
       this._mode = 'indexeddb';
-      return CURRENT_PROJECT_ID;
+      return this._publishSaveStatus(_saveResult(true, {
+        mode: 'indexeddb', projectId: targetId, savedAt, size: text.length,
+      }));
     } catch (e) {
-      this._mode = 'localStorage-legacy';
-      return null;
+      const code = _errorCode(e, 'IDB_WRITE_FAILED');
+      this._mode = code === 'QUOTA_EXCEEDED' ? 'indexeddb' : 'localStorage-legacy';
+      return this._publishSaveStatus(_saveResult(false, {
+        mode: code === 'QUOTA_EXCEEDED' ? 'failed' : 'unavailable',
+        errorCode: code, errorMessage: _errorMessage(e, 'IndexedDB 写入失败'),
+      }));
     }
   },
-
-  // 旧兼容接口：autosave(project) / save(project)
   autosave() { return this.autosaveToIDB(); },
   save() { return this.autosaveToIDB(); },
 
@@ -96,11 +179,14 @@ export const StorageAdapter = {
     const ok = await this._ensureIDB();
     if (!ok) return null;
     try {
-      const row = await db.idbGet('projects', CURRENT_PROJECT_ID);
+      // P0-3: 根据 activeProjectId 决定读取位置
+      const activeId = await db.kvGet('activeProjectId', CURRENT_PROJECT_ID);
+      const targetId = activeId || CURRENT_PROJECT_ID;
+
+      const row = await db.idbGet('projects', targetId);
       return row ? row.data : null;
     } catch (e) { return null; }
   },
-
   // —— 多项目：保存 / 打开 / 列表 / 新建 ——
   async saveAs(name) {
     const proj = _readWorkflowJSON();
@@ -110,7 +196,14 @@ export const StorageAdapter = {
     const id = 'proj-' + Date.now();
     proj.name = name || '未命名项目';
     await db.idbPut('projects', { id, name, data: proj, savedAt: new Date().toISOString(), size: JSON.stringify(proj).length });
+
+    // P0-3: 切换到新项目
+    await db.kvSet('activeProjectId', id);
     await db.kvSet('lastProjectId', id);
+
+    // 清空 current（避免混淆）
+    await db.idbDelete('projects', CURRENT_PROJECT_ID);
+
     return id;
   },
   async list() {
@@ -128,21 +221,27 @@ export const StorageAdapter = {
     if (!ok) return null;
     const row = await db.idbGet('projects', id);
     if (!row) return null;
-    await db.idbPut('projects', { ...row, id: CURRENT_PROJECT_ID });
+
+    // P0-3: 设置 activeProjectId 为原项目 ID，直接编辑原项目
+    await db.kvSet('activeProjectId', id);
     await db.kvSet('lastProjectId', id);
+
+    // 不再复制到 current，直接返回原项目数据
     return row.data;
   },
   async newProject() {
     const ok = await this._ensureIDB();
     if (!ok) return false;
     await db.idbDelete('projects', CURRENT_PROJECT_ID);
+
+    // P0-3: 清空 activeProjectId
+    await db.kvSet('activeProjectId', null);
+
     if (typeof localStorage !== 'undefined') {
       try { localStorage.removeItem(LEGACY_AUTOSAVE_KEY); } catch (e) { /* ignore */ }
     }
     return true;
   },
-
-  // —— 多项目：改名 / 删除 ——
   async renameProject(id, name) {
     const ok = await this._ensureIDB();
     if (!ok) return false;
@@ -162,8 +261,14 @@ export const StorageAdapter = {
 
   // —— 项目文件 ZIP ——
   async exportProject(meta) {
-    const proj = _readWorkflowJSON();
+    let proj = _readWorkflowJSON();
     if (!proj) return null;
+    // 刷新后的快速启动可能暂时仍是剥离版；导出必须优先取 IndexedDB 完整真源，
+    // 否则会把“(stripped)”占位符误打包成用户备份。
+    if (_hasStrippedAssets(proj)) {
+      const complete = await this.loadFromIDB();
+      if (complete && !_hasStrippedAssets(complete)) proj = complete;
+    }
     if (meta && meta.projectName) proj.name = meta.projectName; // 导出名落到项目对象，保证往返一致
     const assets = _collectHeavyAssets(proj);
     const blob = await exportProjectZip(proj, assets, meta || {});
@@ -171,6 +276,8 @@ export const StorageAdapter = {
   },
   async importProject(fileOrBlob) {
     const { manifest, project, assets } = await importProjectZip(fileOrBlob);
+    const validation = validateProject(project);
+    if (!validation.ok) throw new Error(formatProjectValidationError(validation));
     const ok = await this._ensureIDB();
     if (!ok) throw new Error('IndexedDB 不可用，无法导入');
     // 导入前容量检查（不足明确提示）
@@ -325,14 +432,33 @@ export const StorageAdapter = {
     const proj = await this.loadFromIDB();
     if (proj && typeof localStorage !== 'undefined') {
       try {
-        localStorage.setItem(LEGACY_AUTOSAVE_KEY, JSON.stringify(proj));
+        const full = JSON.stringify(proj);
+        localStorage.setItem(LEGACY_AUTOSAVE_KEY, full);
+        // legacy 恢复优先读取当前工作台，而不是旧 AUTOSAVE_KEY。
+        // 只更新当前工作台的元数据，避免把完整项目重复塞回工作台列表。
+        const activeId = localStorage.getItem(ACTIVE_WB_KEY);
+        const raw = localStorage.getItem(WORKBENCHES_KEY);
+        if (activeId && raw) {
+          const workbenches = JSON.parse(raw);
+          if (workbenches && workbenches[activeId]) {
+            workbenches[activeId].savedAt = new Date().toISOString();
+            localStorage.setItem(WORKBENCHES_KEY, JSON.stringify(workbenches));
+          }
+        }
       } catch (e) {
-        // 大项目超 5MB：桥写失败，降级 legacy 读旧桥（现状）。大项目恢复走 .flowcraft 导入。
+        // 大项目超 5MB：桥写失败，降级 legacy 读旧桥；完整项目仍保留在 IndexedDB。
       }
     }
     if (typeof legacyRestoreFn === 'function') return legacyRestoreFn();
     return proj;
   },
 
+
+  // P0-3: 获取当前活动项目 ID
+  async getActiveProjectId() {
+    const ok = await this._ensureIDB();
+    if (!ok) return null;
+    return await db.kvGet('activeProjectId');
+  },
   getMode() { return this._mode; },
 };
