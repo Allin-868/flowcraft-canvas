@@ -31,7 +31,8 @@
     "verify:reverse-prompt": "node ../../脚本/verify-reverse-prompt-structured.mjs",
     "verify:real-links": "node ../../脚本/verify-real-links.mjs",
     "verify:error-calibration": "node ../../脚本/verify-error-calibration.mjs",
-    "reel:char-trial": "node ../../脚本/reel-char-trial.mjs"
+    "reel:char-trial": "node ../../脚本/reel-char-trial.mjs",
+    "verify:comfy-panel": "node ../../脚本/verify-comfy-panel.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"

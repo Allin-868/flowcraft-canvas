@@ -13486,7 +13486,7 @@ function renderComfyNodeBody(node) {
   actRow.className = 'comfy-act-row';
   const runBtn = document.createElement('button');
   runBtn.className = 'run-btn comfy-run';
-  runBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l9 6-9 6z"/></svg> 运行';
+  runBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l9 6-9 6z"/></svg><span>运行</span>';
   runBtn.onclick = (e) => { e.stopPropagation(); runNode(node); };
   runBtn.onmousedown = (e) => e.stopPropagation();
   actRow.appendChild(runBtn);
@@ -13550,8 +13550,10 @@ function comfyFieldRow(node, f) {
     rng.min = f.min!=null?f.min:0; rng.max = f.max!=null?f.max:100; rng.step = f.step!=null?f.step:1; rng.value = cur;
     const out = document.createElement('span'); out.className='comfy-range-val'; out.textContent = cur;
     rng.oninput = (e) => { out.textContent = e.target.value; node.params.fields[f.key] = parseFloat(e.target.value); scheduleAutosave(); };
-    rng.onmousedown = (e) => e.stopPropagation();
-    row.appendChild(rng); row.appendChild(out); bindEditHistory(rng);
+    rng.onmousedown = (e) => { e.stopPropagation(); };
+    const rngWrap = document.createElement('div'); rngWrap.className = 'comfy-range-row';
+    rngWrap.appendChild(rng); rngWrap.appendChild(out);
+    row.appendChild(rngWrap); bindEditHistory(rng);
   } else if (f.type === 'boolean') {
     const chk = document.createElement('input'); chk.type='checkbox'; chk.checked = !!cur;
     chk.onchange = (e) => { node.params.fields[f.key] = e.target.checked; scheduleAutosave(); };
