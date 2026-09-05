@@ -30090,6 +30090,43 @@ init();
       errBox.textContent = "";
       renderForm();
     }
+    const FCW_CLASS_CN = {
+      KSampler: "\u91C7\u6837\u5668",
+      CheckpointLoaderSimple: "\u8F7D\u5165\u6A21\u578B",
+      EmptyLatentImage: "\u7A7A\u767D\u6F5C\u7A7A\u95F4",
+      CLIPTextEncode: "\u63D0\u793A\u8BCD\u7F16\u7801",
+      VAEDecode: "VAE \u89E3\u7801",
+      VAEEncode: "VAE \u7F16\u7801",
+      VAELoader: "\u8F7D\u5165 VAE",
+      SaveImage: "\u4FDD\u5B58\u56FE\u50CF",
+      LoadImage: "\u8F7D\u5165\u56FE\u50CF",
+      ImageScaleBy: "\u6309\u6BD4\u4F8B\u653E\u5927",
+      ControlNetLoader: "\u8F7D\u5165 ControlNet",
+      ControlNetApply: "\u5E94\u7528 ControlNet",
+      LoraLoader: "\u8F7D\u5165 LoRA"
+    };
+    const FCW_FIELD_CN = {
+      seed: "\u79CD\u5B50",
+      steps: "\u91C7\u6837\u6B65\u6570",
+      cfg: "CFG \u6743\u91CD",
+      sampler_name: "\u91C7\u6837\u5668",
+      scheduler: "\u8C03\u5EA6\u5668",
+      denoise: "\u964D\u566A\u5F3A\u5EA6",
+      ckpt_name: "\u6A21\u578B\u6587\u4EF6",
+      width: "\u5BBD",
+      height: "\u9AD8",
+      batch_size: "\u6279\u91CF",
+      text: "\u63D0\u793A\u8BCD",
+      image: "\u56FE\u50CF",
+      vae_name: "VAE \u6587\u4EF6",
+      scale_by: "\u653E\u5927\u500D\u6570",
+      method: "\u63D2\u503C\u65B9\u6CD5",
+      control_net_name: "ControlNet \u6587\u4EF6",
+      strength: "\u5F3A\u5EA6",
+      lora_name: "LoRA \u6587\u4EF6",
+      strength_model: "\u6A21\u578B\u5F3A\u5EA6",
+      strength_clip: "CLIP \u5F3A\u5EA6"
+    };
     function renderForm() {
       formBox.innerHTML = "";
       let parsed;
@@ -30104,13 +30141,15 @@ init();
         box.className = "fcw-node";
         const title = document.createElement("div");
         title.className = "fcw-title";
-        title.textContent = nd.id + " \xB7 " + nd.class_type;
+        title.textContent = nd.id + " \xB7 " + (FCW_CLASS_CN[nd.class_type] || nd.class_type);
+        title.title = nd.class_type;
         box.appendChild(title);
         nd.fields.forEach((f) => {
           const row = document.createElement("div");
           row.className = "fcw-f";
           const lab = document.createElement("label");
-          lab.textContent = f.name;
+          lab.textContent = FCW_FIELD_CN[f.name] || f.name;
+          lab.title = f.name;
           row.appendChild(lab);
           const inp = document.createElement("input");
           inp.type = f.type === "number" ? "number" : "text";

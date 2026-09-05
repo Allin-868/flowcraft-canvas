@@ -33,7 +33,8 @@
     "verify:error-calibration": "node ../../脚本/verify-error-calibration.mjs",
     "reel:char-trial": "node ../../脚本/reel-char-trial.mjs",
     "verify:comfy-panel": "node ../../脚本/verify-comfy-panel.mjs",
-    "verify:comfy-expand": "node ../../脚本/verify-comfy-expand.mjs"
+    "verify:comfy-expand": "node ../../脚本/verify-comfy-expand.mjs",
+    "verify:comfy-editor-cn": "node ../../脚本/verify-comfy-editor-cn.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"

@@ -700,6 +700,20 @@ function applyStorageSaveResult(result, legacyResult) {
   });
 
   function setJson(str) { currentJson = str; jsonTa.value = str; errBox.textContent = ''; renderForm(); }
+  // 中文化：ComfyUI 类名 / 输入字段名 → 中文（未命中回退原文；原文保留在 title 提示供高级用户对照）
+  const FCW_CLASS_CN = {
+    KSampler: '采样器', CheckpointLoaderSimple: '载入模型', EmptyLatentImage: '空白潜空间',
+    CLIPTextEncode: '提示词编码', VAEDecode: 'VAE 解码', VAEEncode: 'VAE 编码', VAELoader: '载入 VAE',
+    SaveImage: '保存图像', LoadImage: '载入图像', ImageScaleBy: '按比例放大',
+    ControlNetLoader: '载入 ControlNet', ControlNetApply: '应用 ControlNet', LoraLoader: '载入 LoRA',
+  };
+  const FCW_FIELD_CN = {
+    seed: '种子', steps: '采样步数', cfg: 'CFG 权重', sampler_name: '采样器', scheduler: '调度器',
+    denoise: '降噪强度', ckpt_name: '模型文件', width: '宽', height: '高', batch_size: '批量',
+    text: '提示词', image: '图像', vae_name: 'VAE 文件', scale_by: '放大倍数', method: '插值方法',
+    control_net_name: 'ControlNet 文件', strength: '强度', lora_name: 'LoRA 文件',
+    strength_model: '模型强度', strength_clip: 'CLIP 强度',
+  };
   function renderForm() {
     formBox.innerHTML = '';
     let parsed;
@@ -708,10 +722,11 @@ function applyStorageSaveResult(result, legacyResult) {
     parsed.nodes.forEach((nd) => {
       const box = document.createElement('div'); box.className = 'fcw-node';
       const title = document.createElement('div'); title.className = 'fcw-title';
-      title.textContent = nd.id + ' · ' + nd.class_type; box.appendChild(title);
+      title.textContent = nd.id + ' · ' + (FCW_CLASS_CN[nd.class_type] || nd.class_type);
+      title.title = nd.class_type; box.appendChild(title);
       nd.fields.forEach((f) => {
         const row = document.createElement('div'); row.className = 'fcw-f';
-        const lab = document.createElement('label'); lab.textContent = f.name; row.appendChild(lab);
+        const lab = document.createElement('label'); lab.textContent = FCW_FIELD_CN[f.name] || f.name; lab.title = f.name; row.appendChild(lab);
         const inp = document.createElement('input');
         inp.type = (f.type === 'number') ? 'number' : 'text';
         inp.value = (f.value == null) ? '' : f.value;
