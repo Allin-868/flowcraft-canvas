@@ -11,11 +11,14 @@ const NODE_TYPES = {
   image:    { label: '图片输入', desc: '上传或拖入图片',     color: 'var(--node-image)',    colorRaw: '#5B8DEF', inputs: [], outputs: [{type:'image',label:'图片'}] },
   videoInput: { label: '视频输入', desc: '上传或选择视频',   color: 'var(--node-video-input)', colorRaw: '#E0533D', inputs: [], outputs: [{type:'video',label:'视频'}], defaultParams: { name: '示例视频.mp4', duration: '00:12' } },
   text:     { label: '文本输入', desc: '输入提示词文本',     color: 'var(--node-text)',     colorRaw: '#5BC07A', inputs: [], outputs: [{type:'text',label:'文本'}] },
+  stateList: { label: '状态列表', desc: '角色 + 自定义状态，一键生成状态节点', color: 'var(--node-text)', colorRaw: '#4ECDC4', inputs: [], outputs: [{type:'text',label:'文本'}], defaultParams: { states: '日常着装\n华丽晚礼服\n东方古风汉服\n雨中撑伞街头' } },
   aiImage:  { label: 'AI 绘图',  desc: '文生图 / 图生图',    color: 'var(--node-ai-image)', colorRaw: '#9B59F0', inputs: [{type:'image',label:'图片'},{type:'text',label:'提示词'}], outputs: [{type:'image',label:'图片'}] },
-  aiVideo:  { label: 'AI 视频',  desc: '图生视频 / 文生视频', color: 'var(--node-ai-video)', colorRaw: '#C76BF7', inputs: [{type:'image',label:'图片'},{type:'text',label:'提示词'}], outputs: [{type:'video',label:'视频'}], defaultParams: { model: 'Sora 2', aspect: '9:16', duration: '5秒', resolution: '高清1K', mode: '异步' } },
+  imageEdit: { label: '图片修正', desc: '基于图片进行修正',    color: 'var(--node-ai-image)', colorRaw: '#8E4FD8', inputs: [{type:'image',label:'图片'},{type:'text',label:'修正说明'}], outputs: [{type:'image',label:'图片'}], defaultParams: { aspect: '1:1', resolution: '高清1K', model: 'GPT Image 2' } },
+  aiVideo:  { label: 'AI 视频',  desc: '图生视频 / 文生视频', color: 'var(--node-ai-video)', colorRaw: '#C76BF7', inputs: [{type:'image',label:'图片'},{type:'text',label:'提示词'}], outputs: [{type:'video',label:'视频'}], defaultParams: { model: '可灵 2.0', aspect: '9:16', duration: '5秒', resolution: '高清1K', mode: '异步' } },
   upscale:  { label: '智能超清', desc: '图片无损放大',       color: 'var(--node-upscale)',  colorRaw: '#F2C66B', inputs: [{type:'image',label:'图片'}], outputs: [{type:'image',label:'图片'}] },
   compare:  { label: '对比',     desc: '左右对比展示',       color: 'var(--node-compare)',  colorRaw: '#E15353', inputs: [{type:'image',label:'原图'},{type:'image',label:'结果'}], outputs: [{type:'image',label:'对比图'}] },
   videoBreak: { label: '视频拆解', desc: '拆解视频为关键帧/片段', color: 'var(--node-video-break)', colorRaw: '#3DA5E0', inputs: [{type:'video',label:'视频'}], outputs: [{type:'image',label:'关键帧'},{type:'video',label:'片段'}], defaultParams: { frames: 6, segments: 3 } },
+  reversePrompt: { label: '反推提示词', desc: '视频反推中文电影级提示词', color: 'var(--node-video-break)', colorRaw: '#7C5CFF', inputs: [], outputs: [{type:'text',label:'提示词'}], defaultParams: { frameCount: 5, frameMode: 'content', history: [], visionModel: 'gpt-4o-mini' } },
   save:     { label: '保存',     desc: '下载到本地',         color: 'var(--node-save)',     colorRaw: '#9AA0A8', inputs: [{type:'image',label:'图片'},{type:'text',label:'文本'}], outputs: [], defaultParams: { filename: '' } },
   lineart:  { label: '线稿',     desc: '提取/上传线稿图',    color: 'var(--node-lineart)',  colorRaw: '#F2A0E0', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'线稿'}] },
   aiSet:    { label: 'AI 图集',  desc: '批量生成图片集',     color: 'var(--node-ai-set)',   colorRaw: '#FF8A65', inputs: [{type:'image',label:'参考图'},{type:'text',label:'提示词'}], outputs: [{type:'image',label:'图集'}] },
@@ -40,8 +43,11 @@ const NODE_ICONS = {
   image:   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>',
   videoInput: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="9" height="8" rx="1.5"/><path d="M11 7l3-2v6l-3-2"/><path d="M4.5 8v0M6.5 8v0" stroke-linecap="round"/></svg>',
   videoBreak: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M6 3v10M10 3v10" stroke-dasharray="1.5 1.5"/><rect x="2.6" y="3.6" width="2.8" height="8.8" rx="0.5"/><rect x="10.6" y="3.6" width="2.8" height="8.8" rx="0.5"/></svg>',
+  reversePrompt: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 5l-2 3 2 3M11 5l2 3-2 3"/><path d="M9 4l-2 8"/></svg>',
   text:    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10M3 7h10M3 11h6"/></svg>',
+  stateList: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h10"/><circle cx="2" cy="4" r="0.8" fill="currentColor"/><circle cx="2" cy="8" r="0.8" fill="currentColor"/><circle cx="2" cy="12" r="0.8" fill="currentColor"/></svg>',
   aiImage: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6l1.5 2 1.5-1.5L11 10M6 5.5h.01"/></svg>',
+  imageEdit: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5.2 11.2l5.8-5.8 1.3 1.3-5.8 5.8H5.2v-1.3z"/><path d="M9.6 4.6l1.8 1.8"/></svg>',
   aiVideo: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="9" height="10" rx="1.5"/><path d="M11 7l3-2v6l-3-2"/></svg>',
   upscale: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v5M5.5 4.5L8 2l2.5 2.5M3 11h10M4 14V9M12 14V9M4 9h8"/></svg>',
   compare: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M8 3v10" stroke-dasharray="1.5 1.5"/></svg>',
@@ -150,8 +156,16 @@ class WorkflowNode {
     this.y = y;
     this.width = 280;
     this.height = 200;
+    if (type === 'aiImage' || type === 'imageEdit') {
+      this.width = 220;
+      this.height = 160;
+    }
     this.title = this.def.label;
     this.thumb = null;
+    this.uploadedImage = ''; // 仅 image：完整存档中的原始图片 dataURL，裁剪/缩略不会覆盖
+    this.croppedImage = '';  // 仅 image：裁剪后的当前生效图（保留原图 uploadedImage）
+    this.cropMeta = null;    // 仅 image：最近一次裁剪元数据（便于恢复/追踪）
+    this.uploadedVideo = ''; // 仅 videoInput：完整存档中的原始视频 dataURL，轻量存档会剥离
     this.prompt = '';
     this.params = this.def.defaultParams
       ? JSON.parse(JSON.stringify(this.def.defaultParams))
@@ -160,8 +174,102 @@ class WorkflowNode {
     // 数据流动骨架 (A1)：运行后存储真实数据载荷
     this.inputsData = [];   // 与 def.inputs 对齐，存放上游传入的载荷
     this.outputsData = [];  // 与 def.outputs 对齐，存放本节点产出的载荷
+    this.refImages = [];    // 面板内直传的参考图 [{name, src}]，随下游 AI 生图一起发送
+    this.refVideos = [];    // AI 视频节点的参考视频 [{name, src}]，双击上传
+    this.charDesc = '';      // 文本节点独立「角色描述」输入框（与固定提示词分区），生图时前置拼接到 prompt
+    this.stateMeta = null;   // 角色状态节点元数据：{ sourceId, label, index, batchId, batchIndex, batchTotal }
+    this.failureReason = ''; // 最近一次可读失败原因（随工作流持久化）
+    this.genMeta = null;     // 最近一次成功生成的参数快照（随工作流持久化）
+    this._lastError = '';    // 兼容旧执行器的内部错误字段
+    this.semanticMode = getNodeSemanticTier(type);
+    this.resultMode = 'pending';
+    this.previewOnly = false;
+    this.previewSourceId = '';
     this.el = null;
   }
+}
+
+function copyStateMeta(meta) {
+  if (!meta) return null;
+  return {
+    ...meta,
+    batchProgress: meta.batchProgress ? { ...meta.batchProgress } : undefined,
+  };
+}
+
+// 生成元数据只保存文本、参数和引用摘要，不保存参考图 dataURL。
+function copyGenMeta(meta) {
+  if (!meta || typeof meta !== 'object') return null;
+  return {
+    ...meta,
+    references: meta.references ? {
+      count: Number(meta.references.count) || 0,
+      names: Array.isArray(meta.references.names) ? [...meta.references.names] : [],
+      missing: Array.isArray(meta.references.missing) ? [...meta.references.missing] : [],
+    } : undefined,
+    stateMeta: meta.stateMeta ? copyStateMeta(meta.stateMeta) : undefined,
+  };
+}
+
+// 统一节点状态写入，避免旧路径使用 failure 或遗漏失败原因。
+function setNodeStatus(node, status, reason = '') {
+  if (!node) return;
+  const normalized = status === 'failure' ? 'error' : status;
+  node.status = normalized;
+  if (normalized === 'error') {
+    node.failureReason = String(reason || node.failureReason || node._lastError || '运行失败');
+    node._lastError = node.failureReason;
+  } else if (normalized === 'running') {
+    node.failureReason = '';
+    node._lastError = '';
+  } else if (normalized === 'done') {
+    node.failureReason = '';
+    node._lastError = '';
+  }
+  if (node.stateMeta) node.stateMeta.failureReason = node.failureReason || '';
+  if (typeof refreshCharacterBatchProgress === 'function' && node.stateMeta) {
+    refreshCharacterBatchProgress(node);
+  }
+}
+
+function newCharacterBatchId(sourceId) {
+  return 'charbatch_' + String(sourceId || 'node') + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+}
+
+function getCharacterBatchNodes(batchId) {
+  if (!batchId) return [];
+  return [...workflow.nodes.values()].filter(n => isCharacterStateNode(n) && n.stateMeta.batchId === batchId);
+}
+
+function refreshCharacterBatchProgress(nodeOrBatch) {
+  const meta = nodeOrBatch && nodeOrBatch.stateMeta ? nodeOrBatch.stateMeta : nodeOrBatch;
+  const batchId = meta && meta.batchId;
+  if (!batchId) return null;
+  const nodes = getCharacterBatchNodes(batchId);
+  const total = Math.max(Number(meta.batchTotal) || nodes.length || 1, nodes.length);
+  const completed = nodes.filter(n => n.status === 'done').length;
+  const failed = nodes.filter(n => n.status === 'error').length;
+  const running = nodes.filter(n => n.status === 'running').length;
+  const pending = Math.max(total - completed - failed - running, 0);
+  const progress = { batchId, total, completed, failed, running, pending, updatedAt: new Date().toISOString() };
+  nodes.forEach(n => {
+    n.stateMeta.batchTotal = total;
+    n.stateMeta.batchProgress = { ...progress };
+    n.stateMeta.failureReason = n.failureReason || n._lastError || '';
+    if (n.el) renderCharacterStateInfo(n);
+  });
+  return progress;
+}
+
+function setCharacterStateFailure(node, reason) {
+  setNodeStatus(node, 'error', reason);
+  if (node.el) updateNodeStatus(node);
+}
+
+function clearCharacterStateFailure(node) {
+  setNodeStatus(node, 'idle');
+  if (node.stateMeta) node.stateMeta.failureReason = '';
+  if (node.el) updateNodeStatus(node);
 }
 
 let edgeIdSeq = 1;
@@ -187,6 +295,19 @@ const workflow = {
   pendingConnection: null,
 };
 
+// 以节点 ID 创建一条数据连线。模板、风格预设与状态批量生成共用这一入口，
+// 避免它们依赖仅供测试 API 使用的 window.FlowCraft.editor.connectNodes。
+function connectNodes(fromNodeId, fromPortIdx, toNodeId, toPortIdx) {
+  const fromNode = workflow.nodes.get(fromNodeId);
+  const toNode = workflow.nodes.get(toNodeId);
+  if (!fromNode || !toNode) return null;
+  const edge = new Edge(fromNode, fromPortIdx, toNode, toPortIdx);
+  workflow.edges.set(edge.id, edge);
+  if (typeof resetNodeData === 'function') resetNodeData(toNode);
+  markEdgesDirty();
+  return edge;
+}
+
 //================ 4b. 回收站 ================
 const recycleBin = []; // 已删除节点快照数组，每项: { node, edges, deletedAt }
 
@@ -197,6 +318,9 @@ let redoStack = [];       // 重做栈
 let isRestoringHistory = false; // 标记正在执行 undo/redo，避免重复压栈
 let isBatchRestore = false;    // 标记批量还原操作，避免 restoreFromRecycle 内部重复压栈
 let _suppressPush = false;     // 复合操作期间抑制内部 pushHistory，使其合并为单条撤销项
+
+// 背景模式（点阵 / 网格 / 纯色）—— 提前声明，避免 drawGrid 在初始化时触发 TDZ
+let bgMode = 'dot';
 
 // 深拷贝可序列化的工作流状态（不包含 DOM 引用和 selection）
 function snapshotWorkflow() {
@@ -211,9 +335,19 @@ function snapshotWorkflow() {
       height: n.height,
       title: n.title,
       thumb: n.thumb,
+      uploadedImage: n.uploadedImage || '',
+      croppedImage: n.croppedImage || '',
+      cropMeta: n.cropMeta ? JSON.parse(JSON.stringify(n.cropMeta)) : null,
       prompt: n.prompt,
       params: { ...n.params },
       status: n.status,
+      refImages: n.refImages ? JSON.parse(JSON.stringify(n.refImages)) : [],
+      charDesc: n.charDesc || '',
+      stateMeta: copyStateMeta(n.stateMeta),
+      failureReason: n.failureReason || n._lastError || '',
+      genMeta: copyGenMeta(n.genMeta),
+      semanticMode: n.semanticMode || getNodeSemanticTier(n.type),
+      resultMode: n.resultMode || 'pending',
       inputsData: n.inputsData ? JSON.parse(JSON.stringify(n.inputsData)) : [],
       outputsData: n.outputsData ? JSON.parse(JSON.stringify(n.outputsData)) : [],
     });
@@ -274,8 +408,19 @@ function restoreFromSnapshot(snap) {
       node.height = nd.height;
       node.title = nd.title;
       node.thumb = nd.thumb;
+      node.uploadedImage = typeof nd.uploadedImage === 'string' ? nd.uploadedImage : '';
+      node.croppedImage = typeof nd.croppedImage === 'string' ? nd.croppedImage : '';
+      node.cropMeta = nd.cropMeta ? JSON.parse(JSON.stringify(nd.cropMeta)) : null;
       node.prompt = nd.prompt;
       node.params = { ...nd.params };
+      node.refImages = Array.isArray(nd.refImages) ? JSON.parse(JSON.stringify(nd.refImages)) : [];
+      node.charDesc = typeof nd.charDesc === 'string' ? nd.charDesc : '';
+      node.stateMeta = copyStateMeta(nd.stateMeta);
+      node.failureReason = nd.failureReason || (node.stateMeta && node.stateMeta.failureReason) || nd._lastError || '';
+      node._lastError = node.failureReason;
+      node.genMeta = copyGenMeta(nd.genMeta);
+      node.semanticMode = nd.semanticMode || getNodeSemanticTier(nd.type);
+      node.resultMode = nd.resultMode || 'pending';
       node.status = nd.status;
       node.inputsData = nd.inputsData ? JSON.parse(JSON.stringify(nd.inputsData)) : (node.def.inputs || []).map(() => null);
       node.outputsData = nd.outputsData ? JSON.parse(JSON.stringify(nd.outputsData)) : (node.def.outputs || []).map(() => null);
@@ -431,6 +576,15 @@ function bindEditHistory(elm) {
 (function mountLegacyTestHook() {
   window.FlowCraft = window.FlowCraft || {};
   window.FlowCraft._legacy = {
+    // 模块化执行器不能可靠读取经典脚本的全局词法绑定，
+    // 显式暴露运行时引用；window 同名属性仍可覆盖它们，便于测试和扩展注入。
+    workflow: workflow,
+    executeNodeAsync: executeNodeAsync,
+    updateNodeStatus: updateNodeStatus,
+    markEdgesDirty: markEdgesDirty,
+    topoSortNodes: topoSortNodes,
+    collectAncestors: collectAncestors,
+    getDescendants: getDescendants,
     callRelayChat: callRelayChat,
     generateChatImage: generateChatImage,
     _routeModel: _routeModel,
@@ -444,21 +598,224 @@ function bindEditHistory(elm) {
 const AUTOSAVE_KEY = 'flowcraft:autosave:v1';
 // 自动保存数据结构版本。每次改变节点/工作流存储结构时 +1，
 // 旧版本数据在 restoreFromStorage 中经 migrateAutosave 平滑迁移，避免整页崩溃或用户数据丢失。
-const CURRENT_AUTOSAVE_VERSION = 3;
+const CURRENT_AUTOSAVE_VERSION = 4;
 let autosaveTimer = null;
 // 自动保存体积安全上限（localStorage 约 5MB，预留余量在超限前主动剥离大图）
 const SAFE_AUTOSAVE_LIMIT = 4_500_000;
 let lastSaveStripped = false;
 
+//================ #13 多工作台：多画布独立自动保存 + 切换 ================
+// 工作台列表只保存轻量元数据（id / name / savedAt），
+// 真正的画布内容放在 AUTOSAVE_KEY（轻量兜底）与 IndexedDB 的 wb:{id}（完整版）里。
+// 这样可避免把整份 autosave 反复写进工作台列表，触发 localStorage 配额爆掉。
+const WORKBENCHES_KEY = 'flowcraft:workbenches:v1';
+const ACTIVE_WB_KEY = 'flowcraft:activeWorkbench:v1';
+
+function sanitizeWorkbenchRecord(wb) {
+  if (!wb || typeof wb !== 'object') return null;
+  const clean = { ...wb };
+  delete clean.autosave;
+  delete clean.autosaveLite;
+  return clean;
+}
+
+function sanitizeWorkbenchStore(store) {
+  const out = {};
+  Object.keys(store || {}).forEach(id => {
+    const clean = sanitizeWorkbenchRecord(store[id]);
+    if (clean) out[id] = clean;
+  });
+  return out;
+}
+
+function getWorkbenches() {
+  try { const raw = localStorage.getItem(WORKBENCHES_KEY); return sanitizeWorkbenchStore(raw ? JSON.parse(raw) : {}); }
+  catch (e) { return {}; }
+}
+function setWorkbenches(store) {
+  try { localStorage.setItem(WORKBENCHES_KEY, JSON.stringify(sanitizeWorkbenchStore(store))); return true; }
+  catch (e) { showToast('工作台保存失败：浏览器存储空间不足', 'danger'); return false; }
+}
+function getActiveWbId() {
+  try { return localStorage.getItem(ACTIVE_WB_KEY) || ''; } catch (e) { return ''; }
+}
+function setActiveWbId(id) {
+  try { localStorage.setItem(ACTIVE_WB_KEY, id || ''); } catch (e) {}
+}
+function getActiveWorkbench() {
+  const id = getActiveWbId();
+  const store = getWorkbenches();
+  return store[id] || null;
+}
+function getWorkbenchList() {
+  const store = getWorkbenches();
+  return Object.values(store).sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+}
+// 首次进入 / 无有效工作台时：确保存在活跃工作台（用现有 AUTOSAVE_KEY 内容建「默认工作台」）
+function ensureWorkbench() {
+  const store = getWorkbenches();
+  const active = getActiveWbId();
+  if (active && store[active]) return store[active];
+  let data = null;
+  try { data = localStorage.getItem(AUTOSAVE_KEY); } catch (e) {}
+  const id = 'wb_' + Date.now().toString(36);
+  const wb = { id, name: '默认工作台', savedAt: new Date().toISOString() };
+  store[id] = wb;
+  setWorkbenches(store);
+  setActiveWbId(id);
+  return wb;
+}
+// 把当前画布状态写入指定工作台（#13b：LS 剥离版 + IDB 完整版）
+function saveCurrentToWorkbench(wb) {
+  if (!wb) return;
+  const full = serializeWorkflow(false);
+  const store = getWorkbenches();
+  if (store[wb.id]) {
+    store[wb.id].savedAt = new Date().toISOString();
+    setWorkbenches(store);
+  }
+  idbPut(wbKey(wb.id), full);
+}
+function clearCanvasToEmpty() {
+  applyWorkflowData({ nodes: [], edges: [], camera: { x: 0, y: 0, zoom: 1 } });
+}
+
+//================ #13b. IndexedDB 大图库（自动保存完整版，解除 5MB 触顶）================
+// localStorage 仅存「剥离大图的轻量版」（永不触顶、快速兜底）；
+// IndexedDB 存「完整版」（含全部大图，无大小限制），key = 'wb:' + 工作台 id。
+// 恢复时：同步先显示剥离版快速启动，后台异步拉 IndexedDB 完整版替换。
+let _fcIdbPromise = null;
+const IDB_NAME = 'flowcraft-db';
+const IDB_STORE = 'kv';
+
+function openFlowcraftDB() {
+  if (_fcIdbPromise) return _fcIdbPromise;
+  if (typeof window === 'undefined' || !window.indexedDB) return Promise.resolve(null);
+  _fcIdbPromise = new Promise(function(resolve) {
+    var req;
+    // 与模块化存储层共用 v2 schema；旧版 v1 数据会在升级时补齐 projects/assets 等仓库。
+    try { req = window.indexedDB.open(IDB_NAME, 2); }
+    catch (e) { resolve(null); return; }
+    req.onupgradeneeded = function() {
+      var db = req.result;
+      if (db && !db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE, { keyPath: 'k' });
+      // 旧版入口也可能先于模块化存储层打开数据库；必须在这里补齐全部仓库，
+      // 否则数据库版本已升到 v2 但 projects/assets 等仓库仍不存在。
+      if (db && !db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
+      if (db && !db.objectStoreNames.contains('assets')) db.createObjectStore('assets', { keyPath: 'id' });
+      if (db && !db.objectStoreNames.contains('snapshots')) db.createObjectStore('snapshots', { keyPath: 'id' });
+      if (db && !db.objectStoreNames.contains('tasks')) db.createObjectStore('tasks', { keyPath: 'id' });
+    };
+    req.onsuccess = function() {
+      req.result.onversionchange = function() { req.result.close(); };
+      resolve(req.result);
+    };
+    req.onerror = function() { resolve(null); };
+  });
+  return _fcIdbPromise;
+}
+function idbPut(key, value) {
+  return openFlowcraftDB().then(function(db) {
+    if (!db) return false;
+    return new Promise(function(resolve) {
+      try {
+        var tx = db.transaction(IDB_STORE, 'readwrite');
+        // 双字段兼容：模块化存储层用 keyPath 'key' 建过 kv 库，旧版用 'k'；
+        // 同时带两个键，两种库都能写入（修复：刷新后生成大图丢失的根因）
+        tx.objectStore(IDB_STORE).put({ k: key, key: key, v: value });
+        tx.oncomplete = function() { resolve(true); };
+        tx.onerror = function() { console.warn('[FlowCraft] IndexedDB 写入失败:', key, tx.error && tx.error.message); resolve(false); };
+      } catch (e) { console.warn('[FlowCraft] IndexedDB 写入异常:', key, e && e.message); resolve(false); }
+    });
+  }).catch(function() { return false; });
+}
+function idbGet(key) {
+  return openFlowcraftDB().then(function(db) {
+    if (!db) return null;
+    return new Promise(function(resolve) {
+      try {
+        var tx = db.transaction(IDB_STORE, 'readonly');
+        var r = tx.objectStore(IDB_STORE).get(key);
+        r.onsuccess = function() { resolve(r.result ? r.result.v : null); };
+        r.onerror = function() { resolve(null); };
+      } catch (e) { resolve(null); }
+    });
+  }).catch(function() { return null; });
+}
+function idbDel(key) {
+  return openFlowcraftDB().then(function(db) {
+    if (!db) return;
+    return new Promise(function(resolve) {
+      try {
+        var tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).delete(key);
+        tx.oncomplete = resolve; tx.onerror = resolve;
+      } catch (e) { resolve(); }
+    });
+  }).catch(function() {});
+}
+function wbKey(id) { return 'wb:' + id; }
+
+// 画布轻量签名（节点数+边数+节点 id 集合）——用于判断画布是否仍为「初始恢复状态」
+let _initCanvasSig = null;
+function canvasSignature() {
+  const nodes = [...workflow.nodes.values()];
+  return nodes.length + ':' + workflow.edges.size + ':' + nodes.map(n => n.id).sort().join(',');
+}
+
+// 后台从 IndexedDB 拉取当前工作台完整版，替换剥离版显示（仅当明显更完整时，避免无谓重建）
+// onlyIfUntouched=true（init 用）：若画布已被用户/脚本改动（签名变化）则跳过，避免覆盖现场
+function restoreFullAutosaveFromIDB(onlyIfUntouched) {
+  const activeId = getActiveWbId();
+  const liteRaw = (() => { try { return localStorage.getItem(AUTOSAVE_KEY) || ''; } catch (_) { return ''; } })();
+  console.log('[FlowCraft] 完整大图恢复：启动, activeId=' + activeId);
+  if (!activeId) { console.warn('[FlowCraft] 完整大图恢复：缺少工作台/ID，中止'); return; }
+  setTimeout(function() {
+    if (onlyIfUntouched && _initCanvasSig !== null && canvasSignature() !== _initCanvasSig) {
+      console.warn('[FlowCraft] 完整大图恢复：画布已被改动（签名 ' + _initCanvasSig + ' → ' + canvasSignature() + '），跳过覆盖');
+      return;
+    }
+    idbGet(wbKey(activeId)).then(function(full) {
+      if (!full || typeof full !== 'string') { console.warn('[FlowCraft] 完整大图恢复：kv 中没有完整版记录（' + wbKey(activeId) + '）'); return; }
+      try {
+        const parsed = JSON.parse(full);
+        if (!parsed || !parsed.nodes) { console.warn('[FlowCraft] 完整大图恢复：数据无 nodes，跳过'); return; }
+        const curLen = liteRaw.length;
+        if (curLen > 0 && full.length <= curLen + 1000) { console.log('[FlowCraft] 完整大图恢复：无大图差异（' + full.length + ' vs ' + curLen + '），跳过'); return; }
+        console.log('[FlowCraft] 完整大图恢复：载入完整版（' + full.length + ' 字符，' + parsed.nodes.length + ' 个节点）');
+        applyWorkflowData(parsed);
+        updateStatusbar(); updateRecycleUI(); updateUndoRedoButtons();
+        applyTransform(); markEdgesDirty();
+        setTimeout(function() { fitToContent(); }, 100);
+        showToast('已从本地库载入完整大图版本', 'info', 2500);
+      } catch (e) { console.error('[FlowCraft] 完整大图恢复失败:', e && e.message); }
+    });
+  }, 300);
+}
+
 // 剥离节点里的大体积 dataURL（图片预览），保证长项目也能落到 localStorage
 function _stripHeavyDataUrls(nodesData) {
   const THRESH = 60000;
   const scrub = (v) => (typeof v === 'string' && v.startsWith('data:') && v.length > THRESH) ? '(stripped)' : v;
+  const deepScrub = (v) => {
+    if (typeof v === 'string') return scrub(v);
+    if (Array.isArray(v)) return v.map(deepScrub);
+    if (v && typeof v === 'object') {
+      const out = {};
+      Object.keys(v).forEach(k => { out[k] = deepScrub(v[k]); });
+      return out;
+    }
+    return v;
+  };
   nodesData.forEach(nd => {
     if (nd.thumb) nd.thumb = scrub(nd.thumb);
-    if (nd.params) Object.keys(nd.params).forEach(k => { nd.params[k] = scrub(nd.params[k]); });
-    if (Array.isArray(nd.inputsData)) nd.inputsData.forEach(d => { if (d) d.value = scrub(d.value); });
-    if (Array.isArray(nd.outputsData)) nd.outputsData.forEach(d => { if (d) d.value = scrub(d.value); });
+    if (nd.uploadedImage) nd.uploadedImage = scrub(nd.uploadedImage);
+    if (nd.croppedImage) nd.croppedImage = scrub(nd.croppedImage);
+    if (nd.uploadedVideo) nd.uploadedVideo = scrub(nd.uploadedVideo);
+    if (Array.isArray(nd.refVideos)) nd.refVideos = deepScrub(nd.refVideos);
+    if (nd.params) nd.params = deepScrub(nd.params);
+    if (Array.isArray(nd.inputsData)) nd.inputsData = deepScrub(nd.inputsData);
+    if (Array.isArray(nd.outputsData)) nd.outputsData = deepScrub(nd.outputsData);
   });
 }
 
@@ -469,8 +826,17 @@ function serializeWorkflow(stripHeavy = false) {
     nodesData.push({
       id: n.id, type: n.type, x: n.x, y: n.y,
       width: n.width, height: n.height, title: n.title,
-      thumb: n.thumb, prompt: n.prompt,
+      thumb: n.thumb, uploadedImage: n.uploadedImage || '', croppedImage: n.croppedImage || '', cropMeta: n.cropMeta ? JSON.parse(JSON.stringify(n.cropMeta)) : null, prompt: n.prompt,
+      uploadedVideo: n.uploadedVideo || '',
+      refImages: n.refImages ? JSON.parse(JSON.stringify(n.refImages)) : [],
+      refVideos: n.refVideos ? JSON.parse(JSON.stringify(n.refVideos)) : [],
+      charDesc: n.charDesc || '',
+      stateMeta: copyStateMeta(n.stateMeta),
+      failureReason: n.failureReason || n._lastError || '',
+      genMeta: copyGenMeta(n.genMeta),
       params: { ...n.params }, status: n.status,
+      previewOnly: !!n.previewOnly,
+      previewSourceId: n.previewSourceId || '',
       inputsData: n.inputsData ? JSON.parse(JSON.stringify(n.inputsData)) : [],
       outputsData: n.outputsData ? JSON.parse(JSON.stringify(n.outputsData)) : [],
     });
@@ -509,33 +875,58 @@ function scheduleAutosave() {
   autosaveTimer = setTimeout(doAutosave, 500);
 }
 
-// 执行保存到 localStorage（体积超限自动剥离大图，失败不再静默）
+// 执行保存（#13b）：localStorage 存剥离版（永不触顶、快速兜底）＋ IndexedDB 异步存完整版（含大图）
 function doAutosave() {
+  setSaveStatus('保存中', 'pending');
+  let liteSaved = false;
   try {
-    const data = serializeWorkflow(false);
-    if (data.length > SAFE_AUTOSAVE_LIMIT) {
-      const stripped = serializeWorkflow(true);
-      localStorage.setItem(AUTOSAVE_KEY, stripped);
-      lastSaveStripped = true;
-      setSaveStatus('已保存（已剥离大图）', 'warn');
-      showToast('自动保存：项目较大，已自动剥离大图预览以保证存档成功，建议导出备份', 'warn', 4500);
-    } else {
-      localStorage.setItem(AUTOSAVE_KEY, data);
-      lastSaveStripped = false;
-      setSaveStatus('已保存', 'ok');
-    }
+    const full = serializeWorkflow(false);
+    const stripped = serializeWorkflow(true); // 剥离大图 dataURL → 轻量，localStorage 稳
+    try {
+      if (typeof window !== 'undefined' && window.__FC_TEST_STORAGE_FAILURE__ === 'localStorage') {
+        const error = new Error('测试注入：localStorage 被拒绝');
+        error.name = 'QuotaExceededError';
+        throw error;
+      }
+      localStorage.setItem(AUTOSAVE_KEY, stripped); liteSaved = true;
+    } catch (e) { /* 极端：交给下方兜底 */ }
+    lastSaveStripped = stripped.length < full.length;
+    // 工作台元数据只保留轻量信息；真正画布内容写入 IndexedDB。
+    try {
+      const wb = getActiveWorkbench();
+      if (wb) {
+        const store = getWorkbenches();
+        if (store[wb.id]) {
+          store[wb.id].savedAt = new Date().toISOString();
+          setWorkbenches(store);
+        }
+      }
+    } catch (_) {}
+    // IndexedDB：完整版（含大图），异步不阻塞 UI
+    const activeId = getActiveWbId();
+    if (activeId) idbPut(wbKey(activeId), full);
+    setSaveStatus(liteSaved ? '轻量备份已保存 · 完整版确认中' : '保存失败', liteSaved ? 'pending' : 'err');
+    return { liteSaved, stripped: lastSaveStripped };
   } catch (err) {
-    // 兜底：即便完整写入失败，也尝试剥离大图后保存
+    // 兜底：即便完整序列化失败，也尝试剥离后保存
     try {
       const stripped = serializeWorkflow(true);
+      if (typeof window !== 'undefined' && window.__FC_TEST_STORAGE_FAILURE__ === 'localStorage') {
+        const error = new Error('测试注入：localStorage 兜底写入失败');
+        error.name = 'QuotaExceededError';
+        throw error;
+      }
       localStorage.setItem(AUTOSAVE_KEY, stripped);
+      liteSaved = true;
       lastSaveStripped = true;
-      setSaveStatus('已保存（已剥离大图）', 'warn');
-      showToast('自动保存空间不足，已剥离大图预览后重试成功，请尽快导出备份', 'warn', 5000);
+      setSaveStatus('轻量备份已保存 · 完整版失败', 'warn');
+      showToast('自动保存仅保留轻量备份，请尽快导出 .flowcraft 备份', 'warn', 5000);
+      return { liteSaved, stripped: true, error: err };
     } catch (err2) {
       lastSaveStripped = false;
       setSaveStatus('保存失败', 'err');
       showToast('⚠️ 自动保存失败：' + ((err2 && err2.message) || '浏览器存储不可用') + '，请立即导出备份！', 'danger', 6000);
+      return { liteSaved: false, stripped: false, error: err2 };
     }
   }
 }
@@ -545,7 +936,8 @@ function setSaveStatus(text, kind) {
   const el = document.getElementById('statSave');
   if (!el) return;
   el.textContent = text;
-  el.style.color = kind === 'err' ? 'var(--color-danger)' : kind === 'warn' ? 'var(--color-warn)' : 'var(--text-2)';
+  el.dataset.saveKind = kind || '';
+  el.style.color = kind === 'err' ? 'var(--color-danger)' : kind === 'warn' ? 'var(--color-warn)' : kind === 'pending' ? 'var(--accent, #8B5CF6)' : 'var(--text-2)';
 }
 
 // 版本迁移：把旧版自动保存数据平滑升级到当前结构，保证「升级不丢数据、旧档不崩页」。
@@ -570,13 +962,46 @@ function migrateAutosave(parsed, fromVersion) {
       if (!Array.isArray(nd.outputsData)) nd.outputsData = null;
     });
   }
-  // 未来版本：此处继续追加 v2 → v3 … 的分支；当前版本即视为最新
+  // v3 → v4：角色状态批次进度与失败原因字段。
+  if (v < 4) {
+    (parsed.nodes || []).forEach(nd => {
+      if (!nd) return;
+      nd.failureReason = nd.failureReason || (nd.stateMeta && nd.stateMeta.failureReason) || '';
+      if (nd.stateMeta && !nd.stateMeta.batchProgress) nd.stateMeta.batchProgress = null;
+    });
+  }
   if (!Array.isArray(parsed.scenes)) parsed.scenes = [];
   parsed.version = CURRENT_AUTOSAVE_VERSION;
   return parsed;
 }
 
-// 从 localStorage 恢复工作流
+// 经典脚本入口也做同一份数据边界校验；必须在 pushHistory / 清空当前画布之前执行。
+function validateWorkflowData(parsed) {
+  const known = new Set(Object.keys(NODE_TYPES));
+  const errors = [];
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) errors.push('项目数据必须是 JSON 对象');
+  if (!parsed || !Array.isArray(parsed.nodes)) errors.push('nodes 必须是数组（空项目请使用 nodes: []）');
+  if (parsed && parsed.edges !== undefined && !Array.isArray(parsed.edges)) errors.push('edges 必须是数组');
+  if (errors.length) return { ok: false, errors };
+  const ids = new Set();
+  parsed.nodes.forEach((nd, i) => {
+    if (!nd || typeof nd !== 'object' || Array.isArray(nd)) { errors.push(`nodes[${i}] 必须是对象`); return; }
+    if (typeof nd.id !== 'string' || !nd.id.trim()) errors.push(`nodes[${i}].id 必须是非空字符串`);
+    else if (ids.has(nd.id)) errors.push(`nodes[${i}].id 重复：${nd.id}`); else ids.add(nd.id);
+    if (typeof nd.type !== 'string' || !nd.type.trim()) errors.push(`nodes[${i}].type 必须是非空字符串`);
+    else if (!known.has(nd.type)) errors.push(`nodes[${i}].type 未知：${nd.type}`);
+  });
+  (parsed.edges || []).forEach((ed, i) => {
+    if (!ed || typeof ed !== 'object' || Array.isArray(ed)) { errors.push(`edges[${i}] 必须是对象`); return; }
+    if (typeof ed.id !== 'string' || !ed.id.trim()) errors.push(`edges[${i}].id 必须是非空字符串`);
+    if (typeof ed.fromNodeId !== 'string' || !ids.has(ed.fromNodeId)) errors.push(`edges[${i}] 起点节点不存在`);
+    if (typeof ed.toNodeId !== 'string' || !ids.has(ed.toNodeId)) errors.push(`edges[${i}] 终点节点不存在`);
+    if (!Number.isInteger(ed.fromPort) || ed.fromPort < 0 || !Number.isInteger(ed.toPort) || ed.toPort < 0) errors.push(`edges[${i}] 端口必须是非负整数`);
+  });
+  return { ok: errors.length === 0, errors };
+}
+
+// 从 localStorage 恢复工作流（#13：优先读活跃工作台的 autosave，无则退回 AUTOSAVE_KEY）
 function restoreFromStorage() {
   let data = null;
   try {
@@ -595,7 +1020,11 @@ function restoreFromStorage() {
     try { localStorage.removeItem(AUTOSAVE_KEY); } catch (_) {}
     return false;
   }
-  if (!parsed || !parsed.nodes) return false;
+  const validation = validateWorkflowData(parsed);
+  if (!validation.ok) {
+    console.warn('[FlowCraft] 自动保存数据结构无效，已跳过恢复:', validation.errors.join('；'));
+    return false;
+  }
 
   // 版本判断 + 迁移
   const v = typeof parsed.version === 'number' ? parsed.version : 1;
@@ -623,9 +1052,19 @@ function restoreFromStorage() {
       node.height = nd.height || 200;
       node.title = nd.title || node.def.label;
       node.thumb = nd.thumb || null;
+      node.uploadedVideo = typeof nd.uploadedVideo === 'string' ? nd.uploadedVideo : '';
       node.prompt = nd.prompt || '';
+      node.refImages = Array.isArray(nd.refImages) ? nd.refImages : [];
+      node.refVideos = Array.isArray(nd.refVideos) ? nd.refVideos : [];
+      node.charDesc = typeof nd.charDesc === 'string' ? nd.charDesc : '';
+      node.stateMeta = copyStateMeta(nd.stateMeta);
+      node.failureReason = nd.failureReason || (node.stateMeta && node.stateMeta.failureReason) || nd._lastError || '';
+      node._lastError = node.failureReason;
+      node.genMeta = copyGenMeta(nd.genMeta);
       node.params = { ...DEFAULT_NODE_PARAMS, ...(nd.params || {}) };
       node.status = nd.status || 'idle';
+      node.previewOnly = !!nd.previewOnly;
+      node.previewSourceId = typeof nd.previewSourceId === 'string' ? nd.previewSourceId : '';
       node.inputsData = nd.inputsData ? JSON.parse(JSON.stringify(nd.inputsData)) : (node.def.inputs || []).map(() => null);
       node.outputsData = nd.outputsData ? JSON.parse(JSON.stringify(nd.outputsData)) : (node.def.outputs || []).map(() => null);
       const el = createNodeElement(node);
@@ -750,6 +1189,193 @@ function importJSON(file) {
   reader.readAsText(file);
 }
 
+//================ 4g2. 整画布 PNG 导出（#10）================
+// 计算全部节点世界包围盒，离屏渲染 背景(跟随 bgMode) + 贝塞尔连线 + 节点卡(头部色条+标题+缩略图/文本)，
+// 导出高清 PNG。节点缩略图 node.thumb 为 data URL，不会污染 canvas。
+function exportRoundRectPath(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function exportDrawBezier(ctx, x1, y1, x2, y2, color, lw) {
+  const dx = Math.max(50, Math.abs(x2 - x1) * 0.5);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw || 2;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.bezierCurveTo(x1 + dx, y1, x2 - dx, y2, x2, y2);
+  ctx.stroke();
+}
+function exportLoadThumb(src) {
+  return new Promise(res => {
+    if (!src || typeof src !== 'string' || !src.startsWith('data:image')) { res(null); return; }
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => res(null);
+    img.src = src;
+  });
+}
+function exportDrawImageCover(ctx, img, x, y, w, h) {
+  const ir = img.width / img.height, r = w / h;
+  let dw, dh, dx, dy;
+  if (ir > r) { dh = h; dw = h * ir; dx = x - (dw - w) / 2; dy = y; }
+  else { dw = w; dh = w / ir; dx = x; dy = y - (dh - h) / 2; }
+  ctx.drawImage(img, dx, dy, dw, dh);
+}
+function exportTruncate(s, n) {
+  if (!s) return '';
+  s = String(s).replace(/\s+/g, ' ').trim();
+  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+}
+function exportPaintBg(ctx, ox, oy, W, H) {
+  if (bgMode === 'solid') return;
+  const spacing = 24;
+  const c = COLORS.gridDotRGB;
+  const startX = ((ox % spacing) + spacing) % spacing;
+  const startY = ((oy % spacing) + spacing) % spacing;
+  if (bgMode === 'grid') {
+    ctx.strokeStyle = `rgba(${c.r}, ${c.g}, ${c.b}, 0.05)`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = startX; x < W; x += spacing) { const px = Math.round(x) + 0.5; ctx.moveTo(px, 0); ctx.lineTo(px, H); }
+    for (let y = startY; y < H; y += spacing) { const py = Math.round(y) + 0.5; ctx.moveTo(0, py); ctx.lineTo(W, py); }
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = `rgba(${c.r}, ${c.g}, ${c.b}, 0.05)`;
+    for (let x = startX; x < W; x += spacing)
+      for (let y = startY; y < H; y += spacing)
+        ctx.fillRect(Math.round(x), Math.round(y), 1.5, 1.5);
+  }
+}
+async function exportCanvasPNG() {
+  // 1. 计算节点包围盒（世界坐标）
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, hasNode = false;
+  workflow.nodes.forEach(n => {
+    const el = n.el;
+    const w = (el ? el.offsetWidth : (n.width || 280)) || 280;
+    const h = (el ? el.offsetHeight : 160) || 160;
+    minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
+    maxX = Math.max(maxX, n.x + w); maxY = Math.max(maxY, n.y + h);
+    hasNode = true;
+  });
+  const pad = 48;
+  let W, H;
+  if (!hasNode) {
+    // 无节点：按当前视口对应世界区域导出
+    const rect = canvasWrap.getBoundingClientRect();
+    W = rect.width / workflow.camera.zoom;
+    H = rect.height / workflow.camera.zoom;
+    minX = -workflow.camera.x / workflow.camera.zoom;
+    minY = -workflow.camera.y / workflow.camera.zoom;
+  } else {
+    W = (maxX - minX) + pad * 2;
+    H = (maxY - minY) + pad * 2;
+  }
+  W = Math.max(W, 16); H = Math.max(H, 16);
+
+  const scale = 2; // 高清 2x
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(1, Math.round(W * scale));
+  cv.height = Math.max(1, Math.round(H * scale));
+  const ctx = cv.getContext('2d');
+  ctx.scale(scale, scale);
+  const ox = -minX + pad, oy = -minY + pad;
+
+  // 2. 背景底色 + 图案（跟随 bgMode）
+  ctx.fillStyle = COLORS.bgDeepest;
+  ctx.fillRect(0, 0, W, H);
+  exportPaintBg(ctx, ox, oy, W, H);
+
+  // 3. 连线（贝塞尔，目标节点类型色）
+  workflow.edges.forEach(edge => {
+    const fn = edge.from.node, tn = edge.to.node;
+    if (!fn.el || !tn.el) return;
+    const fp = portWorldPos(fn, 'output', edge.from.port);
+    const tp = portWorldPos(tn, 'input', edge.to.port);
+    const color = (tn.def && tn.def.color) || COLORS.primary;
+    exportDrawBezier(ctx, fp.x + ox, fp.y + oy, tp.x + ox, tp.y + oy, color, 2);
+  });
+
+  // 4. 节点卡（预载缩略图后绘制）
+  const thumbs = await Promise.all([...workflow.nodes.values()].map(n => exportLoadThumb(n.thumb)));
+  const panelBg = getCSSVar('--bg-panel');
+  const textHi = getCSSVar('--text-1');
+  let ti = 0;
+  workflow.nodes.forEach(n => {
+    const el = n.el;
+    const w = (el ? el.offsetWidth : (n.width || 280)) || 280;
+    const h = (el ? el.offsetHeight : 160) || 160;
+    const x = n.x + ox, y = n.y + oy;
+    const color = (n.def && n.def.color) || '#5B8DEF';
+    // 卡片底
+    exportRoundRectPath(ctx, x, y, w, h, 10);
+    ctx.fillStyle = panelBg;
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.stroke();
+    // 头部色条
+    ctx.save();
+    exportRoundRectPath(ctx, x, y, w, 28, 10);
+    ctx.clip();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.20;
+    ctx.fillRect(x, y, w, 28);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    // 标题
+    ctx.fillStyle = textHi;
+    ctx.font = '600 13px system-ui, -apple-system, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(exportTruncate(n.title || n.type, Math.max(6, Math.floor(w / 9))), x + 10, y + 14);
+    // 缩略图或文本
+    const thumb = thumbs[ti++];
+    const bodyY = y + 32, bodyH = h - 36;
+    if (thumb) {
+      ctx.save();
+      exportRoundRectPath(ctx, x + 6, bodyY, w - 12, Math.max(8, bodyH - 6), 6);
+      ctx.clip();
+      exportDrawImageCover(ctx, thumb, x + 6, bodyY, w - 12, Math.max(8, bodyH - 6));
+      ctx.restore();
+    } else {
+      const txt = n.prompt || (n.params && n.params.fields && (n.params.fields.prompt || n.params.fields.script)) || '';
+      ctx.fillStyle = textHi;
+      ctx.globalAlpha = 0.55;
+      ctx.font = '12px system-ui, -apple-system, sans-serif';
+      ctx.textBaseline = 'top';
+      const lines = exportTruncate(txt, 160).split(/\n/);
+      let ty = bodyY + 8;
+      for (const ln of lines) {
+        if (ty + 14 > y + h - 6) break;
+        ctx.fillText(ln, x + 10, ty);
+        ty += 15;
+      }
+      ctx.globalAlpha = 1;
+    }
+  });
+
+  // 5. 测试钩子 + 下载
+  window.__lastExportPng = cv.toDataURL('image/png');
+  window.__exportPngInfo = { w: cv.width, h: cv.height, nodes: workflow.nodes.size, edges: workflow.edges.size, bgMode };
+  cv.toBlob(blob => {
+    if (!blob) { showToast('导出失败：无法生成 PNG', 'danger'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `flowcraft-canvas-${new Date().toISOString().slice(0, 10)}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('已导出整画布 PNG（' + workflow.nodes.size + ' 节点）', 'success');
+  }, 'image/png');
+}
+
 //================ 4h. 项目交付包导出（借鉴 Hell Grind 场景表 + 每镜提示词 + 资产清单）================
 function csvCell(v) {
   const s = v == null ? '' : String(v);
@@ -851,7 +1477,8 @@ function setWorkflowStore(store) {
 
 // 统一加载工作流数据（导入 / 命名加载 复用）
 function applyWorkflowData(parsed) {
-  if (!parsed || !parsed.nodes) throw new Error('无效的工作流数据');
+  const validation = validateWorkflowData(parsed);
+  if (!validation.ok) throw new Error('无效的工作流数据：' + validation.errors.slice(0, 5).join('；'));
   pushHistory();
   workflow.nodes.forEach(n => { if (n.el) n.el.remove(); });
   workflow.nodes.clear();
@@ -871,9 +1498,19 @@ function applyWorkflowData(parsed) {
     node.height = nd.height || 200;
     node.title = nd.title || node.def.label;
     node.thumb = nd.thumb || null;
+    node.uploadedVideo = typeof nd.uploadedVideo === 'string' ? nd.uploadedVideo : '';
     node.prompt = nd.prompt || '';
+    node.refImages = Array.isArray(nd.refImages) ? JSON.parse(JSON.stringify(nd.refImages)) : [];
+    node.refVideos = Array.isArray(nd.refVideos) ? JSON.parse(JSON.stringify(nd.refVideos)) : [];
+    node.charDesc = typeof nd.charDesc === 'string' ? nd.charDesc : '';
+    node.stateMeta = copyStateMeta(nd.stateMeta);
+    node.failureReason = nd.failureReason || (node.stateMeta && node.stateMeta.failureReason) || nd._lastError || '';
+    node._lastError = node.failureReason;
+    node.genMeta = copyGenMeta(nd.genMeta);
     node.params = { ...DEFAULT_NODE_PARAMS, ...(nd.params || {}) };
     node.status = nd.status || 'idle';
+    node.previewOnly = !!nd.previewOnly;
+    node.previewSourceId = typeof nd.previewSourceId === 'string' ? nd.previewSourceId : '';
     node.inputsData = nd.inputsData ? JSON.parse(JSON.stringify(nd.inputsData)) : (node.def.inputs || []).map(() => null);
     node.outputsData = nd.outputsData ? JSON.parse(JSON.stringify(nd.outputsData)) : (node.def.outputs || []).map(() => null);
     const el = createNodeElement(node);
@@ -900,6 +1537,9 @@ function applyWorkflowData(parsed) {
     workflow.camera.zoom = parsed.camera.zoom;
   }
   if (parsed.nextZ) workflow.nextZ = parsed.nextZ;
+  if (Array.isArray(parsed.order) && parsed.order.length) {
+    workflow.order = parsed.order.filter(id => workflow.nodes.has(id));
+  }
   if (parsed.recycleBin) {
     parsed.recycleBin.forEach(item => {
       recycleBin.push({
@@ -909,6 +1549,24 @@ function applyWorkflowData(parsed) {
       });
     });
   }
+  if (Array.isArray(parsed.shots)) {
+    workflow.shots = parsed.shots.map(s => ({
+      id: s.id || ('shot_' + Math.random().toString(36).slice(2, 9)),
+      name: s.name || '', scene: s.scene || '', shotNo: s.shotNo || '',
+      desc: s.desc || '', prompt: s.prompt || '', status: s.status || 'idle', nodeId: s.nodeId || null,
+    }));
+  }
+  if (Array.isArray(parsed.scenes)) {
+    const validIds = new Set(workflow.nodes.keys());
+    workflow.scenes = parsed.scenes.map(s => ({
+      id: s.id || ('scene_' + Math.random().toString(36).slice(2, 9)),
+      name: s.name || '未命名场景', color: s.color || '#5B8DEF',
+      nodeIds: Array.isArray(s.nodeIds) ? s.nodeIds.filter(id => validIds.has(id)) : [],
+    }));
+  } else {
+    workflow.scenes = [];
+  }
+  applySceneTints();
   applyTransform();
   updateStatusbar();
   updateRecycleUI();
@@ -1045,30 +1703,179 @@ function newWorkflow() {
   refreshAssetPanelIfOpen();
 }
 
+//================ #13 多工作台：切换 / 新建 / 改名 / 删除 + 面板 ================
+async function switchWorkbench(id) {
+  const store = getWorkbenches();
+  const target = store[id];
+  if (!target || id === getActiveWbId()) { if (target) toggleWorkbenchPanel(false); return; }
+  const cur = getActiveWorkbench();
+  if (cur) saveCurrentToWorkbench(cur); // 先落盘当前画布
+  setActiveWbId(id);
+  clearCanvasToEmpty();
+  try {
+    const full = await idbGet(wbKey(id));
+    if (full && typeof full === 'string') {
+      const parsed = JSON.parse(full);
+      if (parsed) {
+        applyWorkflowData(parsed);
+        try { localStorage.setItem(AUTOSAVE_KEY, serializeWorkflow(true)); } catch (e) {}
+      }
+    }
+  } catch (e) {
+    console.warn('[FlowCraft] 切换工作台：读取完整版失败，回退轻量恢复', e && e.message);
+    clearCanvasToEmpty();
+  }
+  setTimeout(() => fitToContent(), 100);
+  updateWorkbenchPanel();
+  renderWorkbenchSelect();
+  updateWorkflowPanel();
+  toggleWorkbenchPanel(false);
+  showToast('已切换到工作台：' + target.name, 'success');
+  refreshAssetPanelIfOpen();
+  restoreFullAutosaveFromIDB(false); // #13b：切换后后台补全目标工作台完整大图版本（不校验，目标刚加载）
+}
+
+async function newWorkbench(name) {
+  const cur = getActiveWorkbench();
+  if (cur) saveCurrentToWorkbench(cur);
+  const id = 'wb_' + Date.now().toString(36);
+  const wb = { id, name: (name && String(name).trim()) || ('工作台 ' + (Object.keys(getWorkbenches()).length + 1)), savedAt: new Date().toISOString() };
+  const store = getWorkbenches();
+  store[id] = wb;
+  setWorkbenches(store);
+  setActiveWbId(id);
+  try { localStorage.setItem(AUTOSAVE_KEY, ''); } catch (e) {}
+  clearCanvasToEmpty();
+  updateWorkbenchPanel();
+  renderWorkbenchSelect();
+  showToast('已新建工作台：' + wb.name + '（独立自动保存）', 'success');
+}
+
+function renameWorkbench(id, name) {
+  const store = getWorkbenches();
+  if (!store[id]) return;
+  store[id].name = String(name || '').trim() || store[id].name;
+  setWorkbenches(store);
+  updateWorkbenchPanel();
+  renderWorkbenchSelect();
+}
+
+function deleteWorkbench(id) {
+  const store = getWorkbenches();
+  if (!store[id]) return;
+  if (!confirm('确定删除工作台「' + store[id].name + '」？其中的画布内容将一并删除，不可恢复。')) return;
+  delete store[id];
+  setWorkbenches(store);
+  idbDel(wbKey(id)); // #13b：清理该工作台的完整版大图
+  if (getActiveWbId() === id) {
+    const rest = Object.keys(store);
+    if (rest.length) {
+      setActiveWbId(rest[0]);
+      switchWorkbench(rest[0]);
+    } else {
+      setActiveWbId('');
+      newWorkbench('默认工作台');
+    }
+  } else {
+    updateWorkbenchPanel();
+    renderWorkbenchSelect();
+  }
+}
+
+function updateWorkbenchPanel() {
+  const list = document.getElementById('workbenchList');
+  if (!list) return;
+  const count = document.getElementById('workbenchCount');
+  const items = getWorkbenchList();
+  const activeId = getActiveWbId();
+  if (count) count.textContent = items.length;
+  if (!items.length) {
+    list.innerHTML = '<div class="recycle-empty"><div class="empty-text">暂无工作台<br>点下方「新建工作台」创建</div></div>';
+    return;
+  }
+  list.innerHTML = '';
+  items.forEach(wb => {
+    const card = document.createElement('div');
+    card.className = 'wbf-card' + (wb.id === activeId ? ' active' : '');
+    const date = new Date(wb.savedAt).toLocaleString();
+    card.innerHTML =
+      '<div class="wbf-main">' +
+        '<div class="wbf-name" title="' + escapeHtml(wb.name) + '">' + escapeHtml(wb.name) +
+          (wb.id === activeId ? '<span class="wbf-badge">当前</span>' : '') + '</div>' +
+        '<div class="wbf-meta">' + escapeHtml(date) + '</div>' +
+      '</div>' +
+      '<div class="wbf-actions">' +
+        '<button class="wf-btn" data-act="open">切换</button>' +
+        '<button class="wf-btn" data-act="rename">改名</button>' +
+        '<button class="wf-btn danger" data-act="delete">删除</button>' +
+      '</div>';
+    card.querySelectorAll('button').forEach(btn => {
+      btn.onclick = () => {
+        const act = btn.dataset.act;
+        if (act === 'open') {
+          if (wb.id !== activeId) switchWorkbench(wb.id);
+          else toggleWorkbenchPanel(false);
+        } else if (act === 'rename') {
+          const nn = prompt('重命名工作台', wb.name);
+          if (nn && nn.trim()) renameWorkbench(wb.id, nn.trim());
+        } else if (act === 'delete') {
+          deleteWorkbench(wb.id);
+        }
+      };
+    });
+    list.appendChild(card);
+  });
+}
+
+// 顶栏「工作台」按钮 title 显示当前工作台名
+function renderWorkbenchSelect() {
+  const btn = document.getElementById('btnWorkbench');
+  const wb = getActiveWorkbench();
+  if (btn) btn.title = '工作台（当前：' + ((wb && wb.name) || '—') + '）— 多画布独立切换';
+  const lbl = document.getElementById('workbenchCurrentName');
+  if (lbl) lbl.textContent = (wb && wb.name) || '—';
+}
+
+function toggleWorkbenchPanel(show) {
+  const panel = document.getElementById('workbenchPanel');
+  const overlay = document.getElementById('workbenchOverlay');
+  if (!panel) return;
+  const open = show === undefined ? !panel.classList.contains('show') : show;
+  panel.classList.toggle('show', open);
+  if (overlay) overlay.classList.toggle('show', open);
+  if (open) { updateWorkbenchPanel(); renderWorkbenchSelect(); }
+}
+
 //================ 4h. 资产管理 (素材库) ================
-const ASSET_IMAGE_TYPES = ['image', 'aiImage', 'aiVideo', 'upscale', 'compare', 'aiSet', 'material', 'light', 'layout', 'lineart', 'comfyui'];
+const ASSET_IMAGE_TYPES = ['image', 'aiImage', 'imageEdit', 'aiVideo', 'upscale', 'compare', 'aiSet', 'material', 'light', 'layout', 'lineart', 'comfyui'];
 
 function collectAssets() {
   const assets = [];
   workflow.nodes.forEach(node => {
     const def = node.def || {};
     // 节点自身缩略图（产出图类型）
-    if (ASSET_IMAGE_TYPES.includes(node.type) && node.thumb && typeof node.thumb === 'string' && node.thumb.startsWith('data:')) {
+    if (ASSET_IMAGE_TYPES.includes(node.type) && normalizeImageSrc(node.thumb)) {
       assets.push({ src: node.thumb, label: '节点图', nodeId: node.id, nodeTitle: node.title, kind: 'thumb' });
     }
     // 输入图片（按端口语义名）
     (node.inputsData || []).forEach((pl, i) => {
-      if (pl && pl.type === 'image' && typeof pl.value === 'string' && pl.value.startsWith('data:')) {
+      if (pl && pl.type === 'image' && normalizeImageSrc(pl.value)) {
         const portLabel = (def.inputs && def.inputs[i]) ? def.inputs[i].label : ('输入' + (i + 1));
         assets.push({ src: pl.value, label: '输入·' + portLabel, nodeId: node.id, nodeTitle: node.title, kind: 'input' });
       }
     });
     // 产出图片
     (node.outputsData || []).forEach((pl, i) => {
-      if (pl && pl.type === 'image' && typeof pl.value === 'string' && pl.value.startsWith('data:')) {
+      if (pl && pl.type === 'image' && normalizeImageSrc(pl.value)) {
         assets.push({ src: pl.value, label: '产出·' + (i + 1), nodeId: node.id, nodeTitle: node.title, kind: 'output' });
       }
     });
+  });
+  // #11 跨画布复用：合并全局资产库（与当前画布同 key 的以当前为准，避免重复）
+  const curKeys = new Set(assets.map(a => assetKey(a)));
+  globalAssetEntries().forEach(g => {
+    const k = assetKey(g);
+    if (!curKeys.has(k)) assets.push(g);
   });
   return assets;
 }
@@ -1126,7 +1933,10 @@ function updateAssetPanel() {
         '</div>';
       cell.querySelector('.asset-thumb').onclick = () => openImageLightbox(a.src);
       cell.querySelector('[data-act="view"]').onclick = () => openImageLightbox(a.src);
-      cell.querySelector('[data-act="locate"]').onclick = () => { locateNode(a.nodeId); toggleAssetPanel(false); };
+      cell.querySelector('[data-act="locate"]').onclick = () => {
+        if (!workflow.nodes.has(a.nodeId)) { showToast('该资产来自其他画布，无法在本画布定位（仍可引用）', 'warn'); return; }
+        locateNode(a.nodeId); toggleAssetPanel(false);
+      };
       cell.querySelector('[data-act="download"]').onclick = () => downloadDataUrl(a.src, 'asset_' + (idx + 1) + '.png');
       const nameInput = cell.querySelector('.asset-name-input');
       const lockInput = cell.querySelector('.asset-lock-input');
@@ -1138,7 +1948,9 @@ function updateAssetPanel() {
       cell.querySelector('[data-act="setasset"]').onclick = () => {
         const nm = (nameInput.value || '').trim();
         setAssetMeta(key, { name: nm, cat: sel.value, lock: (lockInput.value || '').trim() });
-        showToast('已设为资产 <<<' + (nm || refName) + '>>>' + (sel.value ? ' · ' + sel.value : ''), 'success');
+        // #11 跨画布复用：任一资产设为资产时，图片本体也写入全局库
+        saveGlobalAssetImage(key, { src: a.src, nodeTitle: a.nodeTitle, label: a.label, kind: a.kind });
+        showToast('已设为全局资产 <<<' + (nm || refName) + '>>>' + (sel.value ? ' · ' + sel.value : '') + '（跨画布可复用）', 'success');
         updateAssetPanel();
       };
       cell.querySelector('[data-act="ref"]').onclick = () => copyRefToken((nameInput.value || '').trim() || refName);
@@ -1336,8 +2148,666 @@ const TEMPLATES = [
       { type: 'aiSet', x: 540, y: 180, title: '角色设定集', params: {} }
     ],
     edges: [[0,1],[0,2],[0,3],[1,4],[2,4],[3,4]]
-  }
+  },
+    {
+    id: 'character-asset-board',
+    name: '人物资产设计板',
+    icon: '🎭', color: '#4ECDC4',
+    desc: '10段式通用提示词模板：基于任意参考角色，自动生成含三视图+4项细节的专业角色设定板。',
+    nodes: [
+      { type: 'text', x: -360, y: -120, title: '参考角色与10段提示词', params: { charDesc: '', text: '以参考图作为角色外观与视觉风格设定依据，自动识别其中最主要角色，并延续该角色已有的外形轮廓、年龄气质、物种特征、面部或头部结构、发型、毛发、角、耳朵、面具、头盔、身体比例、服装、护甲、配件、纹样、材质、色彩和随身物件。\n\n基于参考图已有设计，自然补全角色未展示的正面、侧面、背面和局部结构。补全内容遵循参考图现有的造型语言、制作工艺、功能逻辑和色彩关系，保持简洁统一。生成一张16:9横版、纯白背景的专业角色视觉设定板。完全延续参考图原有的表现形式：写实角色继续保持真实质感，二次元角色继续保持原有动漫画风，卡通角色保持原有比例和线条，游戏角色保持原有建模与材质，非人角色保持原有物种结构，机械角色保持原有机械设计语言。所有视图采用统一画风、统一色温和统一光线。\n\n画面左侧放置角色的大型头部或核心识别区域特写。人形角色重点展示面部轮廓、五官、发型、妆容、头部配件与衣领；动物或非人角色重点展示眼睛、口鼻、耳朵、角、毛发、鳞片、外壳或其他主要识别结构；机械角色重点展示头部、面罩、传感器、发光核心和机械连接方式。\n\n如果参考角色佩戴面具、头盔、兜帽或其他遮面结构，则保持原有佩戴状态，通过头部造型、眼部区域和材质细节表现角色特征。特写与右侧三视图保持相同的外观、配色和配件。画面右侧并排展示角色的正面、完整侧面、背面全身正交三视图。\n\n三个视图等比例、同高度、同一基线，从角色最高点到最低点完整呈现，间距均匀，轮廓互不重叠。正面、侧面和背面准确展示角色的头部、躯干、四肢、服装、护甲、配件以及参考图中已有的尾巴、翅膀、角、触须、披风或其他特殊结构。人形角色采用自然标准站姿，双臂轻微离开身体，手部自然放松，服装轮廓和腰部结构清楚。四足角色采用稳定自然站姿，四肢落点和身体重心合理。悬浮型或无腿角色保持符合原设定的稳定状态，并为三个视图设置统一的垂直基准。\n\n三视图区域使用平静、清楚的展示状态。长发、衣摆、披风、飘带、尾巴、翅膀和柔性附属结构保持自然舒展，完整显示连接位置、长度、数量和前后层级，同时避免遮住身体主要结构。正面视图准确呈现角色的主要轮廓、配色分区、服装开合、主要配件和正面标志。侧面视图采用标准90度完整侧向角度，清楚呈现头部侧面、躯干厚度、关节关系、服装层级、前后轮廓和附属结构。\n\n背面视图清楚呈现后脑或头部背面、颈部连接、背部结构、服装后片、配件固定方式、尾部、翅膀、披风、衣摆和足部后侧。参考图未展示的背面，根据现有正面设计逻辑自然补全。画面中部或靠近下方的留白区域，自动选择最能帮助后续创作的4项小型补充视图。\n\n4项小型补充视图内容包括：1. 头部、眼睛、面部标记、面具或头饰细节；2. 服装、护甲、毛发、鳞片、外壳或主要材质细节；3. 腰部配件、徽记、扣具、首饰或功能连接结构；4. 手部、足部、爪部、关节、翅膀、尾巴或特殊器官细节；5. 参考图中已有的主要随身物件独立展示；6. 一个符合角色气质和能力特点的小型标志姿态。\n\n从以上内容中选择最有识别价值的4项。参考图中没有的结构或物件不作添加，相应位置改为展示角色真实存在的设计细节。补充视图尺寸明显小于主要特写和三视图，排列清楚，互不遮挡。所有视图保持角色的外形、比例、发型或头部结构、服装、配色、纹样、材质、配件数量和安装位置统一。非对称设计继续保持原有左右关系；重复结构保持相同数量；发光区域保持相同颜色、形状和位置。\n\n整体呈现为高完成度专业角色概念设计板，结构准确，材质清楚，细节精美，轮廓易于辨认，适合作为后续图片、动画、视频、游戏或三维制作的角色参考。16:9横版，纯白无缝背景，布局简洁，留白充足，画面只呈现角色设定需要的视图与细节，无文字、无标签、无边框、无水印。' } },
+    { type: 'aiImage', x: 40, y: -120, title: '生成角色资产设计板', params: { model: 'GPT Image 2', prompt: '', negativePrompt: 'low quality, blurry, deformed, extra limbs, bad anatomy, text, watermark, signature, label, border, frame, cropped, multiple inconsistent styles, busy background, dark background', aspect: '16:9', count: '1张', resolution: '超清2K' } },
+    ],
+    edges: [[0,1]]
+  },
+  // ===== AUTO:25GRID_TEMPLATE =====
+  ,
+  {
+  "id": "dress-25grid",
+  "name": "连衣裙 25 宫格分镜",
+  "icon": "👗",
+  "color": "#FF4D6D",
+  "desc": "基于视频反解的 25 格时尚舞台分镜：统一视觉锚点 × 5 维度（景别/机位/光影/动作/焦点）各 5 档，一键铺出 5×5 生图网格，每格预填英文提示词，运行即出图。",
+  "nodes": [
+    {
+      "type": "text",
+      "x": -1140,
+      "y": -660,
+      "title": "📐 25 宫格 · 统一锚点",
+      "params": {
+        "text": "连衣裙 25 宫格分镜模板 · 统一锚点：白色抹胸蓬蓬短裙 + 黑丝带 + 水晶蝴蝶结颈链 + 黑色蕾丝袜带 / 黑背景红舞台光 / 电影感时装摄影。\n每个「AI 绘图」节点已预填对应宫格的英文提示词，运行即出该格画面；负向词已内置。5 行 × 5 列 = 5 维度各 5 档组合。"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": -760,
+      "y": -360,
+      "title": "01｜extreme long shot·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, single overhead spotlight, extreme long shot, front view, standing still, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": -380,
+      "y": -360,
+      "title": "02｜full body·side view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, full body, side view, standing still, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 0,
+      "y": -360,
+      "title": "03｜close-up·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, frontal key light, close-up, front view, elegant hand/leg detail, focus on jewelry/accessories, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 380,
+      "y": -360,
+      "title": "04｜full body·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, single overhead spotlight, full body, front view, standing still, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 760,
+      "y": -360,
+      "title": "05｜medium close-up·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, medium close-up, front view, standing still, focus on face, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": -760,
+      "y": -70,
+      "title": "06｜close-up·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, frontal key light, close-up, front view, lifting skirt hem, focus on fabric details, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": -380,
+      "y": -70,
+      "title": "07｜close-up·side view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, frontal key light, close-up, side view, elegant hand/leg detail, focus on jewelry/accessories, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 0,
+      "y": -70,
+      "title": "08｜medium shot·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, medium shot, front view, turning with hair motion, focus on face, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 380,
+      "y": -70,
+      "title": "09｜close-up·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, frontal key light, close-up, front view, standing still, focus on face, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 760,
+      "y": -70,
+      "title": "10｜full body·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, full body, front view, lifting skirt hem, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": -760,
+      "y": 220,
+      "title": "11｜full body·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, full body, front view, dancing with skirt flying, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": -380,
+      "y": 220,
+      "title": "12｜medium shot·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, medium shot, front view, turning with hair motion, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 0,
+      "y": 220,
+      "title": "13｜close-up·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, close-up, front view, elegant hand/leg detail, focus on body parts, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 380,
+      "y": 220,
+      "title": "14｜extreme long shot·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, single overhead spotlight, extreme long shot, front view, standing still, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 760,
+      "y": 220,
+      "title": "15｜close-up·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, close-up, front view, lifting skirt hem, focus on fabric details, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": -760,
+      "y": 510,
+      "title": "16｜medium shot·back view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, backlight silhouette, medium shot, back view, turning with hair motion, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": -380,
+      "y": 510,
+      "title": "17｜full body·back view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, backlight silhouette, full body, back view, standing still, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 0,
+      "y": 510,
+      "title": "18｜close-up·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, close-up, front view, elegant hand/leg detail, focus on body parts, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 380,
+      "y": 510,
+      "title": "19｜medium close-up·side view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, medium close-up, side view, standing still, focus on face, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 760,
+      "y": 510,
+      "title": "20｜medium close-up·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, frontal key light, medium close-up, front view, standing still, focus on face, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": -760,
+      "y": 800,
+      "title": "21｜close-up·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, frontal key light, close-up, front view, standing still, focus on jewelry/accessories, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": -380,
+      "y": 800,
+      "title": "22｜extreme long shot·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, atmospheric mixed red lights, extreme long shot, front view, standing still, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 0,
+      "y": 800,
+      "title": "23｜medium close-up·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, medium close-up, front view, turning with hair motion, focus on face, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 380,
+      "y": 800,
+      "title": "24｜medium shot·side view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, multiple side spotlights, medium shot, side view, standing still, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    },
+    {
+      "type": "aiImage",
+      "x": 760,
+      "y": 800,
+      "title": "25｜extreme long shot·front view",
+      "params": {
+        "model": "GPT Image 2",
+        "prompt": "young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings, atmospheric mixed red lights, extreme long shot, front view, standing still, focus on full figure, dark stage, black background, small ceiling light grid, high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial",
+        "negativePrompt": "daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime",
+        "aspect": "9:16",
+        "count": "1张",
+        "resolution": "超清2K"
+      }
+    }
+  ],
+  "edges": []
+}
 ];
+
+//================ 5b. 风格预设库（一键填充：角色描述 + AI 绘图参数） ================
+//  按 category 分组（一级分类）；每组下多个 chip（二级标签），点击应用
+const STYLE_PRESETS = [
+  // —— 东方美学 ——
+  { category: '东方美学', id: 'gufeng-dnv', name: '古风大女主', icon: '🏯', desc: '东方古装 · 名门千金', color: '#D9A441',
+    charDesc: '一位出身名门的古风千金大小姐，气质温婉清冷，眉眼如画，云髻高绾配珠钗步摇，身着淡雅襦裙汉服，广袖流仙',
+    text: '以参考图与上述描述为准，生成统一风格的四视角角色设定图（正面/侧面/背面/半身）。' },
+  { category: '东方美学', id: 'shuimo-guofeng', name: '国风水墨', icon: '🖌️', desc: '水墨丹青 · 留白意境', color: '#3D8B7D',
+    charDesc: '一位水墨画风格的古典人物，衣袂飘飘，气质出尘，身姿绰约，眉目间有诗书气',
+    text: '以参考图与上述描述为准，生成东方水墨国风风格的四视角角色设定图（正面/侧面/背面/半身）。' },
+  { category: '东方美学', id: 'guochao-chahua', name: '国潮插画', icon: '🧧', desc: '传统纹样 · 现代潮玩', color: '#E04F5F',
+    charDesc: '一位国潮插画风格的时尚青年，融合传统纹样与街头潮流元素，配色鲜明，姿态自信',
+    text: '以参考图与上述描述为准，生成国潮插画风格的四视角角色设定图（正面/侧面/背面/半身）。' },
+  // —— 写实风格 ——
+  { category: '写实风格', id: 'xieshi-dianying', name: '写实电影人像', icon: '🎬', desc: '真人质感 · 电影光影', color: '#5B8DEF',
+    charDesc: '一位东方年轻女性，五官立体，皮肤细腻真实，眼神有故事感，身着简约现代服装，气质清冷高级',
+    text: '以参考图与上述描述为准，生成电影级写实风格的四视角角色设定图（正面/侧面/背面/半身）。' },
+  { category: '写实风格', id: 'dianying-xiezhen', name: '电影级写真', icon: '📸', desc: '商业摄影 · 大牌质感', color: '#8B5CF6',
+    charDesc: '一位高级时尚感的模特，五官精致，气质冷艳，身着设计师款服装，气场强大',
+    text: '以参考图与上述描述为准，生成商业时尚大片风格的四视角角色设定图（正面/侧面/背面/半身）。' },
+  // —— 动漫插画 ——
+  { category: '动漫插画', id: 'erciyuan', name: '二次元动漫', icon: '🎀', desc: '日漫风 · 高完成度', color: '#F06BB0',
+    charDesc: '一位元气满满的动漫少女，大眼睛水润，双马尾，身穿水手服，笑容灿烂，充满青春活力',
+    text: '以参考图与上述描述为准，生成日系二次元风格的四视角角色设定图（正面/侧面/背面/半身）。' },
+  { category: '动漫插画', id: 'qban-katong', name: 'Q版卡通', icon: '🧸', desc: '萌系大头 · 三头身', color: '#FFA94D',
+    charDesc: '一位Q版卡通风格的角色，头大身小比例可爱，大眼睛圆润，表情呆萌，穿着可爱服装',
+    text: '以参考图与上述描述为准，生成Q版卡通风格的四视角角色设定图（正面/侧面/背面/半身）。' },
+  // —— 未来科技 ——
+  { category: '未来科技', id: 'saibo-punk', name: '赛博朋克', icon: '🤖', desc: '霓虹都市 · 未来科技', color: '#00B8D9',
+    charDesc: '一位赛博朋克风格的未来战士，短发利落，面部有精密机械纹路，身着高领机能风外套，霓虹灯光映照',
+    text: '以参考图与上述描述为准，生成赛博朋克霓虹风格的四视角角色设定图（正面/侧面/背面/半身）。' },
+  // —— 视频创作（生成图片型：完整 prompt 自描述，无角色依赖）——
+  { category: '视频创作', mode: 'scene', id: 'koubo-fengmian', name: '口播封面', icon: '📢', desc: '爆款封面 · 大字标题位', color: '#E0533D',
+    prompt: '生成一张高点击率的短视频封面图：主体人物位于左侧三分之二区域，表情有感染力，右侧预留标题文字空间，背景简洁有氛围光，色彩鲜艳对比强，电商广告质感，9:16 竖版',
+    aspect: '9:16', count: '1张' },
+  { category: '视频创作', mode: 'scene', id: 'dianshang-zhushijue', name: '电商主视觉', icon: '🛍️', desc: '产品展示 · 促销氛围', color: '#FF8A65',
+    prompt: '生成一张电商主视觉图：主体商品位于画面中央黄金位置，底部预留价格与文案条幅空间，左右留白，背景为高级渐变+光晕氛围，产品打光专业，质感精致，1:1 方图',
+    aspect: '1:1', count: '1张' },
+  { category: '视频创作', mode: 'scene', id: 'zhuangchang-jingtou', name: '转场镜头', icon: '🔀', desc: '场景过渡 · 动感衔接', color: '#3DA5E0',
+    prompt: '生成一张电影级转场镜头画面：两段场景以动态模糊和光影流动衔接，前景主体与背景场景形成对比，色彩过渡自然，运动感强，电影调色，9:16 竖版',
+    aspect: '9:16', count: '1张' },
+  { category: '视频创作', mode: 'scene', id: 'gengpai-jingtou', name: '跟拍镜头', icon: '🎥', desc: '第三人称跟随 · 人物动态', color: '#5B8DEF',
+    prompt: '生成一张电影级跟拍镜头画面：从人物侧后方跟随视角，人物位于画面三分之一处行走或奔跑，背景街道/自然纵深虚化，速度感与呼吸感，电影调色，9:16 竖版',
+    aspect: '9:16', count: '1张' },
+  { category: '视频创作', mode: 'scene', id: 'lvpai-kongjing', name: '旅拍空镜', icon: '🏔️', desc: '风景氛围 · 治愈系', color: '#26A69A',
+    prompt: '生成一张治愈系旅拍空镜图：绝美自然风光或城市地标，无人物或人物极小，光线柔和（日出/黄昏/蓝调时刻），色彩干净通透，电影感构图，可做短视频转场空镜，9:16 竖版',
+    aspect: '9:16', count: '1张' },
+  { category: '视频创作', mode: 'scene', id: 'vlog-kaichang', name: 'Vlog开场', icon: '📱', desc: '标题大字 · 氛围开场', color: '#F2C66B',
+    prompt: '生成一张 Vlog 开场画面：主体人物或场景居中，四周留出大块纯净空间用于叠加标题大字，整体氛围感强、色调统一，高级简洁，杂志封面质感，9:16 竖版',
+    aspect: '9:16', count: '1张' }
+];
+
+// 刷新侧边栏预设 chip 的"已应用"样式（会话级标记）
+function refreshPresetChipUI() {
+  if (!window.__appliedPresets) return;
+  document.querySelectorAll('.preset-chip').forEach(function(c) {
+    const applied = !!window.__appliedPresets[c.dataset.presetId];
+    c.classList.toggle('preset-chip-applied', applied);
+    if (applied) {
+      const t = c.title || '';
+      if (t.indexOf('已应用') < 0) c.title = t + '（已应用过，可再点追加）';
+    }
+  });
+}
+
+// 应用风格预设：创建 text（角色描述）+ aiImage（AI 绘图）并自动连线
+function applyStylePreset(preset) {
+  // 标记已应用（供侧边栏 chip 显示"已应用"样式），并即时刷新 chip UI
+  window.__appliedPresets = window.__appliedPresets || {};
+  window.__appliedPresets[preset.id] = true;
+  refreshPresetChipUI();
+  const cam = workflow.camera;
+  const rect = canvasWrap.getBoundingClientRect();
+  const cx = (rect.width / 2 - cam.x) / cam.zoom;
+  const cy = (rect.height / 2 - cam.y) / cam.zoom;
+  const tx = cx - 240, ty = cy - 60;
+
+  const textNode = addNode('text', tx, ty);
+  textNode.title = preset.name + (preset.mode === 'scene' ? ' · 提示词' : ' · 角色描述');
+  textNode.charDesc = preset.charDesc || '';
+  textNode.prompt = preset.text || '';
+  if (textNode.el) buildNodeBody(textNode.el, textNode);
+
+  const imgNode = addNode('aiImage', tx + 360, ty);
+  imgNode.title = preset.name + ' · AI 绘图';
+  // 视频创作/场景类预设用自带完整 prompt；角色类用默认视角指令（会被上游 charDesc+text 前置拼接）
+  imgNode.prompt = preset.prompt || '同一角色保持外观一致，纯色背景';
+  imgNode.params = Object.assign({}, imgNode.params, {
+    model: 'GPT Image 2',
+    aspect: preset.aspect || '9:16',
+    count: preset.count || '4张',
+    resolution: preset.resolution || '超清2K',
+    negativePrompt: preset.negativePrompt || 'low quality, blurry, deformed, bad anatomy, text, watermark, signature',
+  });
+  if (imgNode.el) buildNodeBody(imgNode.el, imgNode);
+
+  // text.out[0] → aiImage.in[0]（image 端口；prompt 经 effectivePrompt 拼接、参考图经 collectInlineRefs 传递）
+  connectNodes(textNode.id, 0, imgNode.id, 0);
+  // 多选只保留 imgNode（避免影响后续操作）
+  workflow.selection.clear();
+  workflow.selection.add(imgNode.id);
+  markEdgesDirty();
+  scheduleAutosave();
+  showToast('已应用预设「' + preset.name + '」：提示词 + AI 绘图已创建并连线', 'success');
+}
+
+// 状态列表节点：根据「每行一个状态」批量生成 AI 绘图节点（保持角色一致 + 自动连线）
+function generateStateNodes(node) {
+  const lines = String(node.params && node.params.states || '').split('\n').map(s => s.trim()).filter(Boolean);
+  if (!lines.length) { showToast('请先在状态列表填写至少一个状态', 'warn'); return; }
+  if (lines.length > 20) { showToast('状态数量过多（最多 20 个）', 'warn'); return; }
+
+  const originX = node.x, originY = node.y;
+  const batchId = newCharacterBatchId(node.id);
+  const created = [];
+  lines.forEach((state, i) => {
+    const imgNode = addNode('aiImage', originX + 380, originY + i * 150);
+    imgNode.title = '状态' + cnNum(i + 1) + '：' + state;
+    imgNode.stateMeta = {
+      sourceId: node.id, label: state, index: i + 1,
+      batchId, batchIndex: i + 1, batchTotal: lines.length,
+      batchProgress: null, failureReason: '',
+    };
+    imgNode.prompt = '同一角色保持脸型、发型、五官、体型、气质完全一致，仅更换：' + state + '，纯色背景';
+    imgNode.params = Object.assign({}, imgNode.params, {
+      model: 'GPT Image 2',
+      aspect: '9:16',
+      count: '1张',
+      resolution: '超清2K',
+      negativePrompt: 'low quality, blurry, deformed, extra limbs, bad anatomy, different face, different hairstyle, text, watermark, signature',
+    });
+    if (imgNode.el) buildNodeBody(imgNode.el, imgNode);
+    // node.out[0] → imgNode.in[0]（image 端口；参考图经 collectInlineRefs 传递，角色描述经 effectivePrompt 拼接）
+    connectNodes(node.id, 0, imgNode.id, 0);
+    created.push(imgNode);
+  });
+
+  workflow.selection.clear();
+  created.forEach(n => workflow.selection.add(n.id));
+  if (created[0]) refreshCharacterBatchProgress(created[0]);
+  markEdgesDirty();
+  scheduleAutosave();
+  showToast('已生成 ' + created.length + ' 个状态节点（角色一致 + 自动连线）', 'success');
+}
+
+// 从文本节点「角色描述」框解析状态列表并批量生成 AI 绘图节点
+// 支持格式：
+//   状态列表：
+//   - 日常着装 / · 华丽礼服 / * 古风汉服
+//   状态：雨中撑伞 / 状态2：xxx
+function generateStateNodesFromText(textNode) {
+  const raw = String(textNode.charDesc || '').trim();
+  const lines = raw.split('\n').map(s => s.trim()).filter(Boolean);
+  const states = [];
+  let inList = false;
+  lines.forEach(line => {
+    if (/^状态\s*列表/.test(line)) { inList = true; return; }
+    const bullet = line.match(/^[-·•*]\s*(.+)$/);
+    if (bullet) { states.push(bullet[1]); return; }
+    const numbered = line.match(/^状态\s*\d*[:：]\s*(.+)$/);
+    if (numbered) { states.push(numbered[1]); return; }
+    if (inList && line) states.push(line);
+  });
+  if (!states.length) {
+    showToast('请在「角色描述」框填写状态列表（每行一个：- 华丽礼服 或 状态：雨中撑伞）', 'warn');
+    return;
+  }
+  if (states.length > 20) { showToast('状态数量过多（最多 20 个）', 'warn'); return; }
+
+  const originX = textNode.x, originY = textNode.y;
+  const batchId = newCharacterBatchId(textNode.id);
+  const created = [];
+  states.forEach((state, i) => {
+    const imgNode = addNode('aiImage', originX + 420, originY + i * 170);
+    imgNode.title = '状态' + cnNum(i + 1) + '：' + state;
+    imgNode.stateMeta = {
+      sourceId: textNode.id, label: state, index: i + 1,
+      batchId, batchIndex: i + 1, batchTotal: states.length,
+      batchProgress: null, failureReason: '',
+    };
+    imgNode.prompt = '同一角色保持脸型、发型、五官、体型、气质完全一致，仅更换：' + state + '，纯色背景';
+    imgNode.params = Object.assign({}, imgNode.params, {
+      model: 'GPT Image 2',
+      aspect: '9:16',
+      count: '1张',
+      resolution: '超清2K',
+      negativePrompt: 'low quality, blurry, deformed, extra limbs, bad anatomy, different face, different hairstyle, text, watermark, signature',
+    });
+    if (imgNode.el) buildNodeBody(imgNode.el, imgNode);
+    // text.out[0] → imgNode.in[0]（参考图经 collectInlineRefs、描述经 effectivePrompt 拼接）
+    connectNodes(textNode.id, 0, imgNode.id, 0);
+    created.push(imgNode);
+  });
+  workflow.selection.clear();
+  created.forEach(n => workflow.selection.add(n.id));
+  if (created[0]) refreshCharacterBatchProgress(created[0]);
+  markEdgesDirty();
+  scheduleAutosave();
+  showToast('已生成 ' + created.length + ' 个状态节点（角色一致 + 自动连线）', 'success');
+  setTimeout(function() { fitToContent(); }, 60);
+}
+
+// 角色状态节点的最小管理闭环：单节点重试、复制并保持角色来源、删除走统一回收站。
+function isCharacterStateNode(node) {
+  return !!(node && node.type === 'aiImage' && node.stateMeta && node.stateMeta.label);
+}
+
+function retryCharacterStateNode(node) {
+  if (!isCharacterStateNode(node)) return;
+  if (node.status === 'running') return;
+  // 取消是节点级终态意图；点击“重试”必须显式解除该意图，
+  // 否则 Runner 会把新一轮执行继续判定为 cancelled。
+  if (window.FlowCraft && window.FlowCraft.runner && typeof window.FlowCraft.runner.clearCancel === 'function') {
+    window.FlowCraft.runner.clearCancel(node.id);
+  }
+  clearCharacterStateFailure(node);
+  node.thumb = null;
+  node._galleryImages = [];
+  node.outputsData = (node.def.outputs || []).map(() => null);
+  refreshCharacterBatchProgress(node);
+  if (node.el) {
+    buildNodeBody(node.el, node);
+    updateNodeStatus(node);
+  }
+  scheduleAutosave();
+  showToast('正在重试：' + node.title, 'info');
+  runNode(node);
+}
+
+// 取消单个角色状态节点：进入“已取消”终态（区别于失败）。
+// 运行中无法撤回已发出的网络请求，但 Runner 会丢弃晚到结果且不写回节点。
+function cancelCharacterStateNode(node) {
+  if (!isCharacterStateNode(node)) return;
+  if (node.status === 'cancelled') return;
+  if (window.FlowCraft && window.FlowCraft.runner && typeof window.FlowCraft.runner.cancel === 'function') {
+    window.FlowCraft.runner.cancel(node.id);
+  }
+  setNodeStatus(node, 'cancelled', '');
+  if (node.stateMeta) node.stateMeta.failureReason = '';
+  if (node.el) updateNodeStatus(node);
+  scheduleAutosave();
+  showToast('已取消：' + (node.title || (node.stateMeta && node.stateMeta.label) || '状态节点'), 'info');
+}
+
+function duplicateCharacterStateNode(node) {
+  if (!isCharacterStateNode(node)) return;
+  const source = workflow.nodes.get(node.stateMeta.sourceId);
+  const copy = duplicateNode(node);
+  copy.title = node.title + ' · 副本';
+  copy.stateMeta = {
+    ...copyStateMeta(node.stateMeta),
+    batchId: newCharacterBatchId(node.stateMeta.sourceId),
+    batchIndex: 1,
+    batchTotal: 1,
+    batchProgress: null,
+    failureReason: '',
+    copyOf: node.id,
+  };
+  copy.status = 'idle';
+  copy.failureReason = '';
+  copy._lastError = '';
+  copy.thumb = null;
+  copy._galleryImages = [];
+  if (copy.el) {
+    const titleEl = copy.el.querySelector('.node-title-text');
+    if (titleEl) titleEl.textContent = copy.title;
+    buildNodeBody(copy.el, copy);
+  }
+  if (source) connectNodes(source.id, 0, copy.id, 0);
+  refreshCharacterBatchProgress(copy);
+  selectNode(copy);
+  scheduleAutosave();
+  showToast('已复制状态节点：' + (node.stateMeta.label || node.title), 'success');
+  return copy;
+}
 
 function openTemplatePanel() {
   const panel = document.getElementById('templatePanel');
@@ -1370,11 +2840,70 @@ function renderTemplateList() {
       '<div class="template-desc">' + esc(t.desc) + '</div>' +
       '<div class="template-flow">' + chips + '</div>' +
       '<div class="template-actions">' +
+        (t.id === 'dress-25grid' ? '<button class="ai-btn small" data-act="generate25" data-id="' + t.id + '">直接生成</button>' : '') +
         '<button class="ai-btn small" data-act="append" data-id="' + t.id + '">追加</button>' +
         '<button class="ai-btn small" data-act="replace" data-id="' + t.id + '">清空并加载</button>' +
       '</div>' +
     '</div>';
   }).join('');
+}
+
+function cloneTemplateSpec(t) {
+  return JSON.parse(JSON.stringify(t));
+}
+
+function loadTemplateSpec(t, mode) {
+  if (!t) return;
+  if (mode === 'replace') clearGraph();
+  pushHistory();
+  const created = [];
+  // 追加模式：自动错开前一个模板的位置（整体放在现有节点右侧，避免重叠）
+  let offX = 0, offY = 0;
+  if (mode === 'append') {
+    let tMinX = Infinity;
+    t.nodes.forEach(s => { if (s.x < tMinX) tMinX = s.x; });
+    if (!isFinite(tMinX)) tMinX = 0;
+    const bb = getNodesBBox();
+    const GAP = 80;
+    if (bb) offX = (bb.maxX + GAP) - tMinX;
+    else offX = -tMinX;
+    offY = 0;
+  }
+  t.nodes.forEach(spec => {
+    const x = spec.x + offX, y = spec.y + offY;
+    const node = new WorkflowNode(spec.type, x, y);
+    node.title = spec.title || node.def.label;
+    if (spec.params) {
+      node.params = Object.assign({}, node.params, spec.params);
+      if (typeof spec.params.prompt === 'string') node.prompt = spec.params.prompt;
+      else if (spec.type === 'text' && typeof spec.params.text === 'string') node.prompt = spec.params.text;
+      if (typeof spec.params.script === 'string') node.script = spec.params.script;
+      if (typeof spec.params.charDesc === 'string') node.charDesc = spec.params.charDesc;
+    }
+    const el = createNodeElement(node);
+    nodeLayer.appendChild(el);
+    workflow.nodes.set(node.id, node);
+    workflow.order.push(node.id);
+    if (node.el) node.el.classList.add('selected');
+    buildNodeBody(node.el, node);
+    created.push(node);
+  });
+  workflow.selection.clear();
+  created.forEach(n => workflow.selection.add(n.id));
+  (t.edges || []).forEach(([a, b]) => {
+    const from = created[a], to = created[b];
+    if (from && to) {
+      const e = new Edge(from, 0, to, 0);
+      workflow.edges.set(e.id, e);
+    }
+  });
+  markEdgesDirty();
+  updateStatusbar();
+  renderMinimap();
+  scheduleAutosave();
+  setTimeout(() => fitToContent(), 60);
+  showToast('已加载模板「' + t.name + '」· ' + created.length + ' 个节点', 'success');
+  closeTemplatePanel();
 }
 
 function clearGraph() {
@@ -1391,59 +2920,68 @@ function clearGraph() {
 function loadTemplate(id, mode) {
   const t = TEMPLATES.find(x => x.id === id);
   if (!t) return;
-  if (mode === 'replace') clearGraph();
-  pushHistory();
-  const created = [];
-  // 追加模式：自动错开前一个模板的位置（整体放在现有节点右侧，避免重叠）
-  let offX = 0, offY = 0;
-  if (mode === 'append') {
-    // 模板自身最左节点的 spec.x（spec 常含负值，需按整体平移）
-    let tMinX = Infinity;
-    t.nodes.forEach(s => { if (s.x < tMinX) tMinX = s.x; });
-    if (!isFinite(tMinX)) tMinX = 0;
-    const bb = getNodesBBox();
-    const GAP = 80;
-    if (bb) {
-      // 把本模板最左节点对齐到「现有内容右边界 + 间距」
-      offX = (bb.maxX + GAP) - tMinX;
-    } else {
-      // 画布为空时把模板最左节点对齐到 x=0
-      offX = -tMinX;
-    }
-    offY = 0;
-  }
-  t.nodes.forEach(spec => {
-    const x = spec.x + offX, y = spec.y + offY;
-    const node = new WorkflowNode(spec.type, x, y);
-    node.title = spec.title || node.def.label;
-    if (spec.params) node.params = Object.assign({}, node.params, spec.params);
-    const el = createNodeElement(node);
-    nodeLayer.appendChild(el);
-    workflow.nodes.set(node.id, node);
-    workflow.order.push(node.id);
-    if (node.el) node.el.classList.add('selected');
-    buildNodeBody(node.el, node);
-    created.push(node);
+  loadTemplateSpec(t, mode);
+}
+
+function buildDress25GridTemplate() {
+  const anchor = '连衣裙 25 宫格分镜模板 · 统一锚点：白色抹胸蓬蓬短裙 + 黑丝带 + 水晶蝴蝶结颈链 + 黑色蕾丝袜带 / 黑背景红舞台光 / 电影感时装摄影。\n每个「AI 绘图」节点已预填对应宫格的英文提示词，运行即出该格画面；负向词已内置。5 行 × 5 列 = 5 维度各 5 档组合。';
+  const style = 'high fashion photography, cinematic, red stage lighting, strong chiaroscuro, 4K, ultra-detailed, film grain, fashion editorial';
+  const neg = 'daylight, outdoor, busy background, low quality, blurry, multiple faces, deformed hands, cartoon, anime';
+  const rows = [
+    { y: -360, name: 'front view', light: 'single overhead spotlight', action: 'standing still', focus: 'focus on full figure' },
+    { y: -70,  name: 'side view', light: 'multiple side spotlights', action: 'turning with hair motion', focus: 'focus on face' },
+    { y: 220,  name: 'front view', light: 'frontal key light', action: 'lifting skirt hem', focus: 'focus on fabric details' },
+    { y: 510,  name: 'back view', light: 'backlight silhouette', action: 'dancing with skirt flying', focus: 'focus on full figure' },
+    { y: 800,  name: 'side view', light: 'rim light', action: 'walking pose', focus: 'focus on body parts' },
+  ];
+  const cols = [
+    { x: -760, label: 'extreme long shot' },
+    { x: -380, label: 'full body' },
+    { x: 0,    label: 'close-up' },
+    { x: 380,  label: 'medium shot' },
+    { x: 760,  label: 'medium close-up' },
+  ];
+  const nodes = [{ type: 'text', x: -1140, y: -660, title: '📐 25 宫格 · 统一锚点', params: { text: anchor } }];
+  let idx = 1;
+  rows.forEach((row, r) => {
+    cols.forEach((col, c) => {
+      const title = String(idx).padStart(2, '0') + '｜' + col.label + '·' + row.name;
+      const prompt = [
+        'young female model in white strapless ruffled mini dress with black ribbon, crystal bow choker, black lace garter stockings',
+        row.light,
+        col.label,
+        row.name,
+        row.action,
+        row.focus,
+        'dark stage, black background, small ceiling light grid',
+        style,
+      ].join(', ');
+      nodes.push({
+        type: 'aiImage',
+        x: col.x,
+        y: row.y,
+        title,
+        params: {
+          model: 'GPT Image 2',
+          prompt,
+          negativePrompt: neg,
+          aspect: '9:16',
+          count: '1张',
+          resolution: '超清2K'
+        }
+      });
+      idx += 1;
+    });
   });
-  // 清空旧选中（追加模式下不强制，但保持单选直觉）
-  workflow.selection.clear();
-  created.forEach(n => workflow.selection.add(n.id));
-  // 连线：output[0] → input[0]
-  (t.edges || []).forEach(([a, b]) => {
-    const from = created[a], to = created[b];
-    if (from && to) {
-      const e = new Edge(from, 0, to, 0);
-      workflow.edges.set(e.id, e);
-    }
-  });
-  markEdgesDirty();
-  updateStatusbar();
-  renderMinimap();
-  scheduleAutosave();
-  setTimeout(() => fitToContent(), 60);
-  showToast('已加载模板「' + t.name + '」· ' + created.length + ' 个节点', 'success');
-  // 挑选后自动关闭开箱模板面板
-  closeTemplatePanel();
+  return {
+    id: 'dress-25grid-generated',
+    name: '连衣裙 25 宫格分镜（生成版）',
+    icon: '👗',
+    color: '#FF4D6D',
+    desc: '一键生成 5×5 25 宫格：按统一锚点自动铺开 25 个 AI 绘图节点，并可继续追加/导出。',
+    nodes,
+    edges: [[0,1]]
+  };
 }
 
 // 计算当前所有节点在画布坐标系中的包围盒（用于模板追加时自动错开）
@@ -1467,7 +3005,12 @@ function bindTemplateEvents() {
   list.addEventListener('click', e => {
     const btn = e.target.closest('button[data-act]');
     if (!btn) return;
-    loadTemplate(btn.getAttribute('data-id'), btn.getAttribute('data-act'));
+    const act = btn.getAttribute('data-act');
+    if (act === 'generate25') {
+      loadTemplateSpec(cloneTemplateSpec(buildDress25GridTemplate()), 'replace');
+      return;
+    }
+    loadTemplate(btn.getAttribute('data-id'), act);
   });
 }
 
@@ -1786,6 +3329,52 @@ function persistAssetMeta(meta) {
   try { localStorage.setItem(ASSET_CATS_KEY, JSON.stringify(cats)); } catch (e) {}
 }
 
+//================ 4i-1b. 全局资产图库（#11 跨画布复用）================
+// 资产元数据（名称/分类/锁定描述）本就持久化；但图片本体此前只存在当前画布节点里，
+// 换画布即丢失。这里把「显式保存的资产」图片本体独立入库，collectAssets 合并后，
+// 新画布仍能看到并引用 <<<名称>>>。软上限 3.5MB，超限只警告不阻塞主流程。
+const ASSET_IMAGES_KEY = 'flowcraft:assetImages:v1';
+const ASSET_IMAGES_SOFT_LIMIT = 3.5 * 1024 * 1024;
+
+function loadGlobalAssetImages() {
+  try {
+    const o = JSON.parse(localStorage.getItem(ASSET_IMAGES_KEY));
+    return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {};
+  } catch (e) { return {}; }
+}
+function saveGlobalAssetImage(key, entry) {
+  try {
+    const all = loadGlobalAssetImages();
+    if (!entry || typeof entry.src !== 'string' || !entry.src.startsWith('data:')) return;
+    all[key] = { src: entry.src, nodeTitle: entry.nodeTitle || '', label: entry.label || '产出', kind: entry.kind || '' };
+    const json = JSON.stringify(all);
+    if (json.length > ASSET_IMAGES_SOFT_LIMIT) {
+      showToast('全局资产库接近存储上限，建议精简资产图片', 'warn', 4000);
+    }
+    localStorage.setItem(ASSET_IMAGES_KEY, json);
+  } catch (e) {
+    showToast('全局资产保存失败（存储已满？）：' + e.message, 'danger', 4000);
+  }
+}
+function removeGlobalAssetImage(key) {
+  try {
+    const all = loadGlobalAssetImages();
+    if (all[key]) { delete all[key]; localStorage.setItem(ASSET_IMAGES_KEY, JSON.stringify(all)); }
+  } catch (e) {}
+}
+// 全局资产条目（与 collectAssets 条目同形；nodeId/kind/label 原样保留 → assetKey 与 assetMeta 保持一致）
+function globalAssetEntries() {
+  const all = loadGlobalAssetImages();
+  const out = [];
+  Object.keys(all).forEach(key => {
+    const e = all[key] || {};
+    if (!e.src || typeof e.src !== 'string' || !e.src.startsWith('data:')) return;
+    const parts = key.split('|');
+    out.push({ src: e.src, nodeId: parts[0] || 'global', nodeTitle: e.nodeTitle || '', label: e.label || '产出', kind: e.kind || 'output' });
+  });
+  return out;
+}
+
 function getAssetMeta(key) {
   const m = loadAssetMeta()[key];
   return { name: (m && m.name) || '', cat: (m && m.cat) || '', lock: (m && m.lock) || '' };
@@ -1958,6 +3547,210 @@ function nodeRefSummary(node) {
   return { hit: r.refs.length, missing: r.missing.length, names: r.refs.map(x => x.name), missingNames: r.missing };
 }
 
+//================ 4i-2. 角色资产库：状态结果存为可复用角色资产 + 跨节点引用 ================
+
+// 角色状态节点的产出图在 collectAssets 中被标记为 kind='output', label='产出·N'
+function characterStateAssetKey(node) {
+  const outs = node.outputsData || [];
+  const idx = outs.findIndex((pl) => pl && pl.type === 'image' && normalizeImageSrc(pl.value));
+  if (idx < 0) return null;
+  return assetKey({ nodeId: node.id, kind: 'output', label: '产出·' + (idx + 1) });
+}
+
+function nodeHasOutputImage(node) {
+  return characterStateAssetKey(node) !== null;
+}
+
+// 把已完成角色状态节点的生成结果保存为「角色」类命名资产（默认名 = 角色名·状态名）
+function saveCharacterStateAsAsset(node) {
+  if (!isCharacterStateNode(node)) return null;
+  const key = characterStateAssetKey(node);
+  if (!key) { showToast('该状态节点还没有生成结果图，无法存为角色资产', 'warn'); return null; }
+  const source = node.stateMeta && node.stateMeta.sourceId ? workflow.nodes.get(node.stateMeta.sourceId) : null;
+  const roleLine = (source && source.charDesc ? String(source.charDesc).split('\n').map((s) => s.trim()).filter(Boolean)[0] : '') || (source && source.title) || '角色';
+  const stateLabel = (node.stateMeta && node.stateMeta.label) || node.title || '状态';
+  const defaultName = roleLine + '·' + stateLabel;
+  const lock = String(node.effectivePrompt || node.prompt || '').trim();
+  setAssetMeta(key, { name: defaultName, cat: '角色', lock: lock });
+  // #11 跨画布复用：图片本体也写入全局资产库（新画布仍可引用该令牌）
+  const outIdx = (node.outputsData || []).findIndex(pl => pl && pl.type === 'image' && normalizeImageSrc(pl.value));
+  if (outIdx >= 0) {
+    saveGlobalAssetImage(key, { src: node.outputsData[outIdx].value, nodeTitle: node.title, label: '产出·' + (outIdx + 1), kind: 'output' });
+  }
+  showToast('已存为全局角色资产 <<<' + defaultName + '>>>（跨画布可复用），其他 AI 节点可用 <<<' + defaultName + '>>> 引用它', 'success', 5200);
+  refreshAssetPanelIfOpen();
+  return { key: key, name: defaultName };
+}
+
+// 列出所有「角色」类资产（供其他 AI 节点下拉引用），按资产去重只显示一次（优先自定义名称）
+function listCharacterAssets() {
+  try {
+    const index = buildAssetRefIndex();
+    const meta = loadAssetMeta();
+    const seen = new Set();
+    const out = [];
+    index.forEach((entry) => {
+      if (seen.has(entry.key)) return;
+      const m = meta[entry.key] || {};
+      if (m.cat !== '角色') return;
+      if (!entry.asset || typeof entry.asset.src !== 'string' || !entry.asset.src.startsWith('data:')) return;
+      seen.add(entry.key);
+      out.push({ key: entry.key, name: entry.name, src: entry.asset.src });
+    });
+    return out;
+  } catch (e) { return []; }
+}
+
+// 在提示词输入框光标处插入 <<<名称>>> 引用令牌（避免重复插入）
+function insertRefTokenIntoNodePrompt(textarea, name) {
+  const token = '<<<' + name + '>>>';
+  if (!textarea) return false;
+  const full = textarea.value || '';
+  if (full.indexOf(token) >= 0) return false;
+  const start = textarea.selectionStart != null ? textarea.selectionStart : full.length;
+  const end = textarea.selectionEnd != null ? textarea.selectionEnd : full.length;
+  const before = full.slice(0, start);
+  const after = full.slice(end);
+  const sep = before && !/\s$/.test(before) ? ' ' : '';
+  textarea.value = before + sep + token + after;
+  return true;
+}
+
+// 文本节点「完整生效文本」：角色描述（charDesc，独立输入框）前置拼接到固定提示词（prompt）。
+// 非文本节点或 charDesc 为空时，直接返回原 prompt，保持旧行为不变。
+function nodeFullText(node) {
+  if (!node) return '';
+  const body = (node.prompt || '').trim();
+  if (node.type !== 'text') return body;
+  const lead = (node.charDesc || '').trim();
+  return lead ? (lead + '\n\n' + body) : body;
+}
+
+// 通用参考图上传：读本地图片为 dataURL，存入 node.refImages
+function openReferenceImagePicker(node, onDone) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.multiple = true;
+  input.onchange = function() {
+    const files = Array.prototype.slice.call(input.files || []);
+    const total = files.length;
+    if (!total) return;
+    let pending = total;
+    files.forEach(function(f) {
+      const reader = new FileReader();
+      reader.onload = function() {
+        node.refImages = node.refImages || [];
+        const base = (f.name || '参考图').replace(/\.[^.]+$/, '') || ('参考图' + (node.refImages.length + 1));
+        node.refImages.push({ name: base, src: String(reader.result) });
+        if (--pending === 0) {
+          scheduleAutosave();
+          if (typeof onDone === 'function') onDone();
+        }
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+  input.click();
+}
+
+// 通用参考视频上传：读本地视频为 dataURL，存入 node.refVideos
+function openReferenceVideoPicker(node, onDone) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'video/*';
+  input.multiple = true;
+  input.onchange = function() {
+    const files = Array.prototype.slice.call(input.files || []);
+    const total = files.length;
+    if (!total) return;
+    let pending = total;
+    files.forEach(function(f) {
+      const reader = new FileReader();
+      reader.onload = function() {
+        node.refVideos = node.refVideos || [];
+        const base = (f.name || '参考视频').replace(/\.[^.]+$/, '') || ('参考视频' + (node.refVideos.length + 1));
+        node.refVideos.push({ name: base, src: String(reader.result) });
+        if (--pending === 0) {
+          scheduleAutosave();
+          if (typeof onDone === 'function') onDone();
+        }
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+  input.click();
+}
+
+// 文本节点面板的旧入口，保留兼容；aiImage 也复用同一参考图上传逻辑
+function openTextNodeRefPicker(node, onDone) {
+  openReferenceImagePicker(node, onDone);
+}
+
+// 收集生图节点可用的「面板内直传参考图」：节点自身（若为文本节点）及其直接上游文本节点
+function collectInlineRefs(node) {
+  const out = [];
+  const push = function(n) {
+    if (n && (n.type === 'text' || n.type === 'aiImage') && Array.isArray(n.refImages)) {
+      n.refImages.forEach(function(r) { if (r && r.src) out.push(r); });
+    }
+  };
+  push(node);
+  if (node && typeof workflow !== 'undefined' && workflow.edges) {
+    var _edges = workflow.edges;
+    var _iter = _edges.values();
+    var _step;
+    while (!(_step = _iter.next()).done) {
+      var e = _step.value;
+      if (e && e.to.node === node) push(e.from.node);
+    }
+  }
+  const seen = new Set();
+  return out.filter(function(r) { if (seen.has(r.src)) return false; seen.add(r.src); return true; });
+}
+
+function collectInlineVideoRefs(node) {
+  const out = [];
+  const push = function(n) {
+    if (n && n.type === 'aiVideo' && Array.isArray(n.refVideos)) {
+      n.refVideos.forEach(function(r) { if (r && r.src) out.push(r); });
+    }
+  };
+  push(node);
+  if (node && typeof workflow !== 'undefined' && workflow.edges) {
+    var _edges = workflow.edges;
+    var _iter = _edges.values();
+    var _step;
+    while (!(_step = _iter.next()).done) {
+      var e = _step.value;
+      if (e && e.to.node === node) push(e.from.node);
+    }
+  }
+  const seen = new Set();
+  return out.filter(function(r) { if (seen.has(r.src)) return false; seen.add(r.src); return true; });
+}
+
+function collectAiVideoRefs(node) {
+  const out = [];
+  const push = function(n) {
+    if (n && n.type === 'aiVideo' && Array.isArray(n.refVideos)) {
+      n.refVideos.forEach(function(r) { if (r && r.src) out.push(r); });
+    }
+  };
+  push(node);
+  if (node && typeof workflow !== 'undefined' && workflow.edges) {
+    var _edges = workflow.edges;
+    var _iter = _edges.values();
+    var _step;
+    while (!(_step = _iter.next()).done) {
+      var e = _step.value;
+      if (e && e.to.node === node) push(e.from.node);
+    }
+  }
+  const seen = new Set();
+  return out.filter(function(r) { if (seen.has(r.src)) return false; seen.add(r.src); return true; });
+}
+
 //================ 4e. Toast 轻提示 ================
 function showToast(message, type = 'info', duration = 2500) {
   const container = document.getElementById('toastContainer');
@@ -2014,6 +3807,7 @@ function logRun(node, success, durationMs, errorMsg) {
   const def = NODE_TYPES[node.type] || {};
     const entry = {
       t: Date.now(),
+      nodeId: node.id || '',
       type: node.type,
       title: node.title || def.label || node.type,
       model: (node.params && node.params.model) || '',
@@ -2021,6 +3815,11 @@ function logRun(node, success, durationMs, errorMsg) {
       duration: Math.max(0, Math.round(durationMs || 0)),
       status: success ? 'success' : 'error',
       error: success ? '' : (errorMsg || '未知错误'),
+      sourceNodeId: node.stateMeta && node.stateMeta.sourceId || '',
+      state: node.stateMeta && node.stateMeta.label || '',
+      semanticMode: node.semanticMode || getNodeSemanticTier(node.type),
+      resultMode: node.resultMode || 'pending',
+      referenceCount: node.genMeta && node.genMeta.references ? node.genMeta.references.count : 0,
       // 仅持久化 http(s) 缩略图（ComfyUI 的 /view 链接），避免 localStorage 被大体积 dataURL 撑爆
       thumb: (success && typeof node.thumb === 'string' && node.thumb.startsWith('http')) ? node.thumb : ''
     };
@@ -2029,6 +3828,938 @@ function logRun(node, success, durationMs, errorMsg) {
   saveRunLog(list);
   if (typeof renderRunLog === 'function') renderRunLog();
 }
+
+// ===== #8 生成节点完整元数据 + 一键同参重试 =====
+// 成功生成后把「本次实际使用的全部参数」快照到 node.genMeta，供信息展示与一键同参重试。
+function captureGenMeta(node, durationMs) {
+  try {
+    const p = node.params || {};
+    let refSummary = { hit: 0, missing: 0, names: [], missingNames: [] };
+    try { refSummary = nodeRefSummary(node) || refSummary; } catch (e) {}
+    // 直传参考图不一定出现在 <<<token>>> 文本中，也必须进入可追溯摘要。
+    let inlineNames = [];
+    try { inlineNames = collectInlineRefs(node).map(r => r && r.name).filter(Boolean); } catch (e) {}
+    const names = [...new Set([...(refSummary.names || []), ...inlineNames])];
+    node.genMeta = {
+      nodeId: node.id,
+      type: node.type,
+      prompt: node.effectivePrompt || node.prompt || '',
+      ownPrompt: (node.prompt || '').trim(),
+      negativePrompt: p.negativePrompt || '',
+      model: p.model || '',
+      aspect: p.aspect || '',
+      resolution: p.resolution || '',
+      count: p.count || '',
+      duration: p.duration || '',
+      mode: p.mode || '',
+      refs: names.length,
+      references: {
+        count: names.length,
+        names: names,
+        missing: refSummary.missingNames || [],
+      },
+      status: node.status || 'done',
+      sourceNodeId: node.stateMeta && node.stateMeta.sourceId || null,
+      state: node.stateMeta && node.stateMeta.label || null,
+      stateMeta: copyStateMeta(node.stateMeta),
+      t: Date.now(),
+      durationMs: Math.max(0, Math.round(durationMs || 0))
+    };
+  } catch (e) {}
+}
+
+// 一键同参重试：把 node.genMeta 快照恢复到节点参数上，再重新运行。
+function retrySameParams(node) {
+  const m = node.genMeta;
+  if (!m) { showToast('该节点还没有成功生成记录，无法同参重试', 'warn'); return; }
+  // 恢复提示词：仅恢复节点自身输入部分（ownPrompt），避免与上游文本重复拼接
+  if (typeof m.ownPrompt === 'string') node.prompt = m.ownPrompt;
+  else if (typeof m.prompt === 'string') node.prompt = m.prompt;
+  // 恢复模型 / 比例 / 分辨率 / 张数或时长 / 模式
+  const p = node.params = node.params || {};
+  if (typeof m.negativePrompt === 'string') p.negativePrompt = m.negativePrompt;
+  if (m.model) p.model = m.model;
+  if (m.aspect) p.aspect = m.aspect;
+  if (m.resolution) p.resolution = m.resolution;
+  if (m.count) p.count = m.count;
+  if (m.duration) p.duration = m.duration;
+  if (m.mode) p.mode = m.mode;
+  node._abort = false;
+  node._timedOut = false;
+  if (window.FlowCraft && window.FlowCraft.runner && typeof window.FlowCraft.runner.clearCancel === 'function') {
+    window.FlowCraft.runner.clearCancel(node.id);
+  }
+  showToast('已恢复上次生成参数（' + (m.model || '同模型') + '），正在重新生成…', 'info');
+  scheduleAutosave();
+  if (node.el) buildNodeBody(node.el, node);
+  runNode(node);
+}
+
+// 在节点 body 里渲染「生成信息」条：默认只显示一行摘要（不干扰图片预览），
+// 点击展开完整参数 chips + 一键同参重试（Details on Demand）。
+function renderGenMetaStrip(el, node) {
+  const m = node.genMeta;
+  if (!m) return;
+  const strip = document.createElement('div');
+  strip.className = 'node-gen-meta';
+  const chips = [];
+  if (m.model) chips.push('模型 ' + m.model);
+  if (m.aspect) chips.push(m.aspect);
+  if (m.resolution) chips.push(m.resolution);
+  if (m.count) chips.push(m.count);
+  if (m.duration) chips.push(m.duration);
+  if (m.refs) chips.push('参考图 ' + m.refs);
+  if (m.durationMs) chips.push((m.durationMs >= 1000 ? (m.durationMs / 1000).toFixed(1) + 's' : m.durationMs + 'ms'));
+  const time = new Date(m.t);
+  chips.push(String(time.getHours()).padStart(2, '0') + ':' + String(time.getMinutes()).padStart(2, '0'));
+  if (m.prompt) strip.title = '本次提示词：' + m.prompt;
+
+  // image-only：节点框内不显示任何生成详情，仅保留悬停浮现的角落「同参重试」按钮
+  if (node.type === 'aiImage' || node.type === 'imageEdit') {
+    const cornerRetry = document.createElement('button');
+    cornerRetry.type = 'button';
+    cornerRetry.className = 'ngm-corner-retry';
+    cornerRetry.textContent = '↻';
+    cornerRetry.title = '同参重试：用上次完全相同的参数重新生成' + (m.prompt ? '\n提示词：' + m.prompt : '');
+    cornerRetry.onclick = (e) => { e.stopPropagation(); retrySameParams(node); };
+    cornerRetry.onmousedown = (e) => e.stopPropagation();
+    strip.appendChild(cornerRetry);
+    el.appendChild(strip);
+    return;
+  }
+
+  // 摘要行（默认展示）：一行核心参数，点击展开/收起详情
+  const summary = document.createElement('button');
+  summary.type = 'button';
+  summary.className = 'ngm-summary';
+  summary.innerHTML = '';
+  summary.appendChild(document.createTextNode('▤ ' + chips.join(' · ') + ' '));
+  const caret = document.createElement('span');
+  caret.className = 'ngm-caret';
+  caret.textContent = '▾';
+  summary.appendChild(caret);
+  summary.title = '展开/收起生成详情';
+  summary.onclick = (e) => { e.stopPropagation(); strip.classList.toggle('open'); };
+  summary.onmousedown = (e) => e.stopPropagation();
+  strip.appendChild(summary);
+
+  // 摘要行快捷重试（保持同参重试一步可达）
+  const quickRetry = document.createElement('button');
+  quickRetry.type = 'button';
+  quickRetry.className = 'ngm-quick-retry';
+  quickRetry.textContent = '↻';
+  quickRetry.title = '同参重试：用上次完全相同的参数重新生成';
+  quickRetry.onclick = (e) => { e.stopPropagation(); retrySameParams(node); };
+  quickRetry.onmousedown = (e) => e.stopPropagation();
+  strip.appendChild(quickRetry);
+
+  // 详情区（默认收起）：完整参数 chips + 完整重试按钮
+  const details = document.createElement('div');
+  details.className = 'ngm-details';
+  chips.forEach((c) => {
+    const chip = document.createElement('span');
+    chip.className = 'ngm-chip';
+    chip.textContent = c;
+    details.appendChild(chip);
+  });
+  const retryBtn = document.createElement('button');
+  retryBtn.type = 'button';
+  retryBtn.className = 'ngm-retry';
+  retryBtn.textContent = '↻ 同参重试';
+  retryBtn.title = '用上次完全相同的参数（提示词/模型/比例/张数/参考图）重新生成';
+  retryBtn.onclick = (e) => { e.stopPropagation(); retrySameParams(node); };
+  retryBtn.onmousedown = (e) => e.stopPropagation();
+  details.appendChild(retryBtn);
+  strip.appendChild(details);
+
+  el.appendChild(strip);
+}
+
+// ===== C 图片/视频按原图比例显示 =====
+// 单图展示为主的节点类型
+// aiImage：单图结果按生成图比例适配节点框（多图网格在 probeFitNode 内单独跳过）
+const RATIO_FIT_TYPES = ['image', 'aiVideo', 'upscale', 'lineart', 'videoInput', 'aiImage', 'imageEdit'];
+// 根据图片自然尺寸，把节点宽度调整为「贴合原图比例」（带上下限兜底），并记录 node.ratio 供预览图使用
+function fitNodeToImageRatio(node, naturalW, naturalH) {
+  try {
+    if (!node || !naturalW || !naturalH) return;
+    // aiImage 是主输出视觉：给更大的预览上限；其余节点保持原紧凑尺寸
+    const isHero = node.type === 'aiImage';
+    const MAX_W = isHero ? Math.max(260, Math.min(360, Math.round(window.innerWidth * 0.28))) : Math.max(190, Math.min(240, Math.round(window.innerWidth * 0.18)));
+    const MAX_H = isHero ? Math.max(170, Math.min(260, Math.round(window.innerHeight * 0.24))) : Math.max(130, Math.min(180, Math.round(window.innerHeight * 0.16)));
+    const MIN_W = 160;
+    const contentAspect = naturalW / naturalH;
+    const scale = Math.min(1, MAX_W / naturalW, MAX_H / naturalH);
+    const contentW = Math.max(MIN_W, Math.round(naturalW * scale));
+    const contentH = Math.max(96, Math.round(contentW / contentAspect));
+    // image-only：标题已移到框外，框高只算图片内容
+    const headerH = node.type === 'aiImage' ? 0 : (node.el ? ((node.el.querySelector('.node-header') && node.el.querySelector('.node-header').offsetHeight) || 42) : 42);
+    node.width = contentW + 32;
+    node.height = contentH + headerH + 8;
+    node.ratio = contentAspect;
+    if (node.el) node.el.style.width = node.width + 'px';
+    if (node.el) node.el.style.minHeight = node.height + 'px';
+    // 比例计算在预览图渲染之后才拿到 → 重建节点 body 让预览图按比例呈现
+    if (node.el) buildNodeBody(node.el, node);
+    // hero 已由 buildNodeBody 按 node.ratio 挂 aspect-ratio；这里只按 hero 实测高度同步节点框高
+    const fitHeroEl = node.el && node.el.querySelector('.node-hero');
+    if (fitHeroEl) {
+      const hr = fitHeroEl.getBoundingClientRect();
+      const nr = node.el.getBoundingClientRect();
+      if (hr.width > 40) {
+        // 高度按 hero 实测宽 / 比例推算（容器偏高时 flex 拉伸后的实测高不可信）
+        const wantH = Math.round(hr.width / contentAspect);
+        node.height = Math.max(96, wantH + Math.round(nr.height - hr.height));
+        node.el.style.minHeight = node.height + 'px';
+        buildNodeBody(node.el, node);
+      }
+    }
+    markEdgesDirty();
+    renderMinimap();
+    scheduleAutosave();
+    if (node === __composerNode) positionNodeComposer();
+  } catch (e) {}
+}
+
+// 规格联动：选择比例/分辨率后立即把 aiImage 节点框调整为对应画幅比例，
+// 保证生成的图片（按比例裁剪后）与节点框完全贴合
+function applySpecSizeToAiImageNode(node) {
+  try {
+    if (!node || (node.type !== 'aiImage' && node.type !== 'imageEdit' && node.type !== 'aiVideo') || !node.el) return;
+    const ratio = resolveAiSpecRatio(node.params && node.params.aspect, node.params && node.params.customAspect);
+    if (!ratio) return;
+    const MAX_W = Math.max(260, Math.min(360, Math.round(window.innerWidth * 0.28)));
+    const MAX_H = Math.max(170, Math.min(260, Math.round(window.innerHeight * 0.24)));
+    let w = MAX_W, h = w / ratio;
+    if (h > MAX_H) { h = MAX_H; w = h * ratio; }
+    w = Math.max(160, Math.round(w));
+    h = Math.max(96, Math.round(h));
+    node.width = w + 32;
+    node.height = h + 8; // image-only：框内只有图片，无标题栏占位
+    node.ratio = ratio;
+    node._fitProbed = true; // 规格已定框型：生成后不再按图片重排（上游比例已统一裁剪对齐）
+    node.el.style.width = node.width + 'px';
+    node.el.style.minHeight = node.height + 'px';
+    buildNodeBody(node.el, node);
+    // 规格框同样按 hero 实测高度同步节点框高
+    const specHero = node.el.querySelector('.node-hero');
+    if (specHero) {
+      const shr = specHero.getBoundingClientRect();
+      const snr = node.el.getBoundingClientRect();
+      if (shr.width > 40) {
+        const wantH = Math.round(shr.width / ratio);
+        node.height = Math.max(96, wantH + Math.round(snr.height - shr.height));
+        node.el.style.minHeight = node.height + 'px';
+        buildNodeBody(node.el, node);
+      }
+    }
+    markEdgesDirty();
+    renderMinimap();
+    scheduleAutosave();
+    if (node === __composerNode) positionNodeComposer();
+  } catch (e) {}
+}
+
+function fitNodeToVideoRatio(node, naturalW, naturalH) {
+  try {
+    if (!node || !naturalW || !naturalH) return;
+    const MAX_W = Math.max(240, Math.round(window.innerWidth * 0.42));
+    const MAX_H = Math.max(180, Math.round(window.innerHeight * 0.42));
+    const MIN_W = 200;
+    const contentAspect = naturalW / naturalH;
+    const scale = Math.min(1, MAX_W / naturalW, MAX_H / naturalH);
+    const contentW = Math.max(MIN_W, Math.round(naturalW * scale));
+    const contentH = Math.max(120, Math.round(contentW / contentAspect));
+    const headerH = node.el ? ((node.el.querySelector('.node-header') && node.el.querySelector('.node-header').offsetHeight) || 42) : 42;
+    node.width = contentW + 32;
+    node.height = contentH + headerH + 8;
+    node.ratio = contentAspect;
+    node.videoAspect = contentAspect;
+    if (node.el) {
+      node.el.style.width = node.width + 'px';
+      node.el.style.minHeight = node.height + 'px';
+      buildNodeBody(node.el, node);
+    }
+    markEdgesDirty();
+    renderMinimap();
+    scheduleAutosave();
+    if (node === __composerNode) positionNodeComposer();
+  } catch (e) {}
+}
+
+function probeVideoNodeSize(node, src) {
+  try {
+    if (!node || !src || node.__videoMetaProbed) return;
+    node.__videoMetaProbed = true;
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.muted = true;
+    v.src = src;
+    v.onloadedmetadata = () => {
+      try {
+        const w = v.videoWidth || 0;
+        const h = v.videoHeight || 0;
+        if (w > 0 && h > 0) fitNodeToVideoRatio(node, w, h);
+      } catch (e) {}
+      try { v.removeAttribute('src'); v.load(); } catch (_) {}
+      try { v.remove(); } catch (_) {}
+    };
+    v.onerror = () => {
+      try { v.removeAttribute('src'); v.load(); } catch (_) {}
+      try { v.remove(); } catch (_) {}
+    };
+  } catch (e) {}
+}
+
+// 探测节点缩略图的自然尺寸并按比例适配节点（懒迁移：旧节点首次渲染时也会生效）
+function probeFitNode(node) {
+  try {
+    const src = normalizeImageSrc(node && node.thumb);
+    if (!node || !src || typeof src !== 'string') return;
+    // 真实生成的 thumb 常为 https:/blob: URL（中转返回 url），只认 data: 会跳过重排留下留白；
+    // 这里只取 naturalWidth/Height，不读像素，跨域无 CORS 限制
+    if (!/^(data:|https?:|blob:)/i.test(src)) return;
+    if (!RATIO_FIT_TYPES.includes(node.type)) return;
+    // aiImage 多图画廊：保留网格布局，不做单图比例适配
+    if (node.type === 'aiImage' && Array.isArray(node._galleryImages) && node._galleryImages.length > 1) return;
+    const img = new Image();
+    img.onload = () => node.type === 'videoInput'
+      ? fitNodeToVideoRatio(node, img.naturalWidth, img.naturalHeight)
+      : fitNodeToImageRatio(node, img.naturalWidth, img.naturalHeight);
+    img.onerror = () => {};
+    img.src = src;
+  } catch (e) {}
+}
+
+// ===== 提示词放大编辑（长提示词在模态大框中修改，实时回写小框与节点数据）=====
+let _promptExpandEsc = null;
+let _promptExpandOutside = null;
+function closePromptExpandEditor() {
+  const ov = document.getElementById('promptExpandOverlay');
+  if (ov) ov.remove();
+  if (_promptExpandEsc) { document.removeEventListener('keydown', _promptExpandEsc, true); _promptExpandEsc = null; }
+  if (_promptExpandOutside) { document.removeEventListener('mousedown', _promptExpandOutside, true); _promptExpandOutside = null; }
+}
+function openPromptExpandEditor(opts) {
+  closePromptExpandEditor();
+  const overlay = document.createElement('div');
+  overlay.id = 'promptExpandOverlay';
+  overlay.className = 'prompt-expand-overlay';
+  const box = document.createElement('div');
+  box.className = 'prompt-expand-box';
+  const head = document.createElement('div');
+  head.className = 'prompt-expand-head';
+  const title = document.createElement('div');
+  title.className = 'prompt-expand-title';
+  title.textContent = opts.title || '放大编辑';
+  const count = document.createElement('div');
+  count.className = 'prompt-expand-count';
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'prompt-expand-close';
+  closeBtn.textContent = '×';
+  closeBtn.title = '关闭（Esc / Ctrl+Enter）';
+  head.appendChild(title);
+  head.appendChild(count);
+  head.appendChild(closeBtn);
+  const ta = document.createElement('textarea');
+  ta.className = 'prompt-expand-textarea';
+  ta.value = opts.getText() || '';
+  const syncCount = () => { count.textContent = ta.value.length + ' 字'; };
+  syncCount();
+  ta.oninput = () => {
+    opts.setText(ta.value);
+    if (opts.syncInline) opts.syncInline(ta.value);
+    syncCount();
+  };
+  ta.onmousedown = (e) => e.stopPropagation();
+  closeBtn.onclick = (e) => { e.stopPropagation(); closePromptExpandEditor(); };
+  // 捕获阶段拦截 Esc / Ctrl+Enter，避免同时触发画布快捷键
+  _promptExpandEsc = (e) => {
+    if (e.key === 'Escape' || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) {
+      e.stopPropagation();
+      e.preventDefault();
+      closePromptExpandEditor();
+    }
+  };
+  const onOutside = (e) => {
+    if (box.contains(e.target)) return;
+    if (opts.anchor && opts.anchor.contains && opts.anchor.contains(e.target)) return;
+    closePromptExpandEditor();
+  };
+  document.addEventListener('keydown', _promptExpandEsc, true);
+  document.addEventListener('mousedown', onOutside, true);
+  _promptExpandOutside = onOutside;
+  box.appendChild(head);
+  box.appendChild(ta);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  overlay.classList.add('show');
+  // 锚定到触发按钮附近（非全屏居中）：下方放不下则翻到上方
+  const ar = opts.anchor && opts.anchor.getBoundingClientRect ? opts.anchor.getBoundingClientRect() : null;
+  const bw = box.offsetWidth, bh = box.offsetHeight;
+  let left = 8, top = 8;
+  if (ar) {
+    left = Math.max(8, Math.min(window.innerWidth - bw - 8, ar.left - 40));
+    top = ar.bottom + 8;
+    if (top + bh > window.innerHeight - 8) top = Math.max(8, ar.top - bh - 8);
+  }
+  box.style.left = left + 'px';
+  box.style.top = top + 'px';
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+function makePromptExpandBtn(getText, setText, syncInline, title) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'prompt-expand-btn';
+  b.title = title || '放大编辑';
+  b.textContent = '⤢';
+  b.onmousedown = (e) => e.stopPropagation();
+  b.onclick = (e) => { e.stopPropagation(); openPromptExpandEditor({ title: title, getText: getText, setText: setText, syncInline: syncInline, anchor: b }); };
+  return b;
+}
+
+// ===== #5 节点下方独立 Composer（Details on Demand）=====
+// 编辑控件从节点体内迁移到「选中时浮现在节点下方的圆角 Composer」：节点默认保持纯净，
+// 选中才显示 prompt + 模型 + 参数 + 生成键。不改数据流，纯 UI 重组。
+let __composerNode = null;
+// 图片/视频输入节点不使用节点下方 Composer，素材直接在节点内预览。
+const COMPOSER_TYPES = ['videoInput', 'aiImage', 'imageEdit', 'aiVideo'];
+
+function nodeComposerEl() { return document.getElementById('nodeComposer'); }
+function isComposerType(node) { return !!(node && COMPOSER_TYPES.includes(node.type)); }
+
+function isVideoInputSettingsCollapsed(node) {
+  return !!(node && node.type === 'videoInput' && node.__settingsCollapsed !== false);
+}
+
+function showNodeComposer(node) {
+  if (!isComposerType(node)) { hideNodeComposer(); return; }
+  __composerNode = node;
+  const el = nodeComposerEl();
+  if (!el) return;
+  el.hidden = false; // 先显示再定位（positionNodeComposer 有 hidden 守卫）
+  buildNodeComposerBody(node);
+  positionNodeComposer();
+}
+
+function hideNodeComposer() {
+  __composerNode = null;
+  const el = nodeComposerEl();
+  if (!el) return;
+  el.hidden = true;
+  el.innerHTML = '';
+}
+
+// 把 Composer 定位到选中节点正下方（屏幕坐标，跟随画布 pan/zoom；节点拖动/缩放/重建时再调）
+function positionNodeComposer() {
+  const el = nodeComposerEl();
+  const node = __composerNode;
+  if (!el || el.hidden || !node || !workflow) return;
+  // 节点已被删除/画布已重载 → 收起
+  if (!workflow.nodes.has(node.id)) { hideNodeComposer(); return; }
+  const cam = workflow.camera;
+  const h = node.height || (node.el && node.el.offsetHeight) || 160;
+  const x = node.x * cam.zoom + cam.x;
+  const y = (node.y + h) * cam.zoom + cam.y + 12;
+  const w = Math.max(240, Math.round((node.width || 280) * cam.zoom));
+  el.style.left = Math.round(x) + 'px';
+  el.style.top = Math.round(y) + 'px';
+  el.style.width = Math.round(w) + 'px';
+  // 视口内兜底：不超出 canvas 右/下边缘
+  try {
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    if (er.right > wrapRect.right) el.style.left = Math.max(8, (wrapRect.right - wrapRect.left) - el.offsetWidth - 8) + 'px';
+    if (er.bottom > wrapRect.bottom) el.style.top = Math.max(8, (wrapRect.bottom - wrapRect.top) - el.offsetHeight - 8) + 'px';
+  } catch (e) {}
+}
+
+function buildNodeComposerBody(node) {
+  const el = nodeComposerEl();
+  if (!el) return;
+  el.innerHTML = '';
+  node.params = node.params || {};
+
+  const isMediaInput = node.type === 'image' || node.type === 'videoInput';
+  const isVideoInput = node.type === 'videoInput';
+  const isAiImageLike = node.type === 'aiImage' || node.type === 'imageEdit';
+  const collapsed = isVideoInput && isVideoInputSettingsCollapsed(node);
+
+  // 头部：类型标签 + 上游提示词标记 + 资产引用徽标 + 收起
+  const head = document.createElement('div');
+  head.className = 'nc-head';
+  const title = document.createElement('span');
+  title.className = 'nc-title';
+  title.textContent = isMediaInput
+    ? (node.type === 'videoInput' ? '🎬 视频输入' : '🖼 图片输入') + ' · 详情'
+    : (isAiImageLike ? (node.type === 'imageEdit' ? '🖌 图片修正' : '🖼 图片') : '🎬 视频') + ' · 生成';
+  head.appendChild(title);
+  if (node.effectivePrompt && node.effectivePrompt !== (node.prompt || '').trim()) {
+    const up = document.createElement('span');
+    up.className = 'nc-up';
+    up.title = '当前使用来自上游文本节点的提示词';
+    up.textContent = '↑ 上游提示词';
+    head.appendChild(up);
+  }
+  const refBadge = document.createElement('span');
+  refBadge.className = 'nc-ref-badge';
+  refBadge.style.display = 'none';
+  const refreshRefBadge = () => {
+    let rs = { hit: 0, missing: 0, names: [], missingNames: [] };
+    try { rs = nodeRefSummary(node); } catch (e) {}
+    if (!rs.hit && !rs.missing) { refBadge.style.display = 'none'; return; }
+    refBadge.style.display = '';
+    refBadge.classList.toggle('has-missing', rs.missing > 0);
+    refBadge.textContent = '🔗 已引用 ' + rs.hit + ' 个资产' + (rs.missing ? ' · ' + rs.missing + ' 个未找到' : '');
+    refBadge.title = (rs.names && rs.names.length ? '命中：' + rs.names.join('、') : '') + (rs.missingNames && rs.missingNames.length ? '未找到：' + rs.missingNames.join('、') : '');
+  };
+  refreshRefBadge();
+  head.appendChild(refBadge);
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'nc-close';
+  closeBtn.textContent = '✕';
+  closeBtn.title = '收起';
+  closeBtn.onmousedown = (e) => e.stopPropagation();
+  closeBtn.onclick = (e) => { e.stopPropagation(); hideNodeComposer(); };
+  head.appendChild(closeBtn);
+  el.appendChild(head);
+
+  // 提示词/说明输入
+  const textarea = document.createElement('textarea');
+  textarea.className = 'node-textarea nc-textarea';
+  textarea.placeholder = isMediaInput
+    ? '填写图片 / 视频说明…'
+    : '描述要' + (node.type === 'imageEdit' ? '修正' : '生成') + '的' + (isAiImageLike ? '图片' : '视频') + '内容…';
+  textarea.value = isMediaInput ? (node.charDesc || '') : (node.prompt || '');
+  textarea.rows = 3;
+  textarea.onmousedown = (e) => e.stopPropagation();
+  textarea.oninput = (e) => {
+    if (isMediaInput) node.charDesc = e.target.value;
+    else node.prompt = e.target.value;
+    scheduleAutosave();
+    refreshRefBadge();
+  };
+  const promptWrap = document.createElement('div');
+  promptWrap.className = 'prompt-expand-wrap';
+  promptWrap.appendChild(textarea);
+  promptWrap.appendChild(makePromptExpandBtn(
+    () => (isMediaInput ? node.charDesc : node.prompt) || '',
+    (v) => { if (isMediaInput) node.charDesc = v; else node.prompt = v; scheduleAutosave(); refreshRefBadge(); },
+    (v) => { textarea.value = v; },
+    isMediaInput ? '放大编辑角色描述' : '放大编辑提示词'));
+  el.appendChild(promptWrap);
+
+  if (isVideoInput) {
+    const toggleRow = document.createElement('div');
+    toggleRow.className = 'nc-video-toggle-row';
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'nc-video-toggle';
+    toggleBtn.textContent = collapsed ? '展开参数设置' : '收起参数设置';
+    toggleBtn.title = collapsed ? '点击展开视频节点参数设置' : '点击收起视频节点参数设置';
+    toggleBtn.onmousedown = (e) => e.stopPropagation();
+    toggleBtn.onclick = (e) => {
+      e.stopPropagation();
+      node.__settingsCollapsed = !collapsed;
+      if (node === __composerNode) showNodeComposer(node);
+    };
+    toggleRow.appendChild(toggleBtn);
+    el.appendChild(toggleRow);
+  }
+
+  if (isAiImageLike) {
+    if (node.type !== 'imageEdit') {
+      const tip = document.createElement('div');
+      tip.className = 'nc-media-hint';
+      tip.textContent = 'AI 绘图节点：只预览生成结果；双击结果图可继续上传参考图。';
+      el.appendChild(tip);
+    }
+
+    const refWrap = document.createElement('div');
+    refWrap.className = 'node-ref-uploader node-ai-image-ref-uploader' + (node.type === 'imageEdit' ? ' node-image-edit-ref-uploader' : '');
+    const refBtn = document.createElement('button');
+    refBtn.type = 'button';
+    refBtn.className = 'node-ref-upload-btn';
+    refBtn.textContent = node.type === 'imageEdit' ? '＋参考' : '📎 上传参考图';
+    refBtn.title = node.type === 'imageEdit'
+      ? '添加参考图：补充风格、姿态或细节参考'
+      : '上传参考图：会显示缩略图，并随生成一起发送';
+    refBtn.onmousedown = (e) => e.stopPropagation();
+    const refThumbs = document.createElement('div');
+    refThumbs.className = 'node-ref-thumbs node-ai-image-ref-thumbs' + (node.type === 'imageEdit' ? ' node-image-edit-ref-thumbs' : '');
+    const renderRefThumbs = () => {
+      refThumbs.innerHTML = '';
+      const refs = Array.isArray(node.refImages) ? node.refImages.filter(r => r && r.src) : [];
+      if (!refs.length) {
+        if (node.type === 'imageEdit') {
+          refThumbs.hidden = true;
+          return;
+        }
+        const empty = document.createElement('div');
+        empty.className = 'node-ai-image-ref-empty';
+        empty.textContent = node.type === 'imageEdit' ? '暂无参考图' : '暂无参考图';
+        refThumbs.appendChild(empty);
+        return;
+      }
+      refThumbs.hidden = false;
+      refs.forEach((r, i) => {
+        const t = document.createElement('div');
+        t.className = 'node-ref-thumb';
+        const img = document.createElement('img');
+        img.src = normalizeImageSrc(r.src) || '';
+        img.alt = r.name || ('参考图' + (i + 1));
+        img.draggable = false;
+        img.onmousedown = (e) => e.stopPropagation();
+        img.onclick = (e) => { e.stopPropagation(); openImageLightbox(r.src); };
+        t.appendChild(img);
+        const rm = document.createElement('span');
+        rm.className = 'node-ref-thumb-rm';
+        rm.textContent = '×';
+        rm.title = '移除参考图';
+        rm.onmousedown = (e) => e.stopPropagation();
+        rm.onclick = (e) => {
+          e.stopPropagation();
+          node.refImages.splice(i, 1);
+          scheduleAutosave();
+          renderRefThumbs();
+          if (node === __composerNode) showNodeComposer(node);
+          else if (node.el) buildNodeBody(node.el, node);
+        };
+        t.appendChild(rm);
+        refThumbs.appendChild(t);
+      });
+    };
+    refWrap.appendChild(refBtn);
+
+    refBtn.onclick = (e) => {
+      e.stopPropagation();
+      openReferenceImagePicker(node, () => {
+        renderRefThumbs();
+        if (node === __composerNode) showNodeComposer(node);
+        else if (node.el) buildNodeBody(node.el, node);
+      });
+    };
+    refWrap.appendChild(refThumbs);
+    el.appendChild(refWrap);
+    renderRefThumbs();
+  }
+
+  if (node.type === 'aiVideo') {
+    const refWrap = document.createElement('div');
+    refWrap.className = 'node-ref-uploader node-ai-video-ref-uploader';
+    const refBtn = document.createElement('button');
+    refBtn.type = 'button';
+    refBtn.className = 'node-ref-upload-btn';
+    refBtn.textContent = '＋参考视频';
+    refBtn.title = '上传参考视频：随下游 AI 视频生成一起发送';
+    refBtn.onmousedown = (e) => e.stopPropagation();
+
+    const refThumbs = document.createElement('div');
+    refThumbs.className = 'node-ref-thumbs node-ai-video-ref-thumbs';
+    const renderRefThumbs = () => {
+      refThumbs.innerHTML = '';
+      const refs = Array.isArray(node.refVideos) ? node.refVideos.filter(r => r && r.src) : [];
+      if (!refs.length) {
+        refThumbs.hidden = true;
+        return;
+      }
+      refThumbs.hidden = false;
+      refs.forEach((r, i) => {
+        const t = document.createElement('div');
+        t.className = 'node-ref-thumb node-ref-thumb-video';
+        const vid = document.createElement('video');
+        vid.src = normalizeImageSrc(r.src) || '';
+        vid.muted = true;
+        vid.playsInline = true;
+        vid.preload = 'metadata';
+        vid.draggable = false;
+        vid.onmousedown = (e) => e.stopPropagation();
+        vid.onclick = (e) => {
+          e.stopPropagation();
+          if (vid.paused) vid.play().catch(() => {});
+          else vid.pause();
+        };
+        t.appendChild(vid);
+        const badge = document.createElement('span');
+        badge.className = 'node-ref-video-play';
+        badge.textContent = '▶';
+        t.appendChild(badge);
+        const rm = document.createElement('span');
+        rm.className = 'node-ref-thumb-rm';
+        rm.textContent = '×';
+        rm.title = '移除参考视频';
+        rm.onmousedown = (e) => e.stopPropagation();
+        rm.onclick = (e) => {
+          e.stopPropagation();
+          node.refVideos.splice(i, 1);
+          scheduleAutosave();
+          renderRefThumbs();
+          if (node === __composerNode) showNodeComposer(node);
+          else if (node.el) buildNodeBody(node.el, node);
+        };
+        t.appendChild(rm);
+        refThumbs.appendChild(t);
+      });
+    };
+    refBtn.onclick = (e) => {
+      e.stopPropagation();
+      openReferenceVideoPicker(node, () => {
+        renderRefThumbs();
+        if (node === __composerNode) showNodeComposer(node);
+        else if (node.el) buildNodeBody(node.el, node);
+      });
+    };
+    refWrap.appendChild(refBtn);
+    refWrap.appendChild(refThumbs);
+    el.appendChild(refWrap);
+    renderRefThumbs();
+  }
+
+  if (isMediaInput) {
+    // 旧版本 Composer 曾经把 AI 生图参数混进媒体输入节点；这里顺手清理掉，避免脏数据继续回写。
+    ['model', 'aspect', 'resolution', 'count', 'mode'].forEach((k) => {
+      if (node.params && Object.prototype.hasOwnProperty.call(node.params, k)) delete node.params[k];
+    });
+    if (node.type === 'image' && node.params && Object.prototype.hasOwnProperty.call(node.params, 'duration')) delete node.params.duration;
+
+    const mediaHint = document.createElement('div');
+    mediaHint.className = 'nc-media-hint';
+    mediaHint.textContent = node.type === 'videoInput'
+      ? (collapsed ? '视频输入节点：点击可展开参数设置，上传后直接在节点面板内预览。' : '视频输入节点：参数设置已展开，上传后直接在节点面板内预览，点画布可收起详情。')
+      : '图片输入节点：上传后以预览优先展示，点画布可收起详情。';
+    el.appendChild(mediaHint);
+
+    if (isVideoInput) {
+      const mediaMeta = document.createElement('div');
+      mediaMeta.className = 'nc-media-meta';
+      const fileName = node.params && node.params.name ? String(node.params.name) : '未选择视频';
+      const uploadState = (node.uploadedVideo ? '已保留原视频（uploadedVideo） · ' : '') + '时长：' + (node.params && node.params.duration ? node.params.duration : '00:00');
+      mediaMeta.innerHTML = '<div class="nc-media-line"><span>文件</span><strong>' + escapeHtml(fileName) + '</strong></div>' +
+        '<div class="nc-media-line"><span>状态</span><strong>' + escapeHtml(uploadState) + '</strong></div>';
+      mediaMeta.hidden = collapsed;
+      el.appendChild(mediaMeta);
+
+      const videoNote = document.createElement('div');
+      videoNote.className = 'nc-video-note';
+      videoNote.textContent = collapsed ? '点击上方按钮展开更多设置。' : '预览始终显示在节点面板里，这里只保留上传与清空等设置。';
+      el.appendChild(videoNote);
+
+      const mediaActions = document.createElement('div');
+      mediaActions.className = 'nc-media-actions';
+      const replaceBtn = document.createElement('button');
+      replaceBtn.type = 'button';
+      replaceBtn.className = 'nc-run nc-media-replace';
+      replaceBtn.textContent = (node.uploadedVideo || (node.params && node.params.name)) ? '更换视频' : '上传视频';
+      replaceBtn.onmousedown = (e) => e.stopPropagation();
+      replaceBtn.onclick = (e) => { e.stopPropagation(); openVideoFilePicker(node); };
+      mediaActions.appendChild(replaceBtn);
+
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'nc-clear';
+      clearBtn.textContent = '清空';
+      clearBtn.onmousedown = (e) => e.stopPropagation();
+      clearBtn.onclick = (e) => {
+        e.stopPropagation();
+        node.thumb = '';
+        node.uploadedVideo = '';
+        node.ratio = null;
+        node.params.name = '';
+        node.params.duration = '00:00';
+        resetNodeData(node);
+        if (node === __composerNode) showNodeComposer(node);
+        markEdgesDirty();
+        scheduleAutosave();
+      };
+      clearBtn.hidden = collapsed;
+      mediaActions.appendChild(clearBtn);
+
+      el.appendChild(mediaActions);
+
+      if (!collapsed) {
+        const videoFields = document.createElement('div');
+        videoFields.className = 'nc-video-fields';
+
+        const nameRow = document.createElement('label');
+        nameRow.className = 'nc-field';
+        nameRow.innerHTML = '<span>文件名</span>';
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'nc-input';
+        nameInput.value = node.params && node.params.name ? String(node.params.name) : '';
+        nameInput.placeholder = '未选择视频';
+        nameInput.onmousedown = (e) => e.stopPropagation();
+        nameInput.oninput = (e) => { node.params.name = e.target.value; scheduleAutosave(); };
+        nameRow.appendChild(nameInput);
+        videoFields.appendChild(nameRow);
+
+        const durationRow = document.createElement('label');
+        durationRow.className = 'nc-field';
+        durationRow.innerHTML = '<span>时长</span>';
+        const durationInput = document.createElement('input');
+        durationInput.type = 'text';
+        durationInput.className = 'nc-input';
+        durationInput.value = node.params && node.params.duration ? String(node.params.duration) : '00:00';
+        durationInput.placeholder = '00:00';
+        durationInput.onmousedown = (e) => e.stopPropagation();
+        durationInput.oninput = (e) => { node.params.duration = e.target.value; scheduleAutosave(); };
+        durationRow.appendChild(durationInput);
+        videoFields.appendChild(durationRow);
+
+        el.appendChild(videoFields);
+      }
+      } else {
+      const mediaActions = document.createElement('div');
+      mediaActions.className = 'nc-media-actions';
+      const replaceBtn = document.createElement('button');
+      replaceBtn.type = 'button';
+      replaceBtn.className = 'nc-run nc-media-replace';
+      replaceBtn.textContent = '更换图片';
+      replaceBtn.onmousedown = (e) => e.stopPropagation();
+      replaceBtn.onclick = (e) => { e.stopPropagation(); openImageFilePicker(node); };
+      mediaActions.appendChild(replaceBtn);
+
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'nc-clear';
+      clearBtn.textContent = '清空';
+      clearBtn.onmousedown = (e) => e.stopPropagation();
+      clearBtn.onclick = (e) => {
+        e.stopPropagation();
+        node.thumb = '';
+        node.uploadedImage = '';
+        node.ratio = null;
+        if (node.params) node.params.name = '';
+        resetNodeData(node);
+        if (node === __composerNode) showNodeComposer(node);
+        markEdgesDirty();
+        scheduleAutosave();
+      };
+      mediaActions.appendChild(clearBtn);
+
+      el.appendChild(mediaActions);
+    }
+  }
+
+  if (node.type === 'image') {
+    el.classList.toggle('node-image-locked', !!(node.uploadedImage || node.thumb));
+  }
+
+  if (!isMediaInput) {
+    // 参数行：模型 / 规格 / 张数|时长 / 模式
+    const row = document.createElement('div');
+    row.className = 'nc-params' + (node.type === 'aiVideo' ? ' nc-params-video' : '');
+    const modelSel = document.createElement('select');
+    modelSel.className = 'nc-select nc-model';
+    const models = node.type === 'imageEdit'
+      ? ['GPT Image 2']
+      : (node.type === 'aiImage' || node.type === 'image'
+        ? ['Nano Banana Pro', 'FLUX.1', 'Stable Diffusion XL', 'GPT Image 2']
+        : ['可灵 2.0', 'Runway Gen-4']);
+    models.forEach(m => {
+      const o = document.createElement('option');
+      o.value = m; o.textContent = m;
+      modelSel.appendChild(o);
+    });
+    if (!models.includes(node.params.model)) node.params.model = models[0];
+    modelSel.value = node.params.model;
+    modelSel.onmousedown = (e) => e.stopPropagation();
+    modelSel.onchange = (e) => { node.params.model = e.target.value; scheduleAutosave(); };
+    row.appendChild(modelSel);
+
+    const specSel = buildUnifiedAiSpecSelect(node, 'nc-select nc-spec-select');
+    row.appendChild(specSel);
+
+    const isVideo = node.type === 'aiVideo';
+    const paramDefs = [
+      isVideo ? { key: 'duration', options: ['3秒', '5秒', '10秒', '15秒', '30秒'] } : { key: 'count', options: ['1张', '2张', '4张', '6张', '8张'] },
+      { key: 'mode', options: ['同步', '异步'] }
+    ];
+    paramDefs.forEach(({ key, options }) => {
+      const sel = document.createElement('select');
+      sel.className = 'nc-select';
+      options.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+      const cur = node.params[key];
+      if (!options.includes(cur)) node.params[key] = options[0];
+      sel.value = node.params[key];
+      sel.onmousedown = (e) => e.stopPropagation();
+      sel.onchange = (e) => { node.params[key] = e.target.value; scheduleAutosave(); };
+      row.appendChild(sel);
+    });
+    el.appendChild(row);
+
+    // 高级折叠：引用角色资产（仅 aiImage / aiVideo）
+    const advBtn = document.createElement('button');
+    advBtn.type = 'button';
+    advBtn.className = 'nc-adv-toggle';
+    advBtn.textContent = '⚙ 高级';
+    advBtn.title = '高级选项：引用已保存的角色资产';
+    advBtn.onmousedown = (e) => e.stopPropagation();
+    const advBox = document.createElement('div');
+    advBox.className = 'nc-adv';
+    advBox.hidden = true;
+    if (node.type === 'aiImage' || node.type === 'imageEdit') {
+      const refRow = document.createElement('div');
+      refRow.className = 'node-ref-asset-row';
+      const refBtn = document.createElement('button');
+      refBtn.type = 'button';
+      refBtn.className = 'node-ref-asset-btn';
+      refBtn.textContent = '🔗 引用角色资产';
+      refBtn.title = '从已保存的角色资产中选择，自动插入 <<<名称>>> 引用令牌';
+      refBtn.onmousedown = (e) => e.stopPropagation();
+      refRow.appendChild(refBtn);
+      const refSel = document.createElement('select');
+      refSel.className = 'node-ref-asset-select';
+      refSel.title = '选择已保存的角色资产，插入引用令牌到提示词';
+      const refItems = listCharacterAssets();
+      const ph = document.createElement('option');
+      ph.value = '';
+      ph.textContent = refItems.length ? '选择角色资产…' : '（暂无角色资产）';
+      refSel.appendChild(ph);
+      refItems.forEach(it => { const o = document.createElement('option'); o.value = it.name; o.textContent = it.name; refSel.appendChild(o); });
+      refSel.onmousedown = (e) => e.stopPropagation();
+      refSel.onchange = (e) => {
+        const nm = e.target.value;
+        if (!nm) return;
+        insertRefTokenIntoNodePrompt(textarea, nm);
+        node.prompt = textarea.value;
+        refreshRefBadge();
+        scheduleAutosave();
+        showToast('已插入引用令牌 <<<' + nm + '>>>', 'success');
+        refSel.value = '';
+      };
+      refRow.appendChild(refSel);
+      advBox.appendChild(refRow);
+    }
+    advBtn.onclick = (e) => { e.stopPropagation(); advBox.hidden = !advBox.hidden; advBtn.classList.toggle('open', !advBox.hidden); };
+    el.appendChild(advBtn);
+    el.appendChild(advBox);
+
+    // 生成按钮
+    const actions = document.createElement('div');
+    actions.className = 'nc-actions';
+    const runBtn = document.createElement('button');
+    runBtn.type = 'button';
+    runBtn.className = 'nc-run';
+    runBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l9 6-9 6z"/></svg> 生成';
+    runBtn.title = '运行此节点';
+    runBtn.onmousedown = (e) => e.stopPropagation();
+    runBtn.onclick = (e) => { e.stopPropagation(); runNode(node); };
+    actions.appendChild(runBtn);
+    el.appendChild(actions);
+  }
+
+  // Composer 内任何 mousedown 都不冒泡到画布（避免被当作空白点击而取消选中/隐藏）
+  // 注：listener 绑在 el 自身，innerHTML 清空不销毁 → 用标志位防重复绑定
+  if (!el._ncBound) {
+    el.addEventListener('mousedown', (e) => e.stopPropagation());
+    el._ncBound = true;
+  }
+}
+
 function renderRunLog() {
   const list = document.getElementById('runLogList');
   const empty = document.getElementById('runLogEmpty');
@@ -2329,9 +5060,23 @@ function restoreFromRecycle(index) {
   node.height = nd.height;
   node.title = nd.title;
   node.thumb = nd.thumb;
+  node.uploadedImage = typeof nd.uploadedImage === 'string' ? nd.uploadedImage : '';
+  node.croppedImage = typeof nd.croppedImage === 'string' ? nd.croppedImage : '';
+  node.cropMeta = nd.cropMeta ? JSON.parse(JSON.stringify(nd.cropMeta)) : null;
+  node.uploadedVideo = typeof nd.uploadedVideo === 'string' ? nd.uploadedVideo : '';
   node.prompt = nd.prompt;
   node.params = { ...nd.params };
+  node.refImages = Array.isArray(nd.refImages) ? JSON.parse(JSON.stringify(nd.refImages)) : [];
+  node.charDesc = typeof nd.charDesc === 'string' ? nd.charDesc : '';
+      node.stateMeta = copyStateMeta(nd.stateMeta);
+      node.failureReason = nd.failureReason || (node.stateMeta && node.stateMeta.failureReason) || nd._lastError || '';
+      node._lastError = node.failureReason;
   node.status = nd.status;
+  node.previewOnly = !!nd.previewOnly;
+  node.previewSourceId = typeof nd.previewSourceId === 'string' ? nd.previewSourceId : '';
+  if (node.type === 'videoInput' || node.type === 'image') {
+    node.outputsData = computeNodeOutput(node);
+  }
   const el = createNodeElement(node);
   nodeLayer.appendChild(el);
   workflow.nodes.set(node.id, node);
@@ -2414,6 +5159,131 @@ function buildSidebar() {
   const list = document.getElementById('sidebarList');
   list.innerHTML = '';
 
+  // 风格预设（一键生成角色设计工作流）：tab 切换（常用/收藏） + 按 category 分组 + chip 标签
+  const presetLabel = document.createElement('div');
+  presetLabel.className = 'sidebar-section-label';
+  presetLabel.textContent = '🎨 风格预设';
+  list.appendChild(presetLabel);
+
+  // 顶部 tab：常用 / 收藏
+  const presetTabs = document.createElement('div');
+  presetTabs.className = 'preset-tabs';
+  const tabCommon = document.createElement('button');
+  tabCommon.type = 'button';
+  tabCommon.className = 'preset-tab active';
+  tabCommon.textContent = '常用';
+  const tabFav = document.createElement('button');
+  tabFav.type = 'button';
+  tabFav.className = 'preset-tab';
+  tabFav.textContent = '收藏';
+  presetTabs.appendChild(tabCommon);
+  presetTabs.appendChild(tabFav);
+  list.appendChild(presetTabs);
+
+  const presetBody = document.createElement('div');
+  presetBody.className = 'preset-body';
+  list.appendChild(presetBody);
+
+  // 收藏存储：localStorage 'flowcraft-preset-favs'（数组）
+  function getFavs() {
+    try { const v = JSON.parse(localStorage.getItem('flowcraft-preset-favs') || '[]'); return Array.isArray(v) ? v : []; }
+    catch (e) { return []; }
+  }
+  function setFavs(arr) {
+    try { localStorage.setItem('flowcraft-preset-favs', JSON.stringify(arr)); } catch (e) {}
+  }
+  function toggleFav(id) {
+    const favs = getFavs();
+    const idx = favs.indexOf(id);
+    if (idx >= 0) favs.splice(idx, 1);
+    else favs.push(id);
+    setFavs(favs);
+    renderPresetTab(currentPresetTab);
+  }
+  // 已应用标记（会话级）：applyStylePreset 时写入
+  window.__appliedPresets = window.__appliedPresets || {};
+
+  // 渲染单个 chip（含收藏星标 + 已应用标记）
+  function renderPresetChip(preset, row) {
+    const wrap = document.createElement('span');
+    wrap.className = 'preset-chip-wrap';
+
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'preset-chip' + (window.__appliedPresets[preset.id] ? ' preset-chip-applied' : '');
+    chip.dataset.presetId = preset.id;
+    chip.style.background = preset.color;
+    chip.textContent = preset.icon + ' ' + preset.name;
+    chip.title = preset.desc + ' · 点击一键应用' + (window.__appliedPresets[preset.id] ? '（已应用过，可再点追加）' : '');
+    chip.onclick = (e) => { e.stopPropagation(); applyStylePreset(preset); };
+    chip.onmousedown = (e) => e.stopPropagation();
+    wrap.appendChild(chip);
+
+    // 收藏星标（hover 显示）
+    const favBtn = document.createElement('button');
+    favBtn.type = 'button';
+    favBtn.className = 'preset-chip-fav' + (getFavs().indexOf(preset.id) >= 0 ? ' faved' : '');
+    favBtn.textContent = getFavs().indexOf(preset.id) >= 0 ? '★' : '☆';
+    favBtn.title = getFavs().indexOf(preset.id) >= 0 ? '取消收藏' : '收藏到「收藏」页';
+    favBtn.onclick = (e) => { e.stopPropagation(); toggleFav(preset.id); };
+    favBtn.onmousedown = (e) => e.stopPropagation();
+    wrap.appendChild(favBtn);
+
+    row.appendChild(wrap);
+  }
+
+  let currentPresetTab = 'common';
+  function renderPresetTab(tab) {
+    currentPresetTab = tab;
+    tabCommon.classList.toggle('active', tab === 'common');
+    tabFav.classList.toggle('active', tab === 'fav');
+    presetBody.innerHTML = '';
+
+    if (tab === 'fav') {
+      // 收藏页：只展示收藏的预设
+      const favs = getFavs();
+      const favPresets = STYLE_PRESETS.filter(p => favs.indexOf(p.id) >= 0);
+      if (!favPresets.length) {
+        const empty = document.createElement('div');
+        empty.className = 'preset-fav-empty';
+        empty.textContent = '点击预设上的 ☆ 收藏，这里会展示';
+        presetBody.appendChild(empty);
+        return;
+      }
+      const row = document.createElement('div');
+      row.className = 'preset-chips-row';
+      favPresets.forEach(p => renderPresetChip(p, row));
+      presetBody.appendChild(row);
+      return;
+    }
+
+    // 常用页：按 category 分组（保留原顺序）
+    const presetGroups = [];
+    const presetGroupIdx = {};
+    STYLE_PRESETS.forEach(preset => {
+      const cat = preset.category || '其他';
+      if (!(cat in presetGroupIdx)) {
+        presetGroupIdx[cat] = presetGroups.length;
+        presetGroups.push({ name: cat, items: [] });
+      }
+      presetGroups[presetGroupIdx[cat]].items.push(preset);
+    });
+    presetGroups.forEach(group => {
+      const subLabel = document.createElement('div');
+      subLabel.className = 'sidebar-section-label sidebar-section-sub';
+      subLabel.textContent = group.name;
+      presetBody.appendChild(subLabel);
+
+      const chipRow = document.createElement('div');
+      chipRow.className = 'preset-chips-row';
+      group.items.forEach(preset => renderPresetChip(preset, chipRow));
+      presetBody.appendChild(chipRow);
+    });
+  }
+  tabCommon.onclick = () => renderPresetTab('common');
+  tabFav.onclick = () => renderPresetTab('fav');
+  renderPresetTab('common');
+
   // 输入类
   const inputLabel = document.createElement('div');
   inputLabel.className = 'sidebar-section-label';
@@ -2430,7 +5300,7 @@ function buildSidebar() {
   aiLabel.textContent = 'AI 生成';
   list.appendChild(aiLabel);
 
-  ['aiImage', 'aiVideo', 'aiSet'].forEach(type => {
+  ['aiImage', 'imageEdit', 'aiVideo', 'aiSet'].forEach(type => {
     list.appendChild(createLibraryItem(type));
   });
 
@@ -2440,7 +5310,7 @@ function buildSidebar() {
   processLabel.textContent = '处理';
   list.appendChild(processLabel);
 
-  ['upscale', 'compare', 'videoBreak', 'material', 'light', 'layout', 'loop'].forEach(type => {
+  ['upscale', 'compare', 'videoBreak', 'reversePrompt', 'material', 'light', 'layout', 'loop'].forEach(type => {
     list.appendChild(createLibraryItem(type));
   });
 
@@ -2477,10 +5347,14 @@ function createLibraryItem(type) {
   item.dataset.type = type;
   item.draggable = true;
   item.style.setProperty('--type-color', def.color);
+  const semantic = getNodeSemantic(type);
   item.innerHTML = `
     <div class="lib-icon">${NODE_ICONS[type] || ''}</div>
     <div class="lib-text">
-      <div class="lib-name">${def.label}</div>
+      <div class="lib-name-row">
+        <div class="lib-name">${def.label}</div>
+        <span class="lib-tier-badge ${semantic.className}">${semantic.label}</span>
+      </div>
       <div class="lib-desc">${def.desc}</div>
     </div>
   `;
@@ -2491,10 +5365,155 @@ function createLibraryItem(type) {
   return item;
 }
 
+function getNodeSemanticTier(type) {
+  const fallback = {
+    image: 'input',
+    videoInput: 'input',
+    text: 'input',
+    stateList: 'input',
+    aiImage: 'production',
+    aiVideo: 'demo',
+    comfyui: 'production',
+  };
+  const meta = (window.FlowCraft && window.FlowCraft.nodes && typeof window.FlowCraft.nodes.getNodeMeta === 'function')
+    ? window.FlowCraft.nodes.getNodeMeta(type)
+    : null;
+  return (meta && meta.tier) || fallback[type] || 'demo';
+}
+function getNodeSemanticLabel(tier) {
+  return ({ input: '输入', production: '真实', demo: '演示', stub: '未实现' })[tier] || '演示';
+}
+function getNodeSemanticClass(tier) {
+  return ({ input: 'tier-input', production: 'tier-production', demo: 'tier-demo', stub: 'tier-stub' })[tier] || 'tier-demo';
+}
+function getNodeSemantic(typeOrNode) {
+  const type = typeof typeOrNode === 'string' ? typeOrNode : (typeOrNode && typeOrNode.type) || '';
+  const tier = getNodeSemanticTier(type);
+  return { tier, label: getNodeSemanticLabel(tier), className: getNodeSemanticClass(tier) };
+}
+function getNodeResultLabel(mode) {
+  return ({ pending: '未运行', real: '真实', demo: '演示', failed: '失败', unimplemented: '未实现' })[mode] || '未运行';
+}
+function getNodeResultClass(mode) {
+  return ({ pending: 'result-pending', real: 'result-real', demo: 'result-demo', failed: 'result-failed', unimplemented: 'result-unimplemented' })[mode] || 'result-pending';
+}
+function setNodeResultMode(node, mode) {
+  if (!node) return;
+  node.resultMode = mode || 'pending';
+  if (node.el) {
+    const pill = node.el.querySelector('.node-result-pill');
+    if (pill) {
+      pill.className = 'node-result-pill ' + getNodeResultClass(node.resultMode);
+      pill.textContent = getNodeResultLabel(node.resultMode);
+    }
+  }
+}
+function applyNodeSemanticBadge(node, root) {
+  if (!node) return;
+  const target = root || node.el;
+  const semantic = getNodeSemantic(node);
+  node.semanticMode = semantic.tier;
+  if (!target) return;
+  target.dataset.semanticMode = semantic.tier;
+  const pill = target.querySelector('.node-tier-pill');
+  if (pill) {
+    pill.className = 'node-tier-pill ' + semantic.className;
+    pill.textContent = semantic.label;
+    pill.title = semantic.label + '节点';
+  }
+}
+
 //================ 7. 节点 DOM 渲染 ================
+// 节点快捷工具按钮（header 浮层内）
+function makeNodeToolBtn(title, svgHtml, onclick) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'node-tool-btn';
+  b.title = title;
+  b.innerHTML = svgHtml;
+  b.onclick = (e) => { e.stopPropagation(); onclick(); };
+  b.onmousedown = (e) => e.stopPropagation();
+  return b;
+}
+const NODE_TOOL_SVGS = {
+  info: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 7v4M8 4.5v.5"/></svg>',
+  download: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3 14h10"/></svg>',
+  upload: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10V3M5 6l3-3 3 3M3 13h10"/></svg>',
+  expand: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="M10 10l4 4M6.5 6v3M5 7.5h3"/></svg>',
+  crop: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1v3M1 3h3M13 1v3M12 3h3M3 15v-3M1 13h3M13 15v-3M12 13h3"/><path d="M5 5h6v6H5z"/></svg>',
+  gen: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M7 2h2l-.5 4h2.5l-1 3h-3l-.5-4H7z"/><circle cx="10" cy="12" r="1.6"/><path d="M3 11l2-1 1-2 1.5 3"/></svg>',
+  asset: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h4l1.5 2H14v8H2z"/><path d="M8 8v4M6 10h4"/></svg>',
+  copy: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>',
+  grid: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>',
+};
+// 节点元数据摘要行 —— 已禁用（用户要求图片节点极致纯净：彻底无 meta 显示）
+function buildNodeMetaLine(node) {
+  return '';
+}
+function getNodeHeaderTitle(node) {
+  if (!node) return '';
+  if (node.type === 'image') {
+    const fileName = node.params && node.params.name ? String(node.params.name).trim() : '';
+    return fileName ? ('图片输入 · ' + fileName) : '图片输入';
+  }
+  if (node.type === 'videoInput') {
+    const fileName = node.params && node.params.name ? String(node.params.name).trim() : '';
+    return fileName ? ('视频输入 · ' + fileName) : '视频输入';
+  }
+  if (node.type === 'aiImage') return 'AI 绘图';
+  if (node.type === 'imageEdit') return '图片修正';
+  if (node.type === 'aiVideo') return 'AI 视频';
+  return node.title;
+}
+// 刷新节点 header 工具/元数据 —— 已禁用为 noop（用户要求"全都取消"）
+function refreshNodeHeaderMeta(node, el) {
+  const root = el || (node && node.el);
+  if (!root) return;
+  root.querySelectorAll('.node-tools, .node-meta-line').forEach(x => x.remove());
+  applyNodeSemanticBadge(node, root);
+  const titleEl = root.querySelector('.node-title-text');
+  if (titleEl) {
+    const title = getNodeHeaderTitle(node);
+    titleEl.textContent = title;
+    titleEl.title = title;
+  }
+  if (node && ['image', 'aiImage', 'imageEdit', 'aiVideo'].includes(node.type)) {
+    const tools = buildMediaNodeTools(node);
+    if (tools) root.querySelector('.node-header-row').appendChild(tools);
+  }
+}
+// 节点信息（ⓘ 按钮）：弹窗展示完整元数据
+function showNodeInfo(node) {
+  if (!node) return;
+  const def = node.def || {};
+  const lines = [];
+  lines.push('类型：' + (def.label || node.type));
+  lines.push('标题：' + (node.title || '—'));
+  lines.push('状态：' + (node.status || 'idle'));
+  lines.push('语义：' + getNodeSemanticLabel(getNodeSemanticTier(node.type)));
+  lines.push('坐标：(' + Math.round(node.x) + ', ' + Math.round(node.y) + ')');
+  const prompt = node.prompt || (node.params && node.params.fields && node.params.fields.prompt) || '';
+  if (prompt) lines.push('提示词：' + (prompt.length > 150 ? prompt.slice(0, 150) + '…' : prompt));
+  if (node.params) {
+    const kv = Object.entries(node.params)
+      .filter(([k, v]) => v !== undefined && v !== null && v !== '' && typeof v !== 'object' && !String(k).startsWith('__'))
+      .map(([k, v]) => k + '=' + v);
+    if (kv.length) lines.push('参数：' + kv.slice(0, 10).join(' · '));
+  }
+  window.alert(lines.join('\n'));
+}
+// 下载节点图片（⬇ 按钮）
+function downloadNode(node) {
+  const src = normalizeImageSrc(node.thumb);
+  if (!src) { showToast('该节点暂无可下载图片', 'warn'); return; }
+  downloadDataUrl(src, (node.title || 'flowcraft-node').replace(/[\\/:*?"<>|]/g, '_') + '.png');
+}
+
 function createNodeElement(node) {
   const el = document.createElement('div');
   el.className = 'node';
+  if (node.previewOnly) el.classList.add('preview-only-node');
+  if (node.type === 'image') el.classList.add('node-type-image');
   el.dataset.id = node.id;
   el.dataset.type = node.type;
   el.style.left = node.x + 'px';
@@ -2502,28 +5521,47 @@ function createNodeElement(node) {
   el.style.zIndex = (++workflow.nextZ).toString();
   el.style.setProperty('--type-color', node.def.color);
 
-  // 关闭按钮
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'node-close-btn';
-  closeBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
-  closeBtn.onclick = (e) => { e.stopPropagation(); deleteNode(node.id); };
+  // 标题栏：语义徽章 + 状态 + 工具
+  const statusDot = document.createElement('div');
+  statusDot.className = 'node-status-dot ' + (node.status || 'idle');
+  el.appendChild(statusDot);
 
-  // 标题栏
   const header = document.createElement('div');
   header.className = 'node-header';
-  const statusDot = document.createElement('div');
-  statusDot.className = 'node-status-dot idle';
+  const row = document.createElement('div');
+  row.className = 'node-header-row';
+  // image-only 模式：节点框内只保留媒体内容；标题/语义/状态徽标浮在框外上方
+  // 统一给媒体输入/预览节点采用同一套上方信息栏样式
+  if (['aiImage', 'imageEdit', 'aiVideo', 'image', 'videoInput', 'text', 'stateList'].includes(node.type)) el.classList.add('node--image-only');
+
   const titleText = document.createElement('div');
   titleText.className = 'node-title-text';
-  titleText.textContent = node.title;
+  titleText.textContent = getNodeHeaderTitle(node);
+  titleText.title = titleText.textContent;
+
+  const semantic = getNodeSemantic(node);
+  const tierPill = document.createElement('div');
+  tierPill.className = 'node-tier-pill ' + semantic.className;
+  tierPill.textContent = semantic.label;
+  if (node.type === 'videoInput') tierPill.hidden = true;
+
+  const resultPill = document.createElement('div');
+  resultPill.className = 'node-result-pill ' + getNodeResultClass(node.resultMode || 'pending');
+  resultPill.textContent = getNodeResultLabel(node.resultMode || 'pending');
+  if (node.type === 'videoInput' || node.type === 'image') resultPill.hidden = true;
+
   const statusPill = document.createElement('div');
   statusPill.className = 'node-status-pill idle';
   statusPill.textContent = '待运行';
-  header.appendChild(statusDot);
-  header.appendChild(titleText);
-  header.appendChild(statusPill);
-  header.appendChild(closeBtn);
+  if (node.type === 'videoInput' || node.type === 'image') statusPill.hidden = true;
+  if (node.type === 'image') tierPill.hidden = true;
 
+  // 关闭 X 已移除：外置标题栏上极易误触；删除走 Delete 键 / 右键菜单
+  row.appendChild(titleText);
+  row.appendChild(tierPill);
+  row.appendChild(resultPill);
+  row.appendChild(statusPill);
+  header.appendChild(row);
   el.appendChild(header);
 
   // 设置宽度与最小高度（可自由调节）
@@ -2556,8 +5594,24 @@ function createNodeElement(node) {
     // 已处于多选中的节点：保持多选，整体拖动（不再自动收敛为单选）
     if (!workflow.selection.has(node.id)) {
       selectNode(node); // 未选中 → 先单选再拖动
+      if (node.type === 'videoInput') node.__settingsCollapsed = false;
+    } else if (node.type === 'videoInput' && node.__settingsCollapsed !== false) {
+      node.__settingsCollapsed = false;
+      showNodeComposer(node);
+    } else if (node.type === 'videoInput') {
+      showNodeComposer(node);
     }
     startNodeDrag(e, node);
+  });
+
+  el.addEventListener('click', (e) => {
+    if (e.button && e.button !== 0) return;
+    const mediaClick = e.target.closest('.node-hero, .node-image-input-hero, .node-preview-area, .node-body');
+    if (node.type === 'videoInput' && mediaClick) {
+      e.stopPropagation();
+      if (node.type === 'videoInput') node.__settingsCollapsed = false;
+      showNodeComposer(node);
+    }
   });
 
   node.el = el;
@@ -2572,31 +5626,293 @@ function cnNum(n) {
 
 // 节点底部图片预览：提取节点中可用的图片 URL
 function getNodePreviewImage(node) {
-  if (node.thumb && typeof node.thumb === 'string' && node.thumb.startsWith('data:')) return node.thumb;
+  const ownThumb = getNodeDisplayImageSource(node);
+  if (ownThumb) return ownThumb;
   const outData = node.outputsData || [];
   for (const payload of outData) {
-    if (payload && payload.type === 'image' && typeof payload.value === 'string' && payload.value.startsWith('data:')) {
-      return payload.value;
+    const src = payload && payload.type === 'image' ? normalizeImageSrc(payload.value) : null;
+    if (src) {
+      return src;
     }
   }
   const inData = node.inputsData || [];
   for (const payload of inData) {
-    if (payload && payload.type === 'image' && typeof payload.value === 'string' && payload.value.startsWith('data:')) {
-      return payload.value;
+    const src = payload && payload.type === 'image' ? normalizeImageSrc(payload.value) : null;
+    if (src) {
+      return src;
     }
   }
   return null;
 }
 
+// 图片节点当前生效图：裁剪图 > 缩略图 > 原图
+function getNodeDisplayImageSource(node) {
+  if (!node) return null;
+  const cropped = normalizeImageSrc(node.croppedImage);
+  if (cropped) return cropped;
+  const thumb = normalizeImageSrc(node.thumb);
+  if (thumb) return thumb;
+  const uploaded = normalizeImageSrc(node.uploadedImage);
+  if (uploaded) return uploaded;
+  return null;
+}
+
+// 图片裁剪入口：仅 image 节点显示
+function buildImageNodeTools(node) {
+  if (!node || node.type !== 'image') return null;
+  const tools = document.createElement('div');
+  tools.className = 'node-tools';
+  const src = getNodeDisplayImageSource(node);
+  const uploadBtn = makeNodeToolBtn(src ? '更换图片' : '上传图片', NODE_TOOL_SVGS.upload, () => openImageFilePicker(node));
+  uploadBtn.title = src ? '更换图片' : '上传图片';
+  tools.appendChild(uploadBtn);
+
+  const viewBtn = makeNodeToolBtn('查看大图', NODE_TOOL_SVGS.expand, () => { if (src) openImageLightbox(src); });
+  viewBtn.disabled = !src;
+  viewBtn.title = src ? '查看大图' : '暂无图片可查看';
+  tools.appendChild(viewBtn);
+
+  const cropBtn = makeNodeToolBtn('裁剪图片', NODE_TOOL_SVGS.crop, () => openImageCropModal(node));
+  cropBtn.classList.add('node-crop-btn');
+  cropBtn.disabled = !src;
+  cropBtn.title = src ? '裁剪图片' : '裁剪图片（请先上传图片）';
+  tools.appendChild(cropBtn);
+
+  const downloadBtn = makeNodeToolBtn('下载图片', NODE_TOOL_SVGS.download, () => { if (src) downloadNode(node); });
+  downloadBtn.disabled = !src;
+  downloadBtn.title = src ? '下载图片' : '暂无图片可下载';
+  tools.appendChild(downloadBtn);
+  return tools;
+}
+
+// 统一节点工具栏：image/aiImage/imageEdit/aiVideo 共用，挂在外置标题栏内（悬停/选中浮现）
+function buildMediaNodeTools(node) {
+  if (!node) return null;
+  const t = node.type;
+  const isImgLike = t === 'image' || t === 'aiImage' || t === 'imageEdit';
+  if (!isImgLike && t !== 'aiVideo') return null;
+  const tools = document.createElement('div');
+  tools.className = 'node-tools';
+  const src = getNodeDisplayImageSource(node);
+  if (isImgLike) {
+    tools.appendChild(makeNodeToolBtn(src ? '更换图片' : '上传图片', NODE_TOOL_SVGS.upload, () => openImageFilePicker(node)));
+  } else {
+    tools.appendChild(makeNodeToolBtn('更换视频', NODE_TOOL_SVGS.upload, () => openVideoFilePicker(node)));
+  }
+  const viewBtn = makeNodeToolBtn('查看大图', NODE_TOOL_SVGS.expand, () => { if (src) openImageLightbox(src); });
+  viewBtn.disabled = !src;
+  viewBtn.title = src ? '查看大图' : '暂无图片可查看';
+  tools.appendChild(viewBtn);
+  if (t === 'image') {
+    const cropBtn = makeNodeToolBtn('裁剪图片', NODE_TOOL_SVGS.crop, () => openImageCropModal(node));
+    cropBtn.disabled = !src;
+    cropBtn.title = src ? '裁剪图片' : '裁剪图片（请先上传图片）';
+    tools.appendChild(cropBtn);
+  }
+  const dlBtn = makeNodeToolBtn('下载图片', NODE_TOOL_SVGS.download, () => { if (src) downloadNode(node); });
+  dlBtn.disabled = !src;
+  dlBtn.title = src ? '下载图片' : '暂无图片可下载';
+  tools.appendChild(dlBtn);
+  const assetBtn = makeNodeToolBtn('存资产', NODE_TOOL_SVGS.asset, () => saveNodeImageAsAsset(node));
+  assetBtn.disabled = !src;
+  assetBtn.title = src ? '存资产（存入素材库，可以 <<<名称>>> 引用）' : '存资产（暂无图片可存）';
+  tools.appendChild(assetBtn);
+  if (t !== 'image') {
+    tools.appendChild(makeNodeToolBtn('复制提示词', NODE_TOOL_SVGS.copy, () => copyNodePrompt(node)));
+  }
+  if (isImgLike && t !== 'image') {
+    const gridBtn = makeNodeToolBtn('宫格切分', NODE_TOOL_SVGS.grid, () => openGridSplitPop(node, gridBtn));
+    gridBtn.disabled = !src;
+    gridBtn.title = src ? '宫格切分（2x2/3x3/4x4/自定义）' : '暂无图片可切分';
+    tools.appendChild(gridBtn);
+  }
+  return tools;
+}
+
+function copyTextThen(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { showToast('复制失败', 'danger'); }
+  ta.remove();
+}
+function copyNodePrompt(node) {
+  const text = String(node.effectivePrompt || node.prompt || node.charDesc || '');
+  if (!text.trim()) { showToast('当前节点没有提示词可复制', 'info'); return; }
+  const done = () => showToast('已复制提示词（' + text.length + ' 字）', 'success');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, () => copyTextThen(text, done));
+  } else {
+    copyTextThen(text, done);
+  }
+}
+
+function saveNodeImageAsAsset(node) {
+  const src = getNodeDisplayImageSource(node);
+  if (!src || !/^data:/i.test(src)) { showToast('存资产需要本地图像，当前图源不支持', 'warn'); return; }
+  const all = loadGlobalAssetImages();
+  const base = String(node.title || getNodeHeaderTitle(node) || '资产').trim().replace(/\s+/g, '-') || '资产';
+  let key = base;
+  let i = 2;
+  while (all[key]) { key = base + '-' + i; i++; }
+  saveGlobalAssetImage(key, { src: src, nodeTitle: getNodeHeaderTitle(node), label: '产出', kind: node.type });
+  showToast('已存入素材库 <<<' + key + '>>>', 'success');
+  try { updateAssetPanel(); } catch (e) {}
+}
+
+// —— 宫格切分：把一张宫格图切成 rows×cols 个独立图片节点 ——
+let _gridPopClean = null;
+function closeGridSplitPop() {
+  const p = document.getElementById('gridSplitPop');
+  if (p) p.remove();
+  if (_gridPopClean) { _gridPopClean(); _gridPopClean = null; }
+}
+function openGridSplitPop(node, anchor) {
+  closeGridSplitPop();
+  const pop = document.createElement('div');
+  pop.id = 'gridSplitPop';
+  pop.className = 'grid-split-pop';
+  const title = document.createElement('div');
+  title.className = 'grid-split-title';
+  title.textContent = '宫格切分';
+  pop.appendChild(title);
+  const row = document.createElement('div');
+  row.className = 'grid-split-presets';
+  [[2, 2], [3, 3], [4, 4]].forEach(function(rc) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'grid-split-preset';
+    b.textContent = rc[0] + 'x' + rc[1];
+    b.onclick = (e) => { e.stopPropagation(); closeGridSplitPop(); splitNodeImageToGrid(node, rc[0], rc[1]); };
+    b.onmousedown = (e) => e.stopPropagation();
+    row.appendChild(b);
+  });
+  pop.appendChild(row);
+  const custom = document.createElement('div');
+  custom.className = 'grid-split-custom';
+  const ri = document.createElement('input');
+  ri.type = 'number'; ri.min = '1'; ri.max = '8'; ri.value = '2'; ri.className = 'grid-split-num';
+  const ci = ri.cloneNode(false);
+  const go = document.createElement('button');
+  go.type = 'button';
+  go.className = 'grid-split-go';
+  go.textContent = '切分';
+  go.onclick = (e) => {
+    e.stopPropagation();
+    const r = Math.max(1, Math.min(8, parseInt(ri.value, 10) || 1));
+    const c = Math.max(1, Math.min(8, parseInt(ci.value, 10) || 1));
+    closeGridSplitPop();
+    splitNodeImageToGrid(node, r, c);
+  };
+  custom.appendChild(ri);
+  custom.appendChild(document.createTextNode('×'));
+  custom.appendChild(ci);
+  custom.appendChild(go);
+  pop.appendChild(custom);
+  pop.onmousedown = (e) => e.stopPropagation();
+  const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeGridSplitPop(); } };
+  const onOutside = (e) => { if (!pop.contains(e.target)) closeGridSplitPop(); };
+  document.addEventListener('keydown', onKey, true);
+  document.addEventListener('mousedown', onOutside, true);
+  _gridPopClean = () => {
+    document.removeEventListener('keydown', onKey, true);
+    document.removeEventListener('mousedown', onOutside, true);
+  };
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(window.innerWidth - 220, r.left - 40)) + 'px';
+  pop.style.top = (r.bottom + 6) + 'px';
+}
+async function splitNodeImageToGrid(node, rows, cols) {
+  const src = getNodeDisplayImageSource(node);
+  if (!src) { showToast('暂无图片可切分', 'info'); return; }
+  let imgSrc = src;
+  if (!/^data:/i.test(src)) {
+    try {
+      const blob = await (await fetch(src)).blob();
+      imgSrc = URL.createObjectURL(blob);
+    } catch (e) { showToast('切分失败：图源跨域不可读', 'danger'); return; }
+  }
+  const img = await new Promise((res) => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = () => res(null);
+    i.src = imgSrc;
+  });
+  if (!img || !img.naturalWidth) { showToast('切分失败：图片加载失败', 'danger'); return; }
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const cw = Math.floor(W / cols), ch = Math.floor(H / rows);
+  if (cw < 8 || ch < 8) { showToast('切分失败：图片尺寸太小', 'warn'); return; }
+  const cells = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cv = document.createElement('canvas');
+      cv.width = cw; cv.height = ch;
+      cv.getContext('2d').drawImage(img, c * cw, r * ch, cw, ch, 0, 0, cw, ch);
+      cells.push(cv.toDataURL('image/png'));
+    }
+  }
+  const baseX = Math.round(node.x + (node.width || 280) + 60);
+  const baseY = Math.round(node.y);
+  // 全同步确定性布局：创建时即定 ratio/宽/高并跳过异步 probe-fit，排布无竞态
+  const CARD_W = 240;
+  const GAP = 12;
+  const madeNodes = [];
+  const heights = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = cells[r * cols + c];
+      const n = addNode('image', baseX, baseY, cell);
+      n.title = (node.title || '切分') + ' ' + (r + 1) + '-' + (c + 1);
+      n.ratio = cw / ch;
+      n._fitProbed = true;
+      n._fitThumbSrc = cell; // 标记已 probe，跳过异步重排，保持布局确定
+      n.width = CARD_W;
+      n.el.style.width = CARD_W + 'px';
+      buildNodeBody(n.el, n);
+      const nr = n.el.getBoundingClientRect();
+      const zoomF = nr.width > 0 ? nr.width / CARD_W : 1;
+      const heroEl = n.el.querySelector('.node-hero');
+      const heroH = (heroEl ? heroEl.getBoundingClientRect().height : CARD_W * ch / cw) / zoomF;
+      n.height = Math.max(96, Math.round(heroH + (nr.height / zoomF - heroH)));
+      n.el.style.minHeight = n.height + 'px';
+      madeNodes.push(n);
+      heights.push(n.height);
+    }
+  }
+  const rowH = [];
+  for (let r = 0; r < rows; r++) rowH[r] = Math.max.apply(null, heights.slice(r * cols, r * cols + cols));
+  const xs = [];
+  let accX = baseX;
+  for (let c = 0; c < cols; c++) { xs[c] = Math.round(accX); accX += CARD_W + GAP; }
+  const ys = [];
+  let accY = baseY;
+  for (let r = 0; r < rows; r++) { ys[r] = Math.round(accY); accY += rowH[r] + GAP; }
+  madeNodes.forEach(function(n, i) {
+    const r = Math.floor(i / cols), c = i % cols;
+    n.x = xs[c];
+    n.y = ys[r];
+    n.el.style.left = n.x + 'px';
+    n.el.style.top = n.y + 'px';
+  });
+  markEdgesDirty();
+  renderMinimap();
+  showToast('已切分为 ' + madeNodes.length + ' 个图片节点', 'success');
+  scheduleAutosave();
+}
+
 function renderImagePreviewSection(el, node) {
-  const previewTypes = ['image', 'aiImage', 'aiVideo', 'upscale', 'compare', 'aiSet', 'material', 'light', 'layout', 'lineart', 'videoBreak'];
+  const previewTypes = ['image', 'aiVideo', 'upscale', 'compare', 'aiSet', 'material', 'light', 'layout', 'lineart', 'videoBreak'];
   if (!previewTypes.includes(node.type)) return;
 
   const def = node.def;
   const inData = node.inputsData || [];
 
-  // AI 绘图节点优先展示逐张生成的原图（带下载按钮）
-  const gallery = (node.type === 'aiImage' && Array.isArray(node._galleryImages) && node._galleryImages.length > 0)
+  // AI 绘图节点优先展示逐张生成的原图（带下载按钮）；单张时走下方单图比例适配
+  const gallery = (node.type === 'aiImage' && Array.isArray(node._galleryImages) && node._galleryImages.length > 1)
     ? node._galleryImages
     : null;
 
@@ -2604,19 +5920,22 @@ function renderImagePreviewSection(el, node) {
   const imgs = [];
   (def.inputs || []).forEach((p, i) => {
     const pl = inData[i];
-    if (pl && pl.type === 'image' && typeof pl.value === 'string' && pl.value.startsWith('data:')) {
-      imgs.push({ src: pl.value, cap: '图' + cnNum(imgs.length + 1) });
+    const src = pl && pl.type === 'image' ? normalizeImageSrc(pl.value) : null;
+    if (src) {
+      imgs.push({ src: src, cap: '图' + cnNum(imgs.length + 1) });
     }
   });
 
   const area = document.createElement('div');
   area.className = 'node-preview-area';
+  if (node.type === 'image') area.classList.add('image-input-preview');
 
   // 顶部标签：画廊（多张原图）优先
   const label = document.createElement('div');
   label.className = 'node-preview-label';
   const totalCount = gallery ? gallery.length : imgs.length;
   label.textContent = '图片预览' + (totalCount > 1 ? '（' + totalCount + ' 张）' : '');
+  if (node.type === 'image') label.hidden = true;
   area.appendChild(label);
 
   // AI 绘图多张原图：每张独立可下载
@@ -2628,7 +5947,7 @@ function renderImagePreviewSection(el, node) {
       cell.className = 'node-preview-cell';
       const img = document.createElement('img');
       img.className = 'node-preview-img';
-      img.src = src;
+      img.src = normalizeImageSrc(src) || '';
       img.alt = '图' + (idx + 1);
       img.onmousedown = (e) => e.stopPropagation();
       img.onclick = (e) => { e.stopPropagation(); openImageLightbox(src, gallery, idx); };
@@ -2659,18 +5978,77 @@ function renderImagePreviewSection(el, node) {
     return;
   }
 
+  // AI 绘图节点：只展示生成结果，不在底部重复渲染预览区
+  if (node.type === 'aiImage' || node.type === 'imageEdit') {
+    const src = (Array.isArray(node._galleryImages) && node._galleryImages.length > 0 && normalizeImageSrc(node._galleryImages[0]))
+      || normalizeImageSrc(node.thumb);
+    if (src) {
+      const wrap = document.createElement('div');
+      wrap.className = 'node-image-input-hero ai-image-hero';
+      const img = document.createElement('img');
+      img.className = 'node-image-input-img';
+      img.src = normalizeImageSrc(src) || '';
+      img.alt = 'AI 绘图结果';
+      img.onmousedown = (e) => e.stopPropagation();
+      img.ondblclick = (e) => {
+        e.stopPropagation();
+        openReferenceImagePicker(node);
+      };
+      wrap.appendChild(img);
+      wrap.onmousedown = (e) => e.stopPropagation();
+      area.appendChild(wrap);
+      el.appendChild(area);
+      return;
+    }
+  }
+
   // 其它节点（image / 上游参考图）：保留原有逻辑
   // 无上游输入图时，回退显示节点自身缩略图
-  if (imgs.length === 0 && node.thumb && typeof node.thumb === 'string' && node.thumb.startsWith('data:')) {
-    imgs.push({ src: node.thumb, cap: '本图' });
+  const ownThumb = normalizeImageSrc(node.thumb);
+  if (imgs.length === 0 && ownThumb) {
+    imgs.push({ src: ownThumb, cap: '本图' });
+  }
+
+  // 图片输入节点：不再走单独的“图片预览区”大块结构，直接复用视频节点那套 hero 卡片。
+  if (node.type === 'image') {
+    const wrap = document.createElement('div');
+    wrap.className = 'node-image-input-hero';
+
+    if (imgs.length > 0) {
+      const img = document.createElement('img');
+      img.className = 'node-image-input-img';
+      img.src = normalizeImageSrc(imgs[0].src) || '';
+      img.alt = imgs[0].cap || '图片输入';
+      img.onclick = (e) => { e.stopPropagation(); openImageLightbox(imgs[0].src); };
+      wrap.appendChild(img);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'node-empty-state';
+      empty.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" width="34" height="34"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>';
+      const label = document.createElement('span');
+      label.textContent = '空图片节点';
+      empty.appendChild(label);
+      const action = document.createElement('button');
+      action.type = 'button';
+      action.className = 'node-empty-action';
+      action.textContent = '上传图片';
+      action.onclick = (e) => { e.stopPropagation(); openImageFilePicker(node); };
+      empty.appendChild(action);
+      wrap.appendChild(empty);
+    }
+
+    area.appendChild(wrap);
+    el.appendChild(area);
+    return;
   }
 
   if (imgs.length === 1) {
-    // 单图预览：完整呈现，可随节点尺寸自适应
+    // 单图预览：完整呈现，可随节点尺寸自适应；有 node.ratio 时按原图比例显示（不留白、不裁切）
     const img = document.createElement('img');
-    img.className = 'node-preview-img';
+    img.className = 'node-preview-img' + (node.ratio ? ' ratio-fit' : '');
     img.src = imgs[0].src;
     img.alt = imgs[0].cap;
+    if (node.ratio) img.style.aspectRatio = '1 / ' + (1 / node.ratio); // aspect-ratio: 宽 / 高
     img.onmousedown = (e) => e.stopPropagation();
     img.onclick = (e) => { e.stopPropagation(); openImageLightbox(imgs[0].src); };
     area.appendChild(img);
@@ -2682,7 +6060,7 @@ function renderImagePreviewSection(el, node) {
       cell.className = 'node-preview-cell';
       const img = document.createElement('img');
       img.className = 'node-preview-img';
-      img.src = it.src;
+      img.src = normalizeImageSrc(it.src) || '';
       img.alt = it.cap;
       img.onmousedown = (e) => e.stopPropagation();
       img.onclick = (e) => { e.stopPropagation(); openImageLightbox(it.src); };
@@ -2737,7 +6115,7 @@ function collectSaveInputs(node) {
           payload = { type: 'image', value: src.thumb };
         } else if (SAVE_TEXT_SRC.includes(src.type)) {
           let t = '';
-          if (src.type === 'text') t = (src.prompt || '').trim();
+          if (src.type === 'text') t = nodeFullText(src).trim();
           else if (src.type === 'script') t = (src.params && src.params.script || '').trim();
           else if (src.type === 'subtitle') t = (src.params && src.params.lines || []).map(l => (l && l.text) || '').join(' / ');
           if (t) payload = { type: 'text', value: t };
@@ -3198,60 +6576,472 @@ document.addEventListener('keydown', (e) => {
 });
 
 
+// P2：aiImage/aiVideo 极简大图卡片 —— aiImage: 本图占满；aiVideo: 有真实视频 src → <video controls> 原生播放；否则本图占满 + 底部 ▶时长徽标；空状态居中
+function buildNodeHero(node) {
+  const wrap = document.createElement('div');
+  wrap.className = 'node-hero';
+
+  const isVideoNode = node.type === 'aiVideo' || node.type === 'videoInput';
+  const isImageInputNode = node.type === 'image';
+  const isAiImageNode = node.type === 'aiImage' || node.type === 'imageEdit';
+  const isPreviewOnlyNode = !!node.previewOnly;
+  // 寻找真实视频 src：优先 outputsData 中 type:'video'，兼容 string / {src}
+  const videoPayload = isVideoNode && (node.outputsData || []).find(p => p && p.type === 'video');
+  let realVideoSrc = null;
+  if (videoPayload) {
+    if (typeof videoPayload.value === 'string' && /^(data:video|https?:)/.test(videoPayload.value)) {
+      realVideoSrc = videoPayload.value;
+    } else if (videoPayload.value && typeof videoPayload.value === 'object' && typeof videoPayload.value.src === 'string' && /^(data:video|https?:)/.test(videoPayload.value.src)) {
+      realVideoSrc = videoPayload.value.src;
+    }
+  }
+  if (!realVideoSrc && node.type === 'videoInput' && typeof node.uploadedVideo === 'string' && /^(data:video|https?:)/.test(node.uploadedVideo)) {
+    realVideoSrc = node.uploadedVideo;
+  }
+  const posterPayload = videoPayload && typeof videoPayload.value === 'object' ? videoPayload.value : null;
+
+  // 判断本图缩略图（aiImage 直接用；aiVideo 仅在无视频/poster 时降级）
+  // 这里统一走 normalizeImageSrc，避免空 data URL / 非法字符串渲染成黑块。
+  const ownThumb = normalizeImageSrc(node.thumb);
+  const posterThumb = normalizeImageSrc(posterPayload && posterPayload.poster);
+  const galleryThumbs = isAiImageNode && Array.isArray(node._galleryImages)
+    ? node._galleryImages.map(function(src) { return normalizeImageSrc(src); }).filter(Boolean)
+    : [];
+  const hasGallery = isAiImageNode && galleryThumbs.length > 1;
+
+  // 图片输入节点单独走紧凑卡片：避免继续套用通用 node-hero 外壳，导致视觉和视频输入不一致。
+  if (isImageInputNode) {
+    wrap.className = 'node-hero node-image-input-hero';
+    const imageSrc = getNodeDisplayImageSource(node) || ownThumb;
+    if (imageSrc) {
+      if (node.params && !node.params.name && node.uploadedImage) {
+        const fileName = String(node.params.name || '').trim();
+        if (fileName) wrap.dataset.filename = fileName;
+      }
+      // 右键保留给节点上下文菜单（由 canvasWrap 统一处理），查看大图只用双击
+      wrap.title = '双击查看大图';
+      wrap.ondblclick = (e) => {
+        e.stopPropagation();
+        if (node.__dragClickBlocked) return;
+        openImageLightbox(ownThumb);
+      };
+      const img = document.createElement('img');
+      img.className = 'node-image-input-img';
+      img.src = imageSrc;
+      img.alt = '图片输入';
+      img.draggable = false;
+      img.ondragstart = (e) => e.preventDefault();
+      wrap.appendChild(img);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'node-empty-state';
+      empty.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" width="34" height="34"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>';
+      const label = document.createElement('span');
+      label.textContent = '空图片节点';
+      empty.appendChild(label);
+
+      // 不显示上传按钮：整块空态可点击上传（功能保留，视觉更干净）
+      if (!isPreviewOnlyNode) {
+        empty.title = '点击上传图片';
+        empty.onclick = (e) => {
+          e.stopPropagation();
+          openImageFilePicker(node);
+        };
+      }
+      wrap.appendChild(empty);
+    }
+    return wrap;
+  }
+
+  const openAiComposer = isAiImageNode ? (e) => {
+    if (e) e.stopPropagation();
+    selectNode(node);
+  } : (node.type === 'aiVideo' ? (e) => {
+    if (e) e.stopPropagation();
+    selectNode(node);
+  } : null);
+
+  if (isAiImageNode || node.type === 'aiVideo') {
+    wrap.classList.add('node-ai-image-hero');
+    wrap.onclick = openAiComposer;
+  }
+
+  if (realVideoSrc && (node.type === 'aiVideo' || node.type === 'videoInput')) {
+    if (node.type === 'videoInput' && !node.videoAspect) probeVideoNodeSize(node, realVideoSrc);
+    // 有真实视频 → 原生 <video controls> 直接在节点面板内预览
+    const v = document.createElement('video');
+    v.src = realVideoSrc;
+    v.controls = true;
+    v.muted = false;
+    v.volume = 1;
+    v.preload = 'metadata';
+    v.className = 'node-hero-video';
+    v.playsInline = true;
+    if (posterThumb) v.poster = posterThumb;
+    else if (ownThumb) v.poster = ownThumb;
+    wrap.appendChild(v);
+  } else if (isAiImageNode && hasGallery) {
+    wrap.classList.add('node-ai-image-gallery');
+    const stage = document.createElement('div');
+    stage.className = 'node-ai-image-gallery-stage';
+
+    const main = document.createElement('img');
+    main.className = 'node-ai-image-gallery-main';
+    main.src = galleryThumbs[0] || ownThumb || posterThumb || '';
+    main.alt = '';
+    main.draggable = false;
+    main.title = node.type === 'imageEdit' ? '单击显示参数，双击上传源图' : '单击显示参数，双击添加参考图';
+    main.onclick = openAiComposer;
+    main.ondblclick = (e) => {
+      e.stopPropagation();
+      if (node.type === 'imageEdit') {
+        openImageFilePicker(node);
+      } else {
+        openReferenceImagePicker(node, () => {
+          if (node === __composerNode) showNodeComposer(node);
+          else if (node.el) buildNodeBody(node.el, node);
+        });
+      }
+    };
+    stage.appendChild(main);
+
+    const strip = document.createElement('div');
+    strip.className = 'node-ai-image-gallery-strip';
+    galleryThumbs.forEach((src, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'node-ai-image-gallery-thumb' + (idx === 0 ? ' is-active' : '');
+      btn.title = '查看第 ' + (idx + 1) + ' 张';
+      btn.innerHTML = '<img src="' + escapeHtml(src) + '" alt="图' + (idx + 1) + '">';
+      btn.onmousedown = (e) => e.stopPropagation();
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        openImageLightbox(src, galleryThumbs, idx);
+      };
+      strip.appendChild(btn);
+    });
+    stage.appendChild(strip);
+    wrap.appendChild(stage);
+
+    const badge = document.createElement('div');
+    badge.className = 'node-ai-image-gallery-badge';
+    badge.textContent = galleryThumbs.length + ' 张';
+    wrap.appendChild(badge);
+  } else if (ownThumb) {
+    // 图片占满
+    const img = document.createElement('img');
+    img.src = getNodeDisplayImageSource(node) || ownThumb || posterThumb || '';
+    img.alt = '';
+    img.draggable = false;
+    if (isAiImageNode) {
+      img.title = node.type === 'imageEdit' ? '单击显示参数，双击上传源图' : '单击显示参数，双击添加参考图';
+      img.style.cursor = 'pointer';
+      img.onclick = openAiComposer;
+      img.ondblclick = (e) => {
+        e.stopPropagation();
+        if (node.type === 'imageEdit') {
+          openImageFilePicker(node);
+        } else {
+          openReferenceImagePicker(node, () => {
+            if (node === __composerNode) showNodeComposer(node);
+            else if (node.el) buildNodeBody(node.el, node);
+          });
+        }
+      };
+    } else if (node.type === 'aiVideo') {
+      img.title = '单击显示参数，双击添加参考视频';
+      img.style.cursor = 'pointer';
+      img.onclick = openAiComposer;
+      img.ondblclick = (e) => {
+        e.stopPropagation();
+        openReferenceVideoPicker(node, () => {
+          if (node === __composerNode) showNodeComposer(node);
+          else if (node.el) buildNodeBody(node.el, node);
+        });
+      };
+    } else {
+      img.onmousedown = (e) => e.stopPropagation();
+      img.onclick = (e) => { e.stopPropagation(); openImageLightbox(img.src); };
+    }
+    wrap.appendChild(img);
+    if (isVideoNode && posterPayload && posterPayload.duration) {
+      const ov = document.createElement('div');
+      ov.className = 'node-video-overlay';
+      ov.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg><span>' + escapeHtml(String(posterPayload.duration)) + '</span>';
+      ov.onclick = (e) => { e.stopPropagation(); if (node.type === 'videoInput') showNodeComposer(node); else showToast('请在节点参数中生成视频', 'info'); };
+      wrap.appendChild(ov);
+    }
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'node-empty-state';
+    empty.innerHTML = node.type === 'videoInput'
+      ? '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" width="34" height="34"><rect x="2" y="4" width="9" height="8" rx="1.5"/><path d="M11 7l3-2v6l-3-2"/></svg>'
+      : node.type === 'aiVideo'
+      ? '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" width="34" height="34"><rect x="2" y="4" width="9" height="8" rx="1.5"/><path d="M11 7l3-2v6l-3-2"/></svg>'
+      : '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" width="34" height="34"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>';
+    const label = document.createElement('span');
+    label.textContent = (node.type === 'aiVideo' || node.type === 'videoInput') ? '空视频节点' : (isAiImageNode ? (node.type === 'imageEdit' ? '双击上传源图' : '双击上传参考图') : '空图片节点');
+    empty.appendChild(label);
+
+    if ((node.type === 'videoInput' || node.type === 'image') && !isPreviewOnlyNode) {
+      const action = document.createElement('button');
+      action.type = 'button';
+      action.className = 'node-empty-action';
+      const isVideoInput = node.type === 'videoInput';
+      action.textContent = isVideoInput ? '上传视频' : '上传图片';
+      action.onclick = (e) => {
+        e.stopPropagation();
+        if (isVideoInput) openVideoFilePicker(node);
+        else openImageFilePicker(node);
+      };
+      empty.appendChild(action);
+    }
+
+    if (isAiImageNode) {
+      empty.style.cursor = 'pointer';
+      empty.onclick = openAiComposer;
+      empty.ondblclick = (e) => {
+        e.stopPropagation();
+        if (node.type === 'imageEdit') {
+          openImageFilePicker(node);
+        } else {
+          openReferenceImagePicker(node, () => {
+            if (node === __composerNode) showNodeComposer(node);
+            else if (node.el) buildNodeBody(node.el, node);
+          });
+        }
+      };
+    } else if (node.type === 'aiVideo') {
+      empty.style.cursor = 'pointer';
+      empty.onclick = openAiComposer;
+      empty.ondblclick = (e) => {
+        e.stopPropagation();
+        openReferenceVideoPicker(node, () => {
+          if (node === __composerNode) showNodeComposer(node);
+          else if (node.el) buildNodeBody(node.el, node);
+        });
+      };
+    }
+
+    if (node.type !== 'videoInput' && node.type !== 'image' && !isAiImageNode && node.type !== 'aiVideo') {
+      empty.onclick = (e) => {
+        e.stopPropagation();
+        openImageFilePicker(node);
+      };
+    }
+    wrap.appendChild(empty);
+  }
+
+  return wrap;
+}
+
+// P2.5：文字节点「✨ 生图」—— 用本文字 prompt 快速生成 aiImage 节点并连线
+function createImageFromTextNode(textNode) {
+  if (!textNode || !workflow.nodes.has(textNode.id)) return null;
+  const text = nodeFullText(textNode) || textNode.prompt || '';
+  const x = textNode.x + (textNode.width || 280) + 48;
+  const y = textNode.y;
+  const img = addNode('aiImage', x, y);
+  img.title = (textNode.title || '文字').slice(0, 12) + ' → 图';
+  img.prompt = text;
+  // 自动连线 text.out → aiImage 首个兼容 input
+  const outs = textNode.def.outputs || [];
+  const ins = img.def.inputs || [];
+  let connected = false;
+  for (let oi = 0; oi < outs.length && !connected; oi++) {
+    for (let ii = 0; ii < ins.length; ii++) {
+      const ot = outs[oi].type, it = ins[ii].type;
+      const ok = ot === it || (typeof validateConnection === 'function' && validateConnection(textNode, oi, img, ii));
+      if (ok) {
+        const e = new Edge(textNode, oi, img, ii);
+        workflow.edges.set(e.id, e);
+        resetNodeData(img);
+        markEdgesDirty();
+        connected = true;
+        break;
+      }
+    }
+  }
+  selectNode(img);
+  scheduleAutosave();
+  showToast(connected ? '已生成图片节点并连线' : '已生成图片节点（未连到兼容端口）', connected ? 'success' : 'warn');
+  return img;
+}
+
+function ensurePreviewImageNode(sourceNode, imageSrc, anchorX, anchorY) {
+  if (!sourceNode || !imageSrc) return null;
+  const existing = [...workflow.nodes.values()].find(function(n) {
+    return n && n.previewOnly && n.previewSourceId === sourceNode.id;
+  });
+  const x = Math.round(anchorX != null ? anchorX : (sourceNode.x + (sourceNode.width || 280) + 48));
+  const y = Math.round(anchorY != null ? anchorY : sourceNode.y);
+  const node = existing || addNode('image', x, y, imageSrc);
+  node.previewOnly = true;
+  node.previewSourceId = sourceNode.id;
+  node.title = '预览';
+  node.thumb = imageSrc;
+  node.uploadedImage = '';
+  node.prompt = '';
+  node.refImages = [];
+  node.charDesc = '';
+  node.outputsData = [{ type: 'image', value: imageSrc }];
+  node.inputsData = [];
+  node.params = { ...DEFAULT_NODE_PARAMS };
+  node.status = 'done';
+  node.ratio = null;
+  node._fitProbed = false;
+  node.width = Math.max(220, node.width || 280);
+  if (node.el) {
+    node.el.classList.add('preview-only-node');
+    buildNodeBody(node.el, node);
+  }
+  if (!existing && workflow.nodes.has(sourceNode.id) && sourceNode.el) {
+    selectNode(sourceNode);
+  }
+  return node;
+}
+
+// 多图结果：出几张图就生成几个独立预览节点
+// 排布策略：先探测每张图真实尺寸 → 统一卡片宽度、按原图比例定高（不裁剪不黑边）
+//           → 两列「矮列优先」平衡摆放，间距统一，避免固定间距与自动改尺寸打架
+async function spawnPreviewNodesForImages(sourceNode, imgs) {
+  if (!sourceNode || !Array.isArray(imgs) || !imgs.length) return;
+  // 清理旧预览节点（重新生成时避免残留上一批）
+  [...workflow.nodes.values()].filter(function(n) {
+    return n && n.previewOnly && n.previewSourceId === sourceNode.id;
+  }).forEach(function(n) { try { deleteNode(n.id); } catch (e) {} });
+
+  // ① 探测每张图的实际像素尺寸
+  const dims = await Promise.all(imgs.map(function(src) {
+    return new Promise(function(resolve) {
+      const img = new Image();
+      img.onload = function() { resolve({ w: img.naturalWidth || 1, h: img.naturalHeight || 1 }); };
+      img.onerror = function() { resolve({ w: 1, h: 1 }); };
+      img.src = src;
+    });
+  }));
+
+  // ② 统一卡片宽度，高度严格按原图比例（杜绝黑边/裁剪），上限兜底防巨卡
+  const CARD_W = 300, GAP = 28, HEADER_H = 8;
+  const heights = dims.map(function(d) {
+    return Math.min(460, Math.round(CARD_W / (d.w / d.h)));
+  });
+
+  // ③ 两列平衡：每次放进当前较矮的一列
+  const baseX = Math.round(sourceNode.x + (sourceNode.width || 280) + 60);
+  const baseY = Math.round(sourceNode.y);
+  const colH = [0, 0];
+  const pos = imgs.map(function(src, i) {
+    const c = colH[0] <= colH[1] ? 0 : 1;
+    const p = { x: baseX + c * (CARD_W + GAP), y: baseY + colH[c], h: heights[i] };
+    colH[c] += heights[i] + GAP;
+    return p;
+  });
+
+  // ④ 创建节点：尺寸一次性定好（_fitProbed=true 阻止加载后重排）
+  imgs.forEach(function(src, i) {
+    const p = pos[i];
+    const node = addNode('image', p.x, p.y, src);
+    node.previewOnly = true;
+    node.previewSourceId = sourceNode.id;
+    node.title = '预览 ' + (i + 1);
+    node.thumb = src;
+    node.uploadedImage = '';
+    node.prompt = '';
+    node.refImages = [];
+    node.charDesc = '';
+    node.outputsData = [{ type: 'image', value: src }];
+    node.inputsData = [];
+    node.params = { ...DEFAULT_NODE_PARAMS };
+    node.status = 'done';
+    node.ratio = dims[i].w / dims[i].h;
+    node.width = CARD_W + 32;
+    node.height = p.h + HEADER_H + 8;
+    node._fitProbed = true;
+    if (node.el) {
+      node.el.style.width = node.width + 'px';
+      node.el.style.minHeight = node.height + 'px';
+      node.el.classList.add('preview-only-node');
+      buildNodeBody(node.el, node);
+    }
+  });
+  if (sourceNode.el) selectNode(sourceNode);
+}
+
+async function splitAiImageGalleryToNodes(sourceNode) {
+  const imgs = Array.isArray(sourceNode && sourceNode._galleryImages)
+    ? sourceNode._galleryImages.filter(function(src) { return normalizeImageSrc(src); })
+    : [];
+  if (imgs.length <= 1) {
+    showToast('当前没有可拆分的多图结果', 'info');
+    return null;
+  }
+  await spawnPreviewNodesForImages(sourceNode, imgs);
+  showToast('已拆分为 ' + imgs.length + ' 个独立图片节点', 'success');
+  return true;
+}
+
 function buildNodeBody(el, node) {
   // 移除旧的 body / preset-row / controls / toolbar / ports / preview
-  el.querySelectorAll('.node-body, .node-preset-row, .node-controls, .node-toolbar, .node-port, .node-dataflow, .node-preview-area')
+  el.querySelectorAll('.node-body, .node-preset-row, .node-controls, .node-toolbar, .node-toolbar-hit, .node-port, .node-dataflow, .node-preview-area')
     .forEach(n => n.remove());
+  refreshNodeHeaderMeta(node, el); // header 工具区/元数据行随重渲染刷新（thumb/params 变化后）
 
   const def = node.def;
-  const hasPrompt = ['aiImage', 'aiVideo'].includes(node.type);
-  const hasThumb = ['image', 'aiImage', 'aiVideo', 'upscale', 'compare', 'videoInput'].includes(node.type);
-  const hasControls = ['aiImage', 'aiVideo'].includes(node.type);
-  const hasToolbar = ['image', 'aiImage', 'aiVideo', 'upscale'].includes(node.type);
+  // #5 Details on Demand：aiImage/aiVideo 的编辑 UI（提示词/模型/参数/生成）迁移到节点下方 Composer，
+  // 节点体保持纯净（仅内容 + 状态）。数据流不变，仍读写 node.prompt / node.params。
+  const isComposerManaged = ['aiImage', 'imageEdit', 'aiVideo'].includes(node.type);
+  const hasPrompt = false;
+  const hasThumb = ['image', 'aiImage', 'imageEdit', 'aiVideo', 'upscale', 'compare', 'videoInput'].includes(node.type);
+  const hasControls = false;
+  const hasToolbar = ['aiImage', 'aiVideo', 'upscale'].includes(node.type);
 
   // —— body: 缩略图 + 提示词 ——
   let body = null;
   if (hasThumb || hasPrompt) {
     body = document.createElement('div');
     body.className = 'node-body';
+    if (node.type === 'videoInput' || node.type === 'image' || node.type === 'aiImage' || node.type === 'imageEdit') body.classList.add('media-input-body');
+    if (node.type === 'aiImage' || node.type === 'imageEdit') body.classList.add('ai-image-body');
+    if (node.type === 'aiVideo') body.classList.add('ai-video-body');
 
     if (hasThumb) {
+      // P2：aiImage/aiVideo 极简大图卡片（本图占满 / 空状态居中 / 输入图小条），其余类型保持缩略图行
+      if (node.type === 'image' || node.type === 'aiImage' || node.type === 'imageEdit' || node.type === 'aiVideo' || node.type === 'videoInput') {
+        body.appendChild(buildNodeHero(node));
+        // 单图 hero 用 CSS aspect-ratio 锁定 node.ratio（画廊多图除外），保证 contain 不留白；
+        // 宽度被 CSS 最小宽钳制时高度自动跟随，比例仍精确
+        const _heroEl = body.querySelector('.node-hero');
+        const _isGallery = node.type === 'aiImage' && Array.isArray(node._galleryImages) && node._galleryImages.length > 1;
+        if (_heroEl && node.ratio && !_isGallery) {
+          _heroEl.style.aspectRatio = String(node.ratio);
+          _heroEl.style.flex = '0 0 auto'; // 禁止 flex 拉伸破坏 aspect-ratio（横图矮于容器时会被撑高）
+        }
+      } else {
       const thumbRow = document.createElement('div');
-      thumbRow.className = 'node-thumb-row';
+      thumbRow.className = 'node-thumb-row' + (node.type === 'aiImage' ? ' ai-image-thumb-row' : '');
 
       // 缩略图行：同时展示上游输入图（图一/图二…）与本节点图
       const inputImages = [];
       (def.inputs || []).forEach((p, i) => {
         const pl = node.inputsData[i];
-        if (pl && pl.type === 'image' && typeof pl.value === 'string' && pl.value.startsWith('data:')) {
+        if (pl && pl.type === 'image' && normalizeImageSrc(pl.value)) {
           inputImages.push({ src: pl.value, label: '图' + cnNum(inputImages.length + 1), readonly: true });
         }
       });
-      const ownThumb = node.thumb ? { src: node.thumb, label: inputImages.length ? '本图' : '', readonly: false } : null;
+      const ownThumbSrc = normalizeImageSrc(node.thumb);
+      const ownThumb = ownThumbSrc ? { src: ownThumbSrc, label: inputImages.length ? '本图' : '', readonly: false } : null;
       const displayImages = ownThumb ? [...inputImages, ownThumb] : inputImages;
 
       if (displayImages.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'node-thumb-empty';
         empty.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>';
-        empty.onclick = (e) => {
-          e.stopPropagation();
-          if (node.type === 'image') {
-            openImageFilePicker(node);
-          } else if (node.type === 'videoInput') {
-            openVideoFilePicker(node);
-          } else {
-            var _seed = parseInt(node.id.replace(/\D/g, '')) || 1;
-            node.thumb = createPlaceholderDataURL(36, 36, _seed, node.title);
-            buildNodeBody(el, node);
-            markEdgesDirty();
-            scheduleAutosave();
-          }
-        };
         empty.onmousedown = (e) => e.stopPropagation();
         if (node.type === 'videoInput') {
           empty.classList.add('video');
           empty.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="9" height="8" rx="1.5"/><path d="M11 7l3-2v6l-3-2"/></svg>';
+          empty.onmousedown = (e) => e.stopPropagation();
         }
         thumbRow.appendChild(empty);
       } else {
@@ -3260,7 +7050,7 @@ function buildNodeBody(el, node) {
           wrap.className = 'node-thumb-wrap';
 
           const thumb = document.createElement('div');
-          thumb.className = 'node-thumb';
+          thumb.className = 'node-thumb' + (node.type === 'aiImage' ? ' node-thumb-ai' : '');
           thumb.innerHTML = `<img src="${imgInfo.src}" alt="">`;
           thumb.onmousedown = (e) => e.stopPropagation();
 
@@ -3294,8 +7084,8 @@ function buildNodeBody(el, node) {
         });
       }
 
-      // 提示词 (AI 类型)
-      if (hasPrompt) {
+      // 提示词 (AI 类型) —— aiImage 仅保留结果预览，参数与提示词移到下方 Composer
+      if (hasPrompt && node.type !== 'aiImage' && node.type !== 'imageEdit') {
         const promptArea = document.createElement('div');
         promptArea.className = 'node-prompt-area';
         if (node.effectivePrompt && node.effectivePrompt !== (node.prompt || '').trim()) {
@@ -3331,13 +7121,58 @@ function buildNodeBody(el, node) {
         textarea.oninput = (e) => { node.prompt = e.target.value; scheduleAutosave(); refreshRefBadge(); };
         textarea.onmousedown = (e) => e.stopPropagation();
         promptArea.appendChild(textarea);
+
+        // 角色资产库：在本 AI 节点提示词中引用已保存的「角色」资产
+        if (node.type === 'aiImage' || node.type === 'imageEdit') {
+          const refRow = document.createElement('div');
+          refRow.className = 'node-ref-asset-row';
+          const refBtn = document.createElement('button');
+          refBtn.type = 'button';
+          refBtn.className = 'node-ref-asset-btn';
+          refBtn.textContent = '🔗 引用角色资产';
+          refBtn.title = '从已保存的角色资产中选择，自动插入 <<<名称>>> 引用令牌';
+          refBtn.onmousedown = (e) => e.stopPropagation();
+          refRow.appendChild(refBtn);
+          const refSel = document.createElement('select');
+          refSel.className = 'node-ref-asset-select';
+          refSel.title = '选择已保存的角色资产，插入引用令牌到提示词';
+          const refItems = listCharacterAssets();
+          const ph = document.createElement('option');
+          ph.value = '';
+          ph.textContent = refItems.length ? '选择角色资产…' : '（暂无角色资产）';
+          refSel.appendChild(ph);
+          refItems.forEach((it) => {
+            const o = document.createElement('option');
+            o.value = it.name;
+            o.textContent = it.name;
+            refSel.appendChild(o);
+          });
+          refSel.onmousedown = (e) => e.stopPropagation();
+          refSel.onchange = (e) => {
+            const nm = e.target.value;
+            if (!nm) return;
+            insertRefTokenIntoNodePrompt(textarea, nm);
+            node.prompt = textarea.value;
+            refreshRefBadge();
+            scheduleAutosave();
+            showToast('已插入引用令牌 <<<' + nm + '>>>', 'success');
+            refSel.value = '';
+          };
+          refRow.appendChild(refSel);
+          promptArea.appendChild(refRow);
+        }
+
         thumbRow.appendChild(promptArea);
       }
 
       body.appendChild(thumbRow);
+      } // else：非 aiImage/aiVideo 的缩略图行分支
     }
-  } else if (node.type === 'text') {
-    // 纯文本输入节点 + 模型选择 + API Key（与 AI 设计助手联动）
+    if (node.type === 'image') {
+      body.classList.add('media-input-body');
+    }
+  } else if (node.type === 'text' || node.type === 'stateList') {
+    // 纯文本输入节点 + 模型选择 + API Key（与 AI 设计助手联动）；stateList 额外带状态列表
     const textBody = document.createElement('div');
     textBody.className = 'node-body node-body-text';
 
@@ -3378,6 +7213,15 @@ function buildNodeBody(el, node) {
     keyBtn.onmousedown = function(e) { e.stopPropagation(); };
     toolbar.appendChild(keyBtn);
 
+    const statesBtn = document.createElement('button');
+    statesBtn.className = 'text-node-statesbtn';
+    statesBtn.type = 'button';
+    statesBtn.title = '按「角色描述」中的状态列表生成多个 AI 绘图节点（每行一个状态）';
+    statesBtn.textContent = '🔁';
+    statesBtn.onclick = function(e) { e.stopPropagation(); generateStateNodesFromText(node); };
+    statesBtn.onmousedown = function(e) { e.stopPropagation(); };
+    toolbar.appendChild(statesBtn);
+
     textBody.appendChild(toolbar);
 
     // Key 输入行（默认隐藏）
@@ -3409,10 +7253,85 @@ function buildNodeBody(el, node) {
     keyRow.appendChild(keySave);
     textBody.appendChild(keyRow);
 
-    // 文本输入区（按内容自适应高度，封顶 320px 内部滚动）
+    // —— 区块一：角色描述（独立输入框：可替换文字 / 上传参考图）——
+    const leadLabel = document.createElement('div');
+    leadLabel.className = 'node-field-label';
+    leadLabel.textContent = '角色描述（在此替换，或上传参考图）';
+    textBody.appendChild(leadLabel);
+
+    const leadArea = document.createElement('textarea');
+    leadArea.className = 'node-textarea node-lead-textarea';
+    leadArea.placeholder = '在此粘贴角色文字描述（例：黑发少女、白色连衣裙）；已上传参考图可留空';
+    leadArea.value = node.charDesc || '';
+    leadArea.style.minHeight = '48px';
+    leadArea.style.maxHeight = '160px';
+    leadArea.style.overflowY = 'auto';
+    leadArea.style.resize = 'vertical';
+    leadArea.oninput = function(e) {
+      node.charDesc = e.target.value;
+      scheduleAutosave();
+    };
+    leadArea.onmousedown = function(e) { e.stopPropagation(); };
+    const leadWrap = document.createElement('div');
+    leadWrap.className = 'prompt-expand-wrap';
+    leadWrap.appendChild(leadArea);
+    leadWrap.appendChild(makePromptExpandBtn(
+      () => node.charDesc || '',
+      (v) => { node.charDesc = v; scheduleAutosave(); },
+      (v) => { leadArea.value = v; },
+      '放大编辑角色描述'));
+    textBody.appendChild(leadWrap);
+
+    // 参考图上传（面板内直传，随下游 AI 生图一起发送）—— 归属角色描述区
+    const refWrap = document.createElement('div');
+    refWrap.className = 'node-ref-uploader';
+    const refBtn = document.createElement('button');
+    refBtn.type = 'button';
+    refBtn.className = 'node-ref-upload-btn';
+    refBtn.title = '上传参考图：随下游 AI 生图节点一起发送';
+    refBtn.textContent = '📎 上传参考图';
+    refBtn.onclick = function(e) { e.stopPropagation(); openTextNodeRefPicker(node, renderRefThumbs); };
+    refBtn.onmousedown = function(e) { e.stopPropagation(); };
+    refWrap.appendChild(refBtn);
+    const refThumbs = document.createElement('div');
+    refThumbs.className = 'node-ref-thumbs';
+    refWrap.appendChild(refThumbs);
+    function renderRefThumbs() {
+      refThumbs.innerHTML = '';
+      (node.refImages || []).forEach(function(r, i) {
+        const t = document.createElement('div');
+        t.className = 'node-ref-thumb';
+        const img = document.createElement('img');
+        img.src = normalizeImageSrc(r.src) || ''; img.alt = '';
+        t.appendChild(img);
+        const rm = document.createElement('span');
+        rm.className = 'node-ref-thumb-rm';
+        rm.textContent = '×';
+        rm.title = '移除参考图';
+        rm.onclick = function(e) {
+          e.stopPropagation();
+          node.refImages.splice(i, 1);
+          scheduleAutosave();
+          buildNodeBody(el, node);
+        };
+        rm.onmousedown = function(e) { e.stopPropagation(); };
+        t.appendChild(rm);
+        refThumbs.appendChild(t);
+      });
+    }
+    textBody.appendChild(refWrap);
+    renderRefThumbs();
+
+    // 分隔：下方为固定提示词
+    const sep = document.createElement('div');
+    sep.className = 'node-section-sep';
+    sep.textContent = '固定 10 段提示词（无需修改）';
+    textBody.appendChild(sep);
+
+    // —— 区块二：固定提示词（主文本区，随生图前置拼接角色描述）——
     const textarea = document.createElement('textarea');
-    textarea.className = 'node-textarea';
-    textarea.placeholder = '输入文本内容...';
+    textarea.className = 'node-textarea node-main-textarea';
+    textarea.placeholder = '固定提示词（一般无需修改）';
     textarea.value = node.prompt;
     textarea.style.minHeight = '60px';
     textarea.style.maxHeight = '320px';
@@ -3428,9 +7347,56 @@ function buildNodeBody(el, node) {
       autoResize();
     };
     textarea.onmousedown = function(e) { e.stopPropagation(); };
-    textBody.appendChild(textarea);
-    // 初始按已有内容自适应
+    const mainWrap = document.createElement('div');
+    mainWrap.className = 'prompt-expand-wrap';
+    mainWrap.appendChild(textarea);
+    mainWrap.appendChild(makePromptExpandBtn(
+      () => node.prompt || '',
+      (v) => { node.prompt = v; scheduleAutosave(); },
+      (v) => { textarea.value = v; autoResize(); },
+      '放大编辑提示词'));
+    textBody.appendChild(mainWrap);
     setTimeout(autoResize, 0);
+
+    // —— stateList 专属：状态列表（每行一个状态）+ 一键生成状态节点 ——
+    if (node.type === 'stateList') {
+      const sep = document.createElement('div');
+      sep.className = 'node-section-sep';
+      sep.textContent = '——— 状态列表（每行一个状态） ———';
+      textBody.appendChild(sep);
+
+      const stateArea = document.createElement('textarea');
+      stateArea.className = 'node-textarea state-list-area';
+      stateArea.placeholder = '每行一个状态，例如：\n日常着装\n华丽晚礼服\n东方古风汉服\n雨中撑伞街头';
+      stateArea.value = (node.params && node.params.states) || '';
+      stateArea.style.minHeight = '64px';
+      stateArea.style.maxHeight = '200px';
+      stateArea.style.overflowY = 'auto';
+      stateArea.oninput = function(e) {
+        node.params.states = e.target.value;
+        scheduleAutosave();
+        updateStateCount();
+      };
+      stateArea.onmousedown = function(e) { e.stopPropagation(); };
+      textBody.appendChild(stateArea);
+
+      const stateBtn = document.createElement('button');
+      stateBtn.type = 'button';
+      stateBtn.className = 'node-ref-upload-btn state-gen-btn';
+      stateBtn.textContent = '⚡ 一键生成状态节点（角色保持一致）';
+      stateBtn.onclick = function(e) { e.stopPropagation(); generateStateNodes(node); };
+      stateBtn.onmousedown = function(e) { e.stopPropagation(); };
+      textBody.appendChild(stateBtn);
+
+      const countTip = document.createElement('div');
+      countTip.className = 'node-field-label state-count-tip';
+      function updateStateCount() {
+        const lines = String(node.params && node.params.states || '').split('\n').filter(s => s.trim()).length;
+        countTip.textContent = lines ? '已识别 ' + lines + ' 个状态' : '';
+      }
+      textBody.appendChild(countTip);
+      updateStateCount();
+    }
 
     body = textBody;
   } else if (node.type === 'loop') {
@@ -3509,6 +7475,8 @@ function buildNodeBody(el, node) {
     body = loopBody;
   } else if (node.type === 'comfyui') {
     body = renderComfyNodeBody(node);
+  } else if (node.type === 'reversePrompt') {
+    body = renderReversePromptBody(node);
   } else if (node.type === 'save') {
     // 保存节点：预览输入内容 + 填写文件名 + 触发本地下载
     const saveBody = document.createElement('div');
@@ -3570,7 +7538,7 @@ function buildNodeBody(el, node) {
     } else if (imgIn && /^data:image\//i.test(imgIn.value)) {
       const img = document.createElement('img');
       img.className = 'save-preview-img';
-      img.src = imgIn.value;
+      img.src = normalizeImageSrc(imgIn.value) || '';
       img.onmousedown = (e) => e.stopPropagation();
       img.onclick = (e) => { e.stopPropagation(); openImageLightbox(imgIn.value); };
       previewArea.appendChild(img);
@@ -3620,6 +7588,970 @@ function buildNodeBody(el, node) {
   }
 
   if (body) el.appendChild(body);
+
+  // —— 反推提示词节点 body（视频 → 抽帧 → 中文电影级提示词）——
+function renderReversePromptBody(node) {
+  const wrap = document.createElement('div');
+  wrap.className = 'node-body node-body-reverse';
+
+  // ===== A. 视频上传 / 预览区 =====
+  const videoBox = document.createElement('div');
+  videoBox.className = 'rp-video-box';
+
+  const videoMeta = document.createElement('div');
+  videoMeta.className = 'rp-video-meta';
+
+  const videoEl = document.createElement('video');
+  videoEl.className = 'rp-video';
+  videoEl.controls = true;
+  videoEl.muted = true;
+  videoEl.preload = 'auto';   // auto 确保 seek 抽帧时视频数据已加载（metadata 可能抽不出帧）
+  videoEl.playsInline = true;
+  if (node.params.videoSrc) videoEl.src = node.params.videoSrc;
+
+  function pickVideo() {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'video/*';
+    inp.style.display = 'none';
+    inp.onchange = (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (node.params.videoSrc && node.params.videoSrc.startsWith('blob:')) URL.revokeObjectURL(node.params.videoSrc);
+      const url = URL.createObjectURL(f);
+      node.params.videoSrc = url;
+      node.params.videoName = f.name;
+      videoEl.src = url;
+      renderMeta();
+      scheduleAutosave();
+    };
+    document.body.appendChild(inp);
+    inp.click();
+    setTimeout(() => inp.remove(), 100);
+  }
+
+  // 拖放支持：直接把视频文件拖到节点上载入（不需要点按钮）
+  function handleDropVideo(f) {
+    if (!f || !f.type || !f.type.startsWith('video/')) {
+      showToast('请拖入视频文件（MP4 / WebM 等）', 'warn');
+      return;
+    }
+    if (node.params.videoSrc && node.params.videoSrc.startsWith('blob:')) URL.revokeObjectURL(node.params.videoSrc);
+    const url = URL.createObjectURL(f);
+    node.params.videoSrc = url;
+    node.params.videoName = f.name;
+    videoEl.src = url;
+    renderMeta();
+    scheduleAutosave();
+    showToast('已载入视频：' + f.name, 'success');
+  }
+  // 暴露给外部（画布拖放创建节点后直接注入视频）
+  node.__handleDropVideo = handleDropVideo;
+  ['dragenter', 'dragover'].forEach(evtName => {
+    videoBox.addEventListener(evtName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      videoBox.classList.add('rp-drop-active');
+    });
+  });
+  videoBox.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    videoBox.classList.remove('rp-drop-active');
+  });
+  videoBox.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    videoBox.classList.remove('rp-drop-active');
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (files && files.length) handleDropVideo(files[0]);
+  });
+
+  videoEl.onloadedmetadata = () => { renderMeta(); };
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.className = 'rp-btn rp-btn-ghost';
+  uploadBtn.innerHTML = '📤 上传视频';
+  uploadBtn.onclick = (e) => { e.stopPropagation(); pickVideo(); };
+  uploadBtn.onmousedown = (e) => e.stopPropagation();
+
+  const extractBtn = document.createElement('button');
+  extractBtn.type = 'button';
+  extractBtn.className = 'rp-btn rp-btn-primary';
+  extractBtn.innerHTML = '🎬 提取关键帧';
+  extractBtn.onclick = (e) => { e.stopPropagation(); runExtractFrames(node, framesBox, pickBtn, videoEl); };
+  extractBtn.onmousedown = (e) => e.stopPropagation();
+  extractBtn.disabled = !node.params.videoSrc;
+  function syncExtractDisabled() { extractBtn.disabled = !node.params.videoSrc; }
+
+  // 抽帧数量配置
+  const frameCountWrap = document.createElement('label');
+  frameCountWrap.className = 'rp-frame-count rp-video-meta-text';
+  frameCountWrap.title = '设置提取关键帧的数量（1-30）';
+  frameCountWrap.innerHTML = '<span>抽</span>';
+  const frameCountInput = document.createElement('input');
+  frameCountInput.type = 'number';
+  frameCountInput.min = 1;
+  frameCountInput.max = 30;
+  frameCountInput.value = node.params.frameCount || 5;
+  frameCountInput.onchange = (e) => {
+    let v = parseInt(e.target.value, 10);
+    if (!isFinite(v) || v < 1) v = 1;
+    if (v > 30) v = 30;
+    node.params.frameCount = v;
+    e.target.value = v;
+    scheduleAutosave();
+  };
+  frameCountInput.onmousedown = (e) => e.stopPropagation();
+  frameCountInput.onclick = (e) => e.stopPropagation();
+  const frameCountSuffix = document.createElement('span');
+  frameCountSuffix.textContent = '帧';
+  frameCountWrap.appendChild(frameCountInput);
+  frameCountWrap.appendChild(frameCountSuffix);
+
+  // 抽帧模式切换：content（按镜头切换检测）/ uniform（按时间均匀）
+  const frameModeWrap = document.createElement('span');
+  frameModeWrap.className = 'rp-mode-toggle rp-video-meta-text';
+  const MODES = [
+    { id: 'content', label: '智能' },
+    { id: 'uniform', label: '均匀' }
+  ];
+  node.params.frameMode = node.params.frameMode || 'content';
+  const modeBtns = {};
+  function syncModeActive() {
+    MODES.forEach(function(m) {
+      if (modeBtns[m.id]) modeBtns[m.id].classList.toggle('active', node.params.frameMode === m.id);
+    });
+  }
+  MODES.forEach(function(m) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rp-mode-btn';
+    b.textContent = m.label;
+    b.onclick = (e) => { e.stopPropagation(); node.params.frameMode = m.id; scheduleAutosave(); syncModeActive(); };
+    b.onmousedown = (e) => e.stopPropagation();
+    modeBtns[m.id] = b;
+    frameModeWrap.appendChild(b);
+  });
+  syncModeActive();
+
+  const downloadAllBtn = document.createElement('button');
+  downloadAllBtn.type = 'button';
+  downloadAllBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+  downloadAllBtn.innerHTML = '⤓ 全部下载';
+  downloadAllBtn.onclick = (e) => { e.stopPropagation(); downloadAllFrames(node); };
+  downloadAllBtn.onmousedown = (e) => e.stopPropagation();
+  downloadAllBtn.style.display = (node.params.frames && node.params.frames.length) ? '' : 'none';
+
+  function renderMeta() {
+    // 仅清除旧的元数据子节点（保留按钮不被误删）
+    videoMeta.querySelectorAll('.rp-video-meta-text').forEach(function(el) { el.remove(); });
+    const dur = videoEl.duration && isFinite(videoEl.duration) ? formatDuration(videoEl.duration) : '--:--';
+    const name = node.params.videoName || '示例视频';
+    const metaTitle = document.createElement('span');
+    metaTitle.className = 'rp-video-name rp-video-meta-text';
+    metaTitle.textContent = '🎞 ' + name;
+    const metaDur = document.createElement('span');
+    metaDur.className = 'rp-video-dur rp-video-meta-text';
+    metaDur.textContent = dur;
+    videoMeta.appendChild(metaTitle);
+    videoMeta.appendChild(metaDur);
+    syncExtractDisabled();
+  }
+  videoMeta.appendChild(uploadBtn);
+  videoMeta.appendChild(frameCountWrap);
+  videoMeta.appendChild(frameModeWrap);
+  videoMeta.appendChild(extractBtn);
+  videoMeta.appendChild(downloadAllBtn);
+  videoBox.appendChild(videoMeta);
+  videoBox.appendChild(videoEl);
+  wrap.appendChild(videoBox);
+  renderMeta();
+
+  // ===== B. 抽帧缩略图横排 =====
+  const framesBox = document.createElement('div');
+  framesBox.className = 'rp-frames-box';
+  function renderFrames() {
+    framesBox.innerHTML = '';
+    const arr = node.params.frames || [];
+    if (!arr.length) {
+      const empty = document.createElement('div');
+      empty.className = 'rp-frames-empty';
+      empty.textContent = '尚未提取帧 · 拖入视频或点「📤 上传视频」后点「🎬 提取关键帧」';
+      framesBox.appendChild(empty);
+      downloadAllBtn.style.display = 'none';
+      return;
+    }
+    arr.forEach((src, i) => {
+      const item = document.createElement('div');
+      item.className = 'rp-frame';
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = '';
+      img.onclick = (e) => { e.stopPropagation(); openRpFrameLightbox(node, i); };
+      const idx = document.createElement('span');
+      idx.className = 'rp-frame-idx';
+      idx.textContent = '#' + (i + 1);
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'rp-frame-del';
+      del.title = '删除该帧';
+      del.innerHTML = '×';
+      del.onclick = (e) => { e.stopPropagation(); deleteRpFrame(node, i); };
+      del.onmousedown = (e) => e.stopPropagation();
+      const view = document.createElement('button');
+      view.type = 'button';
+      view.className = 'rp-frame-view';
+      view.title = '查看大图';
+      view.innerHTML = '🔍';
+      view.onclick = (e) => { e.stopPropagation(); openRpFrameLightbox(node, i); };
+      view.onmousedown = (e) => e.stopPropagation();
+      item.appendChild(img);
+      item.appendChild(idx);
+      item.appendChild(del);
+      item.appendChild(view);
+      item.onmousedown = (e) => e.stopPropagation();
+      framesBox.appendChild(item);
+    });
+    downloadAllBtn.style.display = '';
+  }
+  renderFrames();
+  wrap.appendChild(framesBox);
+
+  // ===== C. 生成的提示词区 =====
+  const promptSection = document.createElement('div');
+  promptSection.className = 'rp-prompt-section';
+
+  const promptHead = document.createElement('div');
+  promptHead.className = 'rp-prompt-head';
+  const promptTitle = document.createElement('span');
+  promptTitle.className = 'rp-prompt-title';
+  promptTitle.textContent = '生成的提示词';
+  const saveTxtBtn = document.createElement('button');
+  saveTxtBtn.type = 'button';
+  saveTxtBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+  saveTxtBtn.innerHTML = '💾 保存 TXT';
+  saveTxtBtn.onclick = (e) => { e.stopPropagation(); downloadText(node.params.prompt || '', `reverse-prompt-${Date.now()}.txt`); };
+  saveTxtBtn.onmousedown = (e) => e.stopPropagation();
+  const copyBtn = document.createElement('button');
+  copyBtn.type = 'button';
+  copyBtn.className = 'rp-btn rp-btn-primary rp-btn-sm';
+  copyBtn.innerHTML = '📋 复制';
+  copyBtn.onclick = (e) => { e.stopPropagation(); copyToClipboard(node.params.prompt || '', '已复制到剪贴板'); };
+  copyBtn.onmousedown = (e) => e.stopPropagation();
+  promptHead.appendChild(promptTitle);
+  promptHead.appendChild(saveTxtBtn);
+  promptHead.appendChild(copyBtn);
+
+  const promptTa = document.createElement('textarea');
+  promptTa.className = 'rp-prompt-area';
+  promptTa.placeholder = '点击下方「✨ 生成中文电影级提示词」自动生成…';
+  promptTa.value = node.params.prompt || '';
+  promptTa.rows = 6;
+  promptTa.oninput = (e) => { node.params.prompt = e.target.value; scheduleAutosave(); };
+  promptTa.onmousedown = (e) => e.stopPropagation();
+
+  promptSection.appendChild(promptHead);
+  promptSection.appendChild(promptTa);
+  wrap.appendChild(promptSection);
+
+  // ===== C2. 视觉模型设置（反推需要"能看图"的多模态模型）=====
+  node.params.visionModel = node.params.visionModel || 'gpt-4o-mini';
+  const settingsSection = document.createElement('div');
+  settingsSection.className = 'rp-settings-section';
+
+  const setHead = document.createElement('div');
+  setHead.className = 'rp-settings-head';
+  setHead.innerHTML = '⚙ 视觉模型 <span class="rp-settings-sub">反推需能看图的模型</span>';
+  settingsSection.appendChild(setHead);
+
+  const modelRow = document.createElement('div');
+  modelRow.className = 'rp-settings-row';
+  const modelLabel = document.createElement('label');
+  modelLabel.className = 'rp-settings-label';
+  modelLabel.textContent = '模型';
+  const modelSel = document.createElement('select');
+  modelSel.className = 'rp-settings-select';
+  // 兜底：VISION_MODEL_PRESETS 可能因作用域/初始化顺序问题不可用，确保下拉框始终能渲染
+  const VISION_PRESETS = (typeof VISION_MODEL_PRESETS !== 'undefined' && VISION_MODEL_PRESETS && VISION_MODEL_PRESETS.length)
+    ? VISION_MODEL_PRESETS
+    : [
+        { id:'gpt-4o-mini', label:'GPT-4o mini（推荐·快·省）' },
+        { id:'gpt-4o', label:'GPT-4o（强·准）' },
+        { id:'gpt-4.1-mini', label:'GPT-4.1 mini' },
+        { id:'gpt-4.1', label:'GPT-4.1' },
+        { id:'gpt-4.1-nano', label:'GPT-4.1 nano（最省）' },
+        { id:'gemini-2.0-flash', label:'Gemini 2.0 Flash' },
+        { id:'custom', label:'自定义模型…' }
+      ];
+  VISION_PRESETS.forEach(function(p) {
+    const opt = document.createElement('option');
+    opt.value = p.id; opt.textContent = p.label;
+    modelSel.appendChild(opt);
+  });
+  // 若当前有激活的提供方，把其模型也加入下拉，方便直接选用（与 AI 助手对话同源 Key / 地址）
+  try {
+    const _ap = (typeof getActiveProvider === 'function') ? getActiveProvider() : null;
+    if (_ap && _ap.model) {
+      const _has = Array.prototype.some.call(modelSel.options, function(o) { return o.value === _ap.model; });
+      if (!_has) {
+        const _opt = document.createElement('option');
+        _opt.value = _ap.model; _opt.textContent = (_ap.name || '提供方') + ' · ' + _ap.model;
+        modelSel.appendChild(_opt);
+      }
+    }
+  } catch (_) {}
+  modelSel.value = node.params.visionModel;
+  modelSel.onchange = (e) => { e.stopPropagation(); node.params.visionModel = modelSel.value; scheduleAutosave(); syncCustom(); };
+  modelSel.onmousedown = (e) => e.stopPropagation();
+  modelRow.appendChild(modelLabel);
+  modelRow.appendChild(modelSel);
+  settingsSection.appendChild(modelRow);
+
+  const customRow = document.createElement('div');
+  customRow.className = 'rp-settings-row';
+  const customLabel = document.createElement('label');
+  customLabel.className = 'rp-settings-label';
+  customLabel.textContent = '自定义';
+  const customInput = document.createElement('input');
+  customInput.type = 'text';
+  customInput.className = 'rp-settings-input';
+  customInput.placeholder = '如 gpt-4.1 / 你的端点支持的视觉模型 id';
+  customInput.value = node.params.visionCustom || '';
+  customInput.oninput = (e) => { e.stopPropagation(); node.params.visionCustom = customInput.value; scheduleAutosave(); };
+  customInput.onmousedown = (e) => e.stopPropagation();
+  customInput.onclick = (e) => e.stopPropagation();
+  customRow.appendChild(customLabel);
+  customRow.appendChild(customInput);
+  settingsSection.appendChild(customRow);
+  function syncCustom() { customRow.style.display = (modelSel.value === 'custom') ? '' : 'none'; }
+  syncCustom();
+
+  const hintRow = document.createElement('div');
+  hintRow.className = 'rp-settings-row rp-settings-row-col';
+  const hintLabel = document.createElement('label');
+  hintLabel.className = 'rp-settings-label';
+  hintLabel.textContent = '补充说明（可选）';
+  const hintInput = document.createElement('textarea');
+  hintInput.className = 'rp-settings-hint';
+  hintInput.rows = 2;
+  hintInput.placeholder = '例如：「这是女性角色受伤特写，偏写实电影质感」——仅作参考，最终以画面为准';
+  hintInput.value = node.params.userHint || '';
+  hintInput.oninput = (e) => { e.stopPropagation(); node.params.userHint = hintInput.value; scheduleAutosave(); };
+  hintInput.onmousedown = (e) => e.stopPropagation();
+  hintRow.appendChild(hintLabel);
+  hintRow.appendChild(hintInput);
+  settingsSection.appendChild(hintRow);
+
+  wrap.appendChild(settingsSection);
+
+  // ===== D. 操作按钮（生成 + 分析另一段） =====
+  const actionRow = document.createElement('div');
+  actionRow.className = 'rp-action-row';
+
+  const genBtn = document.createElement('button');
+  genBtn.type = 'button';
+  genBtn.className = 'rp-btn rp-btn-primary rp-btn-block';
+  genBtn.innerHTML = '✨ 反推电影级提示词（视觉模型）';
+  genBtn.onclick = (e) => { e.stopPropagation(); runGeneratePrompt(node, promptTa, genBtn); };
+  genBtn.onmousedown = (e) => e.stopPropagation();
+
+  const reanalyzeBtn = document.createElement('button');
+  reanalyzeBtn.type = 'button';
+  reanalyzeBtn.className = 'rp-btn rp-btn-ghost rp-btn-block';
+  reanalyzeBtn.innerHTML = '🔄 分析另一段视频';
+  reanalyzeBtn.onclick = (e) => { e.stopPropagation(); clearForReanalyze(node, promptTa, videoEl, framesBox, syncExtractDisabled, renderMeta); };
+  reanalyzeBtn.onmousedown = (e) => e.stopPropagation();
+
+  actionRow.appendChild(genBtn);
+  actionRow.appendChild(reanalyzeBtn);
+  wrap.appendChild(actionRow);
+
+  // ===== E. 历史记录区 =====
+  const historySection = document.createElement('div');
+  historySection.className = 'rp-history-section';
+  const historyHead = document.createElement('div');
+  historyHead.className = 'rp-history-head';
+  const historyTitle = document.createElement('span');
+  historyTitle.className = 'rp-history-title';
+  historyTitle.innerHTML = '🕘 历史记录 <span class="rp-history-count">' + (node.params.history ? node.params.history.length : 0) + '</span>';
+  const clearHistoryBtn = document.createElement('button');
+  clearHistoryBtn.type = 'button';
+  clearHistoryBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+  clearHistoryBtn.textContent = '清空';
+  clearHistoryBtn.onclick = (e) => { e.stopPropagation(); node.params.history = []; scheduleAutosave(); renderHistory(); };
+  clearHistoryBtn.onmousedown = (e) => e.stopPropagation();
+  historyHead.appendChild(historyTitle);
+  historyHead.appendChild(clearHistoryBtn);
+  const historyList = document.createElement('div');
+  historyList.className = 'rp-history-list';
+  function renderHistory() {
+    historyTitle.innerHTML = '🕘 历史记录 <span class="rp-history-count">' + (node.params.history ? node.params.history.length : 0) + '</span>';
+    historyList.innerHTML = '';
+    const arr = (node.params.history || []).slice().reverse();
+    if (!arr.length) {
+      const empty = document.createElement('div');
+      empty.className = 'rp-history-empty';
+      empty.textContent = '暂无历史记录';
+      historyList.appendChild(empty);
+      return;
+    }
+    arr.forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'rp-history-item';
+      const meta = document.createElement('div');
+      meta.className = 'rp-history-meta';
+      const time = document.createElement('span');
+      time.textContent = formatTime(item.ts);
+      const useBtn = document.createElement('button');
+      useBtn.type = 'button';
+      useBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+      useBtn.textContent = '使用';
+      useBtn.onclick = (e) => { e.stopPropagation(); node.params.prompt = item.prompt; promptTa.value = item.prompt; scheduleAutosave(); showToast('已加载历史提示词', 'success'); };
+      useBtn.onmousedown = (e) => e.stopPropagation();
+      meta.appendChild(time);
+      meta.appendChild(useBtn);
+      const text = document.createElement('div');
+      text.className = 'rp-history-text';
+      text.textContent = (item.prompt || '').slice(0, 60) + ((item.prompt || '').length > 60 ? '…' : '');
+      row.appendChild(meta);
+      row.appendChild(text);
+      historyList.appendChild(row);
+    });
+  }
+  renderHistory();
+  historySection.appendChild(historyHead);
+  historySection.appendChild(historyList);
+  wrap.appendChild(historySection);
+
+  // pickBtn 占位（兼容旧引用，unused）
+  var pickBtn = null;
+  return wrap;
+}
+
+// ===== 反推提示词 · 工具函数 =====
+
+// 从已上传视频中抽取 N 帧（HTML5 video + canvas，dataURL 数组）
+// 抽帧模式：内容感知（按镜头切换检测）。
+// 思路：先密集抽小指纹 → 比较相邻帧差异 → 取差异最大的若干个切换点作为关键帧；
+//       若检测到的切换点不足目标数量，则用均匀采样补足；若视频无变化则整体退化为均匀采样。
+function extractVideoFrames(videoEl, count, opts) {
+  opts = opts || {};
+  count = count || 5;
+  const maxDim = opts.maxDim || 480;
+  const mode = opts.mode || 'content';
+  if (mode === 'uniform') return extractUniformFrames(videoEl, count, maxDim);
+  return new Promise(function(resolve, reject) {
+    const v = videoEl;
+    if (!v || !v.duration || !isFinite(v.duration) || v.duration <= 0) {
+      reject(new Error('视频尚未就绪或时长不可读')); return;
+    }
+    const dur = v.duration;
+    const frames = [];
+    let done = false;
+
+    function finish(err, fr) {
+      if (done) return;
+      done = true;
+      v.onseeked = null;
+      clearTimeout(timer);
+      if (err) reject(err);
+      else resolve(fr || []);
+    }
+
+    // 超时保护：内容感知需多次 seek，放宽到 45 秒
+    const timer = setTimeout(function() { finish(new Error('抽帧超时（视频数据未加载？）')); }, 45000);
+
+    // —— 阶段一：密集抽灰度指纹，用于镜头切换检测 ——
+    const cand = Math.max(30, Math.min(90, Math.round(dur))); // 候选点：每秒约 1 个，30~90
+    const candTimes = [];
+    for (let k = 0; k < cand; k++) {
+      candTimes.push(Math.min(dur * (k + 0.5) / cand, Math.max(dur - 0.05, 0)));
+    }
+    const FP_W = 32, FP_H = 18;
+    const fingerprints = new Array(cand);
+
+    function grabFingerprint() {
+      const cv = document.createElement('canvas');
+      cv.width = FP_W; cv.height = FP_H;
+      const ctx = cv.getContext('2d');
+      ctx.drawImage(v, 0, 0, FP_W, FP_H);
+      const data = ctx.getImageData(0, 0, FP_W, FP_H).data;
+      const arr = new Float32Array(FP_W * FP_H);
+      let p = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        arr[p++] = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+      }
+      return arr;
+    }
+    function diffFp(a, b) {
+      if (!a || !b) return 0;
+      let s = 0;
+      for (let i = 0; i < a.length; i++) { const d = a[i] - b[i]; s += d * d; }
+      return s / a.length; // MSE，范围 0~1
+    }
+
+    let ci = 0;
+    function phase1() {
+      if (done) return;
+      if (ci < cand) {
+        const t = candTimes[ci];
+        v.onseeked = function() {
+          if (done) return;
+          try { fingerprints[ci] = grabFingerprint(); }
+          catch (e) { fingerprints[ci] = null; }
+          ci++;
+          if (ci < cand) {
+            try { v.currentTime = candTimes[ci]; }
+            catch (e) { finish(new Error('视频跳转失败')); }
+          } else {
+            phase2();
+          }
+        };
+        try { v.currentTime = t; }
+        catch (e) { finish(new Error('视频跳转失败')); }
+      } else {
+        phase2();
+      }
+    }
+
+    // —— 阶段二：差异分析 + 选目标时间点 ——
+    function phase2() {
+      const diffs = [];
+      for (let k = 0; k < cand - 1; k++) diffs.push(diffFp(fingerprints[k], fingerprints[k + 1]));
+      const mean = diffs.reduce(function(a, b) { return a + b; }, 0) / (diffs.length || 1);
+      const variance = diffs.reduce(function(a, b) { return a + (b - mean) * (b - mean); }, 0) / (diffs.length || 1);
+      const std = Math.sqrt(variance);
+      const thresh = mean + 0.8 * std;
+
+      const shotPoints = [];
+      for (let k = 0; k < diffs.length; k++) {
+        if (diffs[k] > thresh) shotPoints.push({ idx: k + 1, score: diffs[k] });
+      }
+      shotPoints.sort(function(a, b) { return b.score - a.score; });
+
+      const minGap = Math.max(dur / cand, 0.2); // 两帧最小间隔，避免太近
+      const targets = [];
+
+      if (shotPoints.length === 0) {
+        // 无切换：退化均匀采样
+        for (let i = 0; i < count; i++) targets.push(Math.min(dur * (i + 0.5) / count, Math.max(dur - 0.05, 0)));
+      } else {
+        for (let s = 0; s < shotPoints.length && targets.length < count; s++) {
+          const tm = candTimes[shotPoints[s].idx];
+          if (targets.every(function(c) { return Math.abs(c - tm) > minGap; })) targets.push(tm);
+        }
+        // 切换点不足，用均匀采样补足
+        if (targets.length < count) {
+          for (let i = 0; i < count && targets.length < count; i++) {
+            const tm = Math.min(dur * (i + 0.5) / count, Math.max(dur - 0.05, 0));
+            if (targets.every(function(c) { return Math.abs(c - tm) > minGap; })) targets.push(tm);
+          }
+        }
+        targets.sort(function(a, b) { return a - b; });
+      }
+
+      // —— 阶段三：对目标点抽高清帧 ——
+      let fi = 0;
+      function phase3() {
+        if (done) return;
+        if (fi < targets.length) {
+          v.onseeked = function() {
+            if (done) return;
+            try {
+              const cv = document.createElement('canvas');
+              const ratio = (v.videoWidth || 16) / (v.videoHeight || 9);
+              let w = maxDim, h = Math.round(maxDim / ratio);
+              if ((v.videoWidth || 0) < maxDim) { w = v.videoWidth; h = v.videoHeight; }
+              cv.width = w; cv.height = h;
+              const ctx = cv.getContext('2d');
+              ctx.drawImage(v, 0, 0, w, h);
+              frames.push(cv.toDataURL('image/jpeg', 0.82));
+            } catch (err) { /* 单帧失败不阻塞整体 */ }
+            fi++;
+            if (fi < targets.length) {
+              try { v.currentTime = targets[fi]; }
+              catch (e) { finish(new Error('视频跳转失败')); }
+            } else {
+              finish(null, frames);
+            }
+          };
+          try { v.currentTime = targets[fi]; }
+          catch (e) { finish(new Error('视频跳转失败')); }
+        } else {
+          finish(null, frames);
+        }
+      }
+      phase3();
+    }
+
+    phase1();
+  });
+}
+
+// 均匀抽帧（回退模式）：按视频时长等间隔、每段中点取一帧
+function extractUniformFrames(videoEl, count, maxDim) {
+  count = count || 5;
+  maxDim = maxDim || 480;
+  return new Promise(function(resolve, reject) {
+    const v = videoEl;
+    if (!v || !v.duration || !isFinite(v.duration) || v.duration <= 0) {
+      reject(new Error('视频尚未就绪或时长不可读')); return;
+    }
+    const dur = v.duration;
+    const frames = [];
+    let idx = 0;
+    let done = false;
+    function finish(err) {
+      if (done) return;
+      done = true;
+      v.onseeked = null;
+      clearTimeout(timer);
+      if (err) reject(err);
+      else resolve(frames);
+    }
+    const timer = setTimeout(function() { finish(new Error('抽帧超时（视频数据未加载？）')); }, 15000);
+    v.onseeked = function() {
+      if (done) return;
+      try {
+        const cv = document.createElement('canvas');
+        const ratio = (v.videoWidth || 16) / (v.videoHeight || 9);
+        let w = maxDim, h = Math.round(maxDim / ratio);
+        if ((v.videoWidth || 0) < maxDim) { w = v.videoWidth; h = v.videoHeight; }
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext('2d');
+        ctx.drawImage(v, 0, 0, w, h);
+        frames.push(cv.toDataURL('image/jpeg', 0.78));
+      } catch (err) { /* 单帧失败不阻塞整体 */ }
+      idx++;
+      if (idx < count) {
+        const t = Math.min(dur * (idx + 0.5) / count, Math.max(dur - 0.05, 0));
+        try { v.currentTime = t; } catch (e) { finish(new Error('视频跳转失败')); }
+      } else {
+        finish();
+      }
+    };
+    try { v.currentTime = Math.min(dur * 0.5 / count, Math.max(dur - 0.05, 0)); }
+    catch (e) { finish(new Error('视频跳转失败')); }
+  });
+}
+
+function runExtractFrames(node, framesBox, pickBtn, videoEl) {
+  if (!node.params.videoSrc) { showToast('请先上传视频', 'warn'); return; }
+  const mode = node.params.frameMode || 'content';
+  const modeLabel = mode === 'uniform' ? '均匀' : '智能（镜头切换）';
+  showToast('正在抽帧（' + modeLabel + '）…', 'info');
+  extractVideoFrames(videoEl, node.params.frameCount || 5, { mode: mode, maxDim: 480 }).then(function(frames) {
+    node.params.frames = frames;
+    scheduleAutosave();
+    // 重渲染：触发 buildNodeBody 即可，简化起见手动刷新当前面板
+    if (node.el) buildNodeBody(node.el, node);
+    showToast('已提取 ' + frames.length + ' 帧', 'success');
+  }).catch(function(err) {
+    showToast('抽帧失败：' + err.message, 'danger');
+  });
+}
+
+// ===== 反推提示词 · 视觉模型（多模态）管线 =====
+// 关键修复：旧版只把"帧数量"当文字发给纯文本模型 → 模型看不到画面只能瞎编。
+// 现在把抽帧图片真正发给「能看图」的视觉模型（OpenAI 兼容 /chat/completions，image_url）。
+var VISION_MODEL_PRESETS = [
+  { id: 'gpt-4o-mini', label: 'GPT-4o mini（推荐·快·省）' },
+  { id: 'gpt-4o', label: 'GPT-4o（强·准）' },
+  { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
+  { id: 'gpt-4.1', label: 'GPT-4.1' },
+  { id: 'gpt-4.1-nano', label: 'GPT-4.1 nano（最省）' },
+  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+  { id: 'custom', label: '自定义模型…' }
+];
+
+var RP_VISION_SYSTEM = '你是一位专业的影视分镜 / 视觉分析师，擅长把视频关键帧反推成电影级提示词。\n' +
+  '用户会给你若干张按时间顺序排列、已编号的视频关键帧图片。请严格遵守：\n' +
+  '1. 只描述你在这些图片中【真实看到】的内容：场景环境、人物/主体、服装与外观、动作与姿态、镜头景别与角度、光线与色彩、构图、整体氛围。\n' +
+  '2. 严禁编造画面中并不存在的物体、人物、情节或具体数字（例如怀表、码头、船只、特定时间等，除非你确实在画面中看到了）。\n' +
+  '3. 若某张帧模糊或看不清，请明确写"看不清"，不要脑补细节。\n' +
+  '4. 先逐帧用 1-2 句话点出该帧要点（标注帧号），再综合成一段完整的中文电影级提示词。\n' +
+  '5. 电影级提示词需包含：场景、主体动作、镜头运动、构图、光线与色彩、氛围，并显式列出你从帧中捕捉到的关键转折。\n' +
+  '6. 只输出逐帧要点 + 电影级提示词正文，不要寒暄、不要解释你的分析过程。';
+
+// 从帧列表中均匀抽样最多 max 帧，避免超出模型上下文 / 请求体积过大
+function pickFramesEvenly(arr, max) {
+  arr = arr || [];
+  if (arr.length <= max) return arr.slice();
+  var out = [];
+  for (var i = 0; i < max; i++) out.push(arr[Math.floor(i * arr.length / max)]);
+  return out;
+}
+
+// 调用视觉（多模态）模型：OpenAI 兼容 /chat/completions，优先本地 Key/Base，回退中转代理
+function callVisionChat(messages, model) {
+  return new Promise(function(resolve, reject) {
+    var key = localStorage.getItem(OPENAI_KEY_STORAGE);
+    var proxy = _fcProxy();
+    if (!key && !proxy) {
+      reject(new Error('未配置视觉模型：请打开 AI 助手 ⚙ 填入 OpenAI 兼容 Key，或在设置中开启中转代理。'));
+      return;
+    }
+    if (proxy) {
+      proxy.call({ provider: 'openai', endpoint: '/chat/completions', body: { model: model, messages: messages, stream: false, temperature: 0.4 }, token: window.FlowCraft.__userToken || undefined })
+        .then(function(data) {
+          var txt = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+          if (!txt) { reject(new Error('视觉模型返回为空')); return; }
+          resolve(txt);
+        })
+        .catch(function(err) {
+          if (err && err.kind) { var m = new Error(err.message || 'proxy error'); m.status = err.status || 0; m.proxyKind = err.kind; reject(m); return; }
+          reject(err);
+        });
+      return;
+    }
+    var base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
+    fetch(base + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({ model: model, messages: messages, stream: false, temperature: 0.4 })
+    }).then(function(resp) {
+      if (!resp.ok) return resp.text().then(function(t) { var e = new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 200) : '')); e.status = resp.status; throw e; });
+      return resp.json();
+    }).then(function(data) {
+      var txt = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      if (!txt) { reject(new Error('视觉模型返回为空')); return; }
+      resolve(txt);
+    }).catch(reject);
+  });
+}
+
+function runGeneratePrompt(node, promptTa, genBtn) {
+  const frames = node.params.frames || [];
+  if (!frames.length) { showToast('请先提取关键帧', 'warn'); return; }
+  const key = localStorage.getItem(OPENAI_KEY_STORAGE);
+  const proxy = _fcProxy();
+  if (!key && !proxy) {
+    showToast('反推提示词需要「能看图的视觉模型」。请在 AI 助手 ⚙ 填入 OpenAI 兼容 Key，或开启中转代理。', 'warn');
+    return;
+  }
+  genBtn.disabled = true;
+  var oldText = genBtn.innerHTML;
+  genBtn.innerHTML = '⏳ 视觉分析中…';
+
+  const model = (node.params.visionModel && node.params.visionModel !== 'custom')
+    ? node.params.visionModel
+    : ((node.params.visionCustom && node.params.visionCustom.trim()) || 'gpt-4o-mini');
+  const picked = pickFramesEvenly(frames, 12);
+  const imageParts = picked.map(function(src) {
+    return { type: 'image_url', image_url: { url: src, detail: 'auto' } };
+  });
+  const userHint = (node.params.userHint || '').trim();
+  const frameNote = '以下是不同时刻的视频关键帧（共 ' + frames.length + ' 帧，本次请求选取其中 ' + picked.length + ' 帧）。视频名：' + (node.params.videoName || '未命名') + '；时长：' + formatDuration(videoElDuration(node)) + '。' +
+    (userHint ? '\n用户补充说明（仅供参考，仍以画面为准）：' + userHint : '');
+  const messages = [
+    { role: 'system', content: RP_VISION_SYSTEM },
+    { role: 'user', content: [{ type: 'text', text: frameNote }].concat(imageParts) }
+  ];
+
+  callVisionChat(messages, model)
+    .then(function(text) {
+      const t = (text || '').trim();
+      if (!t) { showToast('生成结果为空', 'warn'); return; }
+      node.params.prompt = t;
+      promptTa.value = t;
+      node.params.history = node.params.history || [];
+      node.params.history.push({ ts: Date.now(), prompt: t, videoName: node.params.videoName || '' });
+      if (node.params.history.length > 20) node.params.history.splice(0, node.params.history.length - 20);
+      scheduleAutosave();
+      node.outputsData = [{ type: 'text', value: t }];
+      markEdgesDirty();
+      if (node.el) buildNodeBody(node.el, node);
+      showToast('提示词已生成（已写入历史 + 输出到下游）', 'success');
+    })
+    .catch(function(err) {
+      showToast('生成失败：' + (err && err.message || err), 'danger');
+    })
+    .finally(function() {
+      genBtn.disabled = false;
+      genBtn.innerHTML = oldText;
+    });
+}
+
+function videoElDuration(node) {
+  // 从 panel 里的 video 取
+  if (!node || !node.el) return 0;
+  const v = node.el.querySelector('.rp-video');
+  return (v && v.duration && isFinite(v.duration)) ? v.duration : 0;
+}
+
+function clearForReanalyze(node, promptTa, videoEl, framesBox, syncExtractDisabled, renderMeta) {
+  if (node.params.videoSrc && node.params.videoSrc.startsWith('blob:')) URL.revokeObjectURL(node.params.videoSrc);
+  node.params.videoSrc = '';
+  node.params.videoName = '';
+  node.params.frames = [];
+  node.params.prompt = '';
+  promptTa.value = '';
+  videoEl.removeAttribute('src');
+  videoEl.load();
+  scheduleAutosave();
+  if (node.el) buildNodeBody(node.el, node);
+  showToast('已清空，可上传新视频', 'info');
+}
+
+function downloadAllFrames(node) {
+  const frames = node.params.frames || [];
+  if (!frames.length) return;
+  // 依次触发下载（浏览器限制并发，依次延迟更稳）
+  frames.forEach(function(src, i) {
+    setTimeout(function() {
+      try {
+        const a = document.createElement('a');
+        a.href = src;
+        a.download = (node.params.videoName || 'video').replace(/\.[^.]+$/, '') + '-frame-' + (i + 1) + '.jpg';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (e) {}
+    }, i * 120);
+  });
+  showToast('开始下载 ' + frames.length + ' 帧', 'success');
+}
+
+function deleteRpFrame(node, idx) {
+  const frames = node.params.frames || [];
+  if (idx < 0 || idx >= frames.length) return;
+  frames.splice(idx, 1);
+  node.params.frames = frames;
+  scheduleAutosave();
+  if (node.el) buildNodeBody(node.el, node);
+  showToast('已删除第 ' + (idx + 1) + ' 帧', 'info');
+}
+
+// 轻量图片灯箱：查看抽帧大图，支持左右切换、关闭、下载
+function openRpFrameLightbox(node, startIdx) {
+  const frames = (node.params.frames || []).slice();
+  if (!frames.length) return;
+  let idx = Math.max(0, Math.min(startIdx, frames.length - 1));
+
+  const overlay = document.createElement('div');
+  overlay.className = 'rp-lightbox-overlay';
+
+  const img = document.createElement('img');
+  img.className = 'rp-lightbox-img';
+  img.src = frames[idx];
+
+  const topBar = document.createElement('div');
+  topBar.className = 'rp-lightbox-bar';
+  const counter = document.createElement('span');
+  counter.className = 'rp-lightbox-counter';
+  function updateCounter() { counter.textContent = (idx + 1) + ' / ' + frames.length; }
+  updateCounter();
+
+  const downloadBtn = document.createElement('button');
+  downloadBtn.type = 'button';
+  downloadBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+  downloadBtn.innerHTML = '⤓ 下载';
+  downloadBtn.onclick = (e) => { e.stopPropagation(); downloadDataUrl(frames[idx], (node.params.videoName || 'video').replace(/\.[^.]+$/, '') + '-frame-' + (idx + 1) + '.jpg'); };
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+  closeBtn.innerHTML = '✕ 关闭';
+  closeBtn.onclick = (e) => { e.stopPropagation(); close(); };
+
+  topBar.appendChild(counter);
+  topBar.appendChild(downloadBtn);
+  topBar.appendChild(closeBtn);
+
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'rp-lightbox-nav rp-lightbox-prev';
+  prevBtn.innerHTML = '‹';
+  prevBtn.onclick = (e) => { e.stopPropagation(); prev(); };
+
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'rp-lightbox-nav rp-lightbox-next';
+  nextBtn.innerHTML = '›';
+  nextBtn.onclick = (e) => { e.stopPropagation(); next(); };
+
+  overlay.appendChild(img);
+  overlay.appendChild(topBar);
+  overlay.appendChild(prevBtn);
+  overlay.appendChild(nextBtn);
+  document.body.appendChild(overlay);
+
+  function refresh() {
+    img.src = frames[idx];
+    updateCounter();
+  }
+  function prev() { idx = (idx - 1 + frames.length) % frames.length; refresh(); }
+  function next() { idx = (idx + 1) % frames.length; refresh(); }
+  function close() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+  function onKey(e) {
+    if (e.key === 'Escape') close();
+    if (e.key === 'ArrowLeft') prev();
+    if (e.key === 'ArrowRight') next();
+  }
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', onKey);
+}
+
+function downloadDataUrl(dataUrl, filename) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename || 'download.jpg';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function downloadText(text, filename) {
+  try {
+    const blob = new Blob([text || ''], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'reverse-prompt.txt';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) {
+    showToast('下载失败：' + err.message, 'danger');
+  }
+}
+
+function copyToClipboard(text, successMsg) {
+  if (!text) { showToast('无内容可复制', 'warn'); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      function() { showToast(successMsg || '已复制', 'success'); },
+      function() { fallbackCopy(text, successMsg); }
+    );
+  } else { fallbackCopy(text, successMsg); }
+}
+function fallbackCopy(text, successMsg) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); showToast(successMsg || '已复制', 'success'); }
+  catch (e) { showToast('复制失败', 'danger'); }
+  finally { ta.remove(); }
+}
+
+function formatDuration(seconds) {
+  if (!seconds || !isFinite(seconds)) return '--:--';
+  const total = Math.round(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+}
+function formatTime(ts) {
+  const d = new Date(ts);
+  const pad = function(n) { return n < 10 ? '0' + n : n; };
+  return d.getMonth() + 1 + '月' + d.getDate() + '日 ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
 
   // —— 视频生成节点 body ——
   const videoTypes = ['script', 'footage', 'voiceover', 'subtitle', 'bgm', 'compose', 'publish'];
@@ -3873,28 +8805,29 @@ function buildNodeBody(el, node) {
     modelSel.className = 'model-select';
     const models = node.type === 'aiImage'
       ? ['Nano Banana Pro', 'FLUX.1', 'Stable Diffusion XL', 'GPT Image 2']
-      : ['Sora 2', 'Veo 3', '可灵 2.0', 'Runway Gen-4', '即梦 3.0'];
+      : ['可灵 2.0', 'Runway Gen-4'];
     models.forEach(m => {
       const opt = document.createElement('option');
       opt.value = m;
       opt.textContent = m === 'GPT Image 2' ? m + '（真实出图）' : m + '（演示）';
       modelSel.appendChild(opt);
     });
+    node.params.model = normalizeAiImageModelName(node.params.model);
     modelSel.value = node.params.model;
     // 旧存档或默认 model 与当前类型模型列表不匹配时，归正到第一个可用模型
     if (!models.includes(node.params.model)) {
-      node.params.model = models[0];
+      node.params.model = node.type === 'aiImage' ? 'GPT Image 2' : models[0];
     }
     modelSel.value = node.params.model;
     modelSel.onchange = (e) => { node.params.model = e.target.value; scheduleAutosave(); };
     modelSel.onmousedown = (e) => e.stopPropagation();
     controls.appendChild(modelSel);
 
-    // 参数下拉选择：比例 / 分辨率 / (张数 | 时长) / 模式
+    // 参数下拉选择：规格 / (张数 | 时长) / 模式
     const isVideoNode = node.type === 'aiVideo';
+    const specSel = buildUnifiedAiSpecSelect(node, 'param-select param-spec-select');
+    controls.appendChild(specSel);
     const paramSelects = [
-      { key: 'aspect',     label: '比例',   options: ['1:1', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'] },
-      { key: 'resolution', label: '分辨率', options: ['高清1K', '超清2K', '原画4K'] },
       // 视频节点用「时长」替代图片节点的「张数」
       isVideoNode
         ? { key: 'duration', label: '时长', options: ['3秒', '5秒', '10秒', '15秒', '30秒'] }
@@ -3933,18 +8866,73 @@ function buildNodeBody(el, node) {
 
   // —— 底部工具栏 ——
   if (hasToolbar) {
+    const toolbarHit = document.createElement('div');
+    toolbarHit.className = 'node-toolbar-hit';
+    toolbarHit.onmousedown = (e) => e.stopPropagation();
+    toolbarHit.onmouseup = (e) => e.stopPropagation();
+    el.appendChild(toolbarHit);
+
     const toolbar = document.createElement('div');
     toolbar.className = 'node-toolbar';
 
     // 图片输入节点：额外提供"上传图片"按钮
-    if (node.type === 'image') {
+    if (node.type === 'image' || node.type === 'videoInput') {
       const upBtn = document.createElement('button');
       upBtn.className = 'tool-btn tool-btn-upload';
       upBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10V3M5 6l3-3 3 3M3 13h10"/></svg>';
-      upBtn.title = '上传图片';
-      upBtn.onclick = (e) => { e.stopPropagation(); openImageFilePicker(node); };
+      upBtn.title = node.type === 'videoInput' ? '上传视频' : '上传图片';
+      upBtn.onclick = (e) => { e.stopPropagation(); node.type === 'videoInput' ? openVideoFilePicker(node) : openImageFilePicker(node); };
       upBtn.onmousedown = (e) => e.stopPropagation();
       toolbar.appendChild(upBtn);
+    }
+
+    // 角色状态节点：把高频操作放在节点内，避免用户必须打开右键菜单。
+    if (isCharacterStateNode(node)) {
+      const stateLabel = document.createElement('span');
+      stateLabel.className = 'state-node-label';
+      stateLabel.textContent = '状态：' + node.stateMeta.label;
+      stateLabel.title = '角色状态节点：' + node.stateMeta.label;
+      toolbar.appendChild(stateLabel);
+
+      const stateInfo = document.createElement('div');
+      stateInfo.className = 'state-node-info';
+      toolbar.appendChild(stateInfo);
+
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'tool-btn state-node-action';
+      retryBtn.type = 'button';
+      retryBtn.textContent = '↻';
+      retryBtn.title = '单状态重试';
+      retryBtn.onclick = (e) => { e.stopPropagation(); retryCharacterStateNode(node); };
+      retryBtn.onmousedown = (e) => e.stopPropagation();
+      toolbar.appendChild(retryBtn);
+
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'tool-btn state-node-action';
+      copyBtn.type = 'button';
+      copyBtn.textContent = '⧉';
+      copyBtn.title = '复制此状态';
+      copyBtn.onclick = (e) => { e.stopPropagation(); duplicateCharacterStateNode(node); };
+      copyBtn.onmousedown = (e) => e.stopPropagation();
+      toolbar.appendChild(copyBtn);
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'tool-btn state-node-action';
+      cancelBtn.type = 'button';
+      cancelBtn.textContent = '⨯';
+      cancelBtn.title = '取消此状态';
+      cancelBtn.onclick = (e) => { e.stopPropagation(); cancelCharacterStateNode(node); };
+      cancelBtn.onmousedown = (e) => e.stopPropagation();
+      toolbar.appendChild(cancelBtn);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'tool-btn state-node-action state-node-remove';
+      removeBtn.type = 'button';
+      removeBtn.textContent = '×';
+      removeBtn.title = '删除此状态（移入回收站）';
+      removeBtn.onclick = (e) => { e.stopPropagation(); deleteNode(node.id); };
+      removeBtn.onmousedown = (e) => e.stopPropagation();
+      toolbar.appendChild(removeBtn);
     }
 
     const tools = [
@@ -3965,8 +8953,25 @@ function buildNodeBody(el, node) {
     el.appendChild(toolbar);
   }
 
+  // —— C 懒迁移：已有缩略图但未做比例适配的节点（含旧存档）首次渲染时自动按原图比例适配 ——
+  // 缩略图变化（新生成/新上传）时按真实图比例重排节点框，消除留白；
+  // 仅改规格未出新图时不重排，保留 applySpecSize 的框型
+  const _fitSrc = normalizeImageSrc(node.thumb);
+  if (_fitSrc && node._fitThumbSrc !== _fitSrc) {
+    node._fitThumbSrc = _fitSrc;
+    node._fitProbed = true;
+    probeFitNode(node);
+  }
+
+  // —— #8 生成信息条（含一键同参重试）——
+  if (node.genMeta && ['aiImage', 'upscale', 'lineart', 'comfyui'].includes(node.type)) {
+    renderGenMetaStrip(el, node);
+  }
+
   // —— 底部图片预览区 ——
-  renderImagePreviewSection(el, node);
+  if (node.type !== 'image' && node.type !== 'videoInput' && node.type !== 'aiImage' && node.type !== 'aiVideo') {
+    renderImagePreviewSection(el, node);
+  }
 
   // —— 端口 ——
   const inputs = def.inputs || [];
@@ -4006,17 +9011,27 @@ function buildNodeBody(el, node) {
   // 同步节点实际高度（供 fitToContent 使用）
   // 元素未挂载 DOM 时 offsetHeight 为 0，此时保留 node.height 已有值，避免覆盖为 0
   node.height = el.offsetHeight || node.height;
+
+  // #5：节点重建后高度可能变化 → 若 Composer 正跟随该节点则重定位
+  if (node === __composerNode) positionNodeComposer();
 }
 
 function updateNodeStatus(node) {
   if (!node.el) return;
+  if (node.status === 'failure') node.status = 'error';
+  applyNodeSemanticBadge(node);
+  const resultPill = node.el.querySelector('.node-result-pill');
+  if (resultPill) {
+    resultPill.className = 'node-result-pill ' + getNodeResultClass(node.resultMode || 'pending');
+    resultPill.textContent = getNodeResultLabel(node.resultMode || 'pending');
+  }
   const dot = node.el.querySelector('.node-status-dot');
   if (dot) dot.className = 'node-status-dot ' + node.status;
 
   const pill = node.el.querySelector('.node-status-pill');
   if (pill) {
     pill.className = 'node-status-pill ' + node.status;
-    const labelMap = { idle: '待运行', running: '运行中', done: '已完成', error: '失败' };
+    const labelMap = { idle: '待运行', queued: '排队中', running: '生成中', done: '已完成', error: '失败', cancelled: '已取消' };
     pill.textContent = labelMap[node.status] || node.status;
   }
 
@@ -4025,6 +9040,13 @@ function updateNodeStatus(node) {
   } else {
     node.el.classList.remove('running');
   }
+  if ((node.type === 'aiImage' || node.type === 'imageEdit' || node.type === 'aiVideo') && node.status === 'running') {
+    node.el.classList.add('node-marquee');
+  } else {
+    node.el.classList.remove('node-marquee');
+  }
+
+  if (isCharacterStateNode(node)) renderCharacterStateInfo(node);
 
   // 执行按钮状态
   const runBtn = node.el.querySelector('.run-btn');
@@ -4039,6 +9061,73 @@ function updateNodeStatus(node) {
   // 镜头清单：同步对应镜头的生成状态并刷新面板
   syncShotStatus(node);
   refreshShotPanelIfOpen();
+}
+
+function renderCharacterStateInfo(node) {
+  if (!node || !node.el || !isCharacterStateNode(node)) return;
+  const info = node.el.querySelector('.state-node-info');
+  if (!info) return;
+  const meta = node.stateMeta || {};
+  const progress = meta.batchProgress || {};
+  const total = Number(meta.batchTotal || progress.total || 1);
+  const done = Number(progress.completed || 0);
+  const failed = Number(progress.failed || 0);
+  const running = Number(progress.running || 0);
+  const pending = Math.max(total - done - failed - running, 0);
+  const statusText =
+    node.status === 'error' ? '失败' :
+    node.status === 'running' ? '生成中' :
+    node.status === 'done' ? '已完成' :
+    node.status === 'cancelled' ? '已取消' : '排队中';
+  info.innerHTML = '';
+
+  // 总体进度条（批量操作区域）
+  const barWrap = document.createElement('div');
+  barWrap.className = 'state-batch-progress-bar';
+  const barFill = document.createElement('div');
+  barFill.className = 'state-batch-progress-fill';
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  barFill.style.width = pct + '%';
+  if (failed > 0) barWrap.classList.add('has-failed');
+  barWrap.appendChild(barFill);
+  info.appendChild(barWrap);
+
+  const progressEl = document.createElement('span');
+  progressEl.className = 'state-batch-progress';
+  progressEl.textContent = `批量进度：${done} / ${total}`;
+  progressEl.title = `总数 ${total}，已完成 ${done}，失败 ${failed}，生成中 ${running}，排队中 ${pending}`;
+  info.appendChild(progressEl);
+  const statusEl = document.createElement('span');
+  statusEl.className = 'state-node-progress-status ' + node.status;
+  statusEl.textContent = statusText;
+  info.appendChild(statusEl);
+  const reason = node.failureReason || meta.failureReason || node._lastError || '';
+  if (reason) {
+    const errorEl = document.createElement('div');
+    errorEl.className = 'state-node-error';
+    errorEl.textContent = '失败原因：' + reason;
+    errorEl.title = reason;
+    info.appendChild(errorEl);
+  }
+
+  // 角色资产库：已完成且有产出图的节点，可一键存为「角色」资产
+  const _assetKey = characterStateAssetKey(node);
+  const _savedMeta = _assetKey ? getAssetMeta(_assetKey) : null;
+  if (_savedMeta && _savedMeta.cat === '角色') {
+    const saved = document.createElement('div');
+    saved.className = 'state-node-asset-saved';
+    saved.textContent = '✓ 已存为角色资产：<<<' + (_savedMeta.name || '') + '>>>';
+    saved.title = '在其他节点提示词写 <<<' + (_savedMeta.name || '') + '>>> 即可引用该角色';
+    info.appendChild(saved);
+  } else if (node.status === 'done' && nodeHasOutputImage(node)) {
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'state-node-save-asset-btn';
+    saveBtn.textContent = '★ 存为角色资产';
+    saveBtn.title = '把本状态成功生成结果保存为可复用角色资产，其他节点可引用';
+    saveBtn.onclick = (e) => { e.stopPropagation(); saveCharacterStateAsAsset(node); renderCharacterStateInfo(node); };
+    info.appendChild(saveBtn);
+  }
 }
 
 //================ 8. 节点 CRUD ================
@@ -4061,6 +9150,13 @@ function addNode(type, x, y, thumb = null) {
 function deleteNode(id) {
   const node = workflow.nodes.get(id);
   if (!node) return;
+
+  // #5：删除的节点正是 Composer 跟随的节点 → 收起 Composer
+  if (node === __composerNode) hideNodeComposer();
+  // B：删除的节点挂有选中连线 → 取消连线选中
+  if (__selectedEdge && (__selectedEdge.from.node === node || __selectedEdge.to.node === node)) {
+    clearEdgeSelection();
+  }
 
   // 压入历史（删除前快照）
   pushHistory();
@@ -4095,9 +9191,18 @@ function deleteNode(id) {
       height: node.height,
       title: node.title,
       thumb: node.thumb,
+      uploadedImage: node.uploadedImage || '',
+      croppedImage: node.croppedImage || '',
+      cropMeta: node.cropMeta ? JSON.parse(JSON.stringify(node.cropMeta)) : null,
+      uploadedVideo: node.uploadedVideo || '',
       prompt: node.prompt,
+      refImages: node.refImages ? JSON.parse(JSON.stringify(node.refImages)) : [],
+      charDesc: node.charDesc || '',
+      stateMeta: node.stateMeta ? { ...node.stateMeta } : null,
       params: { ...node.params },
       status: node.status,
+      previewOnly: !!node.previewOnly,
+      previewSourceId: node.previewSourceId || '',
     },
     edges: relatedEdges,
     deletedAt: Date.now(),
@@ -4119,6 +9224,7 @@ function deleteNode(id) {
 }
 
 function selectNode(node) {
+  clearEdgeSelection();
   workflow.selection.forEach(id => {
     const n = workflow.nodes.get(id);
     if (n && n.el) n.el.classList.remove('selected');
@@ -4127,10 +9233,108 @@ function selectNode(node) {
   workflow.selection.add(node.id);
   node.el.classList.add('selected');
   node.el.style.zIndex = (++workflow.nextZ).toString();
+  if (node.type === 'videoInput') node.__settingsCollapsed = false;
+  // #5：选中生成节点 → 浮现下方 Composer
+  showNodeComposer(node);
 }
 
 //================ 9. 节点拖拽 ================
 let dragContext = null;
+
+// ===== A 拖节点靠近自动连线（面板级吸附）=====
+// 即将靠近节点面板即触发（横向间隙 -30~140px、纵向对齐窗口 90px），
+// 并把拖动的节点「吸附」到端口对齐位置；松手落库。
+let __autoConn = null;
+const AUTOCONN_GAP_X_MIN = -30;  // 允许轻微重叠
+const AUTOCONN_GAP_X_MAX = 140;  // 即将靠近面板的距离阈值
+const AUTOCONN_GAP_Y_MAX = 90;   // 纵向对齐窗口
+const AUTOCONN_PORT_GAP = 48;    // 吸附后两节点端口之间的间距
+
+// 端口世界坐标（与 buildNodeBody 端口定位一致：portStartY=48, spacing=28；input 在左缘、output 在右缘）
+function portWorldPos(node, kind, idx) {
+  const w = node.width || 280;
+  return {
+    x: kind === 'output' ? (node.x + w) : node.x,
+    y: node.y + 48 + idx * 28,
+  };
+}
+
+// 拖动中检测候选自动连线（从拖节点的输出端口0 → 其他节点的兼容输入端口）；返回候选或 null
+function updateAutoConnect(dragNode) {
+  const outs = (dragNode.def && dragNode.def.outputs) || [];
+  if (!outs.length) { clearAutoConnect(); return null; }
+  const fromIdx = 0;
+  const fromType = outs[0].type;
+  const fp = portWorldPos(dragNode, 'output', fromIdx);
+  let best = null, bestScore = Infinity;
+  workflow.nodes.forEach(n => {
+    if (n === dragNode || !n.el) return;
+    const ins = (n.def && n.def.inputs) || [];
+    ins.forEach((port, idx) => {
+      // 类型校验：与端口拖拽规则一致（优先 validateConnection，回退类型相等）
+      let ok = false;
+      const vres = (window.FlowCraft && window.FlowCraft.nodes && window.FlowCraft.nodes.validateConnection)
+        ? window.FlowCraft.nodes.validateConnection({
+            from: { nodeType: dragNode.type, portIdx: fromIdx, kind: 'output', portType: fromType },
+            to:   { nodeType: n.type, portIdx: idx, kind: 'input', portType: port.type },
+          })
+        : null;
+      ok = vres ? !!vres.ok : (fromType === port.type);
+      if (!ok) return;
+      const ip = portWorldPos(n, 'input', idx);
+      const dx = ip.x - fp.x;          // 目标输入相对拖节点输出的横向间隙
+      const dy = Math.abs(fp.y - ip.y); // 纵向错位
+      if (dx > AUTOCONN_GAP_X_MIN && dx < AUTOCONN_GAP_X_MAX && dy < AUTOCONN_GAP_Y_MAX) {
+        const score = dx + dy * 2;
+        if (score < bestScore) { bestScore = score; best = { toNode: n, toIdx: idx, dx, dy }; }
+      }
+    });
+  });
+  if (best) {
+    if (!(__autoConn && __autoConn.toNode === best.toNode && __autoConn.toIdx === best.toIdx)) {
+      clearAutoConnect();
+      __autoConn = { fromNode: dragNode, fromIdx, toNode: best.toNode, toIdx: best.toIdx };
+      const sel = best.toNode.el.querySelector(`.node-port.input[data-port-idx="${best.toIdx}"]`);
+      if (sel) sel.classList.add('compatible');
+      markEdgesDirty();
+    }
+    return best;
+  }
+  clearAutoConnect();
+  return null;
+}
+function clearAutoConnect() {
+  if (!__autoConn) return;
+  try {
+    const n = __autoConn.toNode;
+    if (n && n.el) {
+      const p = n.el.querySelector('.node-port.input.compatible');
+      if (p) p.classList.remove('compatible');
+    }
+  } catch (e) {}
+  __autoConn = null;
+  markEdgesDirty();
+}
+// 松手时落库自动连线
+function commitAutoConnect() {
+  if (!__autoConn) return;
+  const ac = __autoConn;
+  let exists = false;
+  workflow.edges.forEach(e => {
+    if (e.from.node.id === ac.fromNode.id && e.from.port === ac.fromIdx &&
+        e.to.node.id === ac.toNode.id && e.to.port === ac.toIdx) exists = true;
+  });
+  if (!exists) {
+    pushHistory();
+    const edge = new Edge(ac.fromNode, ac.fromIdx, ac.toNode, ac.toIdx);
+    workflow.edges.set(edge.id, edge);
+    resetNodeData(ac.toNode); // 连线变化 → 下游输入已改变，清除旧数据
+    updateStatusbar();
+    scheduleAutosave();
+    showToast('已自动连线', 'success');
+  }
+  clearAutoConnect();
+}
 
 function snapNodePosition(dragNode, x, y) {
   const SNAP = 12;          // 对齐吸附阈值（像素）
@@ -4183,6 +9387,7 @@ function startNodeDrag(e, node) {
 
   const startX = e.clientX;
   const startY = e.clientY;
+  const shouldSnapOnRelease = !e.shiftKey;
   let moved = false;
   let historyPushed = false; // lazy 压栈标志：首次移动时才压栈，捕获拖拽前状态
 
@@ -4209,16 +9414,9 @@ function startNodeDrag(e, node) {
       }
       moved = true;
     }
-    // 以主键计算吸附后的有效位移，整组共用，保持相对位置不变
-    let rawX = group[0].ox + dx;
-    let rawY = group[0].oy + dy;
-    if (!e2.shiftKey) {
-      const snapped = snapNodePosition(group[0].n, rawX, rawY);
-      rawX = snapped.x;
-      rawY = snapped.y;
-    }
-    const effDx = rawX - group[0].ox;
-    const effDy = rawY - group[0].oy;
+    // 拖拽过程中只更新位移；吸附和自动连线留到松手时处理，避免每帧全图扫描导致卡顿
+    const effDx = dx;
+    const effDy = dy;
     group.forEach(g => {
       const nx = g.ox + effDx;
       const ny = g.oy + effDy;
@@ -4228,13 +9426,34 @@ function startNodeDrag(e, node) {
       g.n.el.style.top = ny + 'px';
     });
     markEdgesDirty();
-    renderMinimap();
+    if (__composerNode && group.some(g => g.n === __composerNode)) positionNodeComposer();
   };
   const onUp = () => {
     group.forEach(g => g.n.el && g.n.el.classList.remove('dragging'));
+    if (moved && group.length === 1 && shouldSnapOnRelease) {
+      const g = group[0];
+      const snapped = snapNodePosition(g.n, g.n.x, g.n.y);
+      if (snapped && (Math.abs(snapped.x - g.n.x) > 1 || Math.abs(snapped.y - g.n.y) > 1)) {
+        g.n.x = snapped.x;
+        g.n.y = snapped.y;
+        g.n.el.style.left = snapped.x + 'px';
+        g.n.el.style.top = snapped.y + 'px';
+      }
+      updateAutoConnect(g.n);
+    }
+    markEdgesDirty();
+    renderMinimap();
+    positionNodeComposer();
+    commitAutoConnect();
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
     if (moved) {
+      node.__dragClickBlocked = true;
+      group.forEach(g => { if (g && g.n) g.n.__dragClickBlocked = true; });
+      setTimeout(() => {
+        node.__dragClickBlocked = false;
+        group.forEach(g => { if (g && g.n) g.n.__dragClickBlocked = false; });
+      }, 0);
       scheduleAutosave();
     }
   };
@@ -4258,8 +9477,18 @@ function startNodeResize(e, node) {
   const onMove = (e2) => {
     const dw = (e2.clientX - startX) / workflow.camera.zoom;
     const dh = (e2.clientY - startY) / workflow.camera.zoom;
-    const newW = Math.max(minW, Math.min(maxW, origW + dw));
-    const newH = Math.max(minH, Math.min(maxH, origH + dh));
+    let newW = Math.max(minW, Math.min(maxW, origW + dw));
+    let newH = Math.max(minH, Math.min(maxH, origH + dh));
+    const lockAspect = (node.type === 'videoInput' || node.type === 'image') && (node.videoAspect || node.ratio);
+    if (lockAspect) {
+      const headerH = (node.el && node.el.querySelector('.node-header') && node.el.querySelector('.node-header').offsetHeight) || 42;
+      const chromeH = headerH + 8;
+      const aspect = node.videoAspect || node.ratio || 1;
+      const contentW = Math.max(minW - 32, newW - 32);
+      const contentH = Math.max(120, Math.round(contentW / aspect));
+      newW = contentW + 32;
+      newH = Math.max(minH, Math.min(maxH, contentH + chromeH));
+    }
     if (newW !== node.width || newH !== node.height) {
       if (!historyPushed) {
         pushHistory();       // 首次实际变化时压栈（此时尺寸仍是缩放前值）
@@ -4273,6 +9502,8 @@ function startNodeResize(e, node) {
     node.el.style.minHeight = node.height + 'px';
     markEdgesDirty();
     renderMinimap();
+    // #5：缩放节点时 Composer 跟随
+    positionNodeComposer();
   };
   const onUp = () => {
     node.el.classList.remove('resizing');
@@ -4500,6 +9731,12 @@ function handleShortcutsKeyDown(e) {
   }
   if (matchKeyBinding(e, keybindings.deleteSelected)) {
     e.preventDefault();
+    // B：仅选中连线（无选中节点）时按 Delete → 删除连线
+    if (__selectedEdge && workflow.selection.size === 0) {
+      deleteEdgeById(__selectedEdge.id);
+      return;
+    }
+    clearEdgeSelection();
     workflow.selection.forEach(id => deleteNode(id));
     return;
   }
@@ -4554,7 +9791,15 @@ canvasWrap.addEventListener('mousedown', (e) => {
   if (isOnNode || isOnPort) return;
   // UI 控件（AI 面板/按钮/输入框等，多为 canvasWrap 子元素且事件会冒泡上来）直接放行，
   // 避免误触发框选逻辑、尤其 preventDefault 会冻结焦点导致快捷键失效
-  if (e.target.closest('.ai-panel, .context-menu, .modal, .minimap, button, input, textarea, select, a, label, [contenteditable="true"], [role="button"]')) return;
+  if (e.target.closest('.ai-panel, .context-menu, .modal, .minimap, .node-composer, .edge-delete-btn, button, input, textarea, select, a, label, [contenteditable="true"], [role="button"]')) return;
+
+  // B：点击连线本身 → 选中并显示中点 ✕；未命中连线且已选中 → 取消选中
+  if (e.button === 0) {
+    const rect = canvasWrap.getBoundingClientRect();
+    const hit = hitTestEdges(e.clientX - rect.left, e.clientY - rect.top);
+    if (hit) { selectEdge(hit); e.preventDefault(); return; }
+    if (__selectedEdge) { clearEdgeSelection(); }
+  }
 
   // 空格键 或 中键 → 平移
   if (e.button === 1 || (isSpacePressed && e.button === 0)) {
@@ -4611,18 +9856,22 @@ window.addEventListener('mouseup', (e) => {
       });
       workflow.selection.clear();
     }
+    let lastComposerNode = null;
     workflow.nodes.forEach(node => {
       if (!node.el) return;
       const nr = node.el.getBoundingClientRect();
       if (nr.left < band.right && nr.right > band.left && nr.top < band.bottom && nr.bottom > band.top) {
         workflow.selection.add(node.id);
         node.el.classList.add('selected');
+        if (isComposerType(node)) lastComposerNode = node;
       }
     });
     if (rubberEl && rubberEl.parentNode) rubberEl.parentNode.removeChild(rubberEl);
     rubberEl = null;
     isBoxSelecting = false;
     selDragStart = null;
+    // #5：多选只对「最后一个」生成节点生效
+    lastComposerNode ? showNodeComposer(lastComposerNode) : hideNodeComposer();
   } else if (selDragStart) {
     // 单击空白（未拖动）→ 清除选中
     workflow.selection.forEach(id => {
@@ -4631,6 +9880,8 @@ window.addEventListener('mouseup', (e) => {
     });
     workflow.selection.clear();
     selDragStart = null;
+    // #5：空白点击收起 Composer
+    hideNodeComposer();
   }
 });
 
@@ -4641,7 +9892,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (e.code === 'Space' && !e.target.closest('input, textarea')) {
+  if (e.code === 'Space' && !(e.target && e.target.closest && e.target.closest('input, textarea'))) {
     isSpacePressed = true;
     canvasWrap.classList.add('space-down');
     e.preventDefault();
@@ -4685,6 +9936,8 @@ function applyTransform() {
   document.getElementById('zoomDisplay').textContent = pct;
   drawGrid();
   renderMinimap();
+  // #5：画布平移/缩放时 Composer 跟随选中节点
+  positionNodeComposer();
 }
 
 //================ 11b. 小地图导航 ================
@@ -4890,6 +10143,33 @@ function cycleTheme() {
 }
 document.getElementById('btnTheme').addEventListener('click', cycleTheme);
 
+// 背景模式：点阵 / 网格 / 纯色（与主题解耦，独立持久化）
+const BG_MODES = [
+  { key: 'dot',   label: '点阵' },
+  { key: 'grid',  label: '网格' },
+  { key: 'solid', label: '纯色' }
+];
+bgMode = localStorage.getItem('flowcraft-bg-mode') || 'dot';
+function updateBgModeBtn() {
+  const b = document.getElementById('btnBgMode');
+  if (!b) return;
+  const cur = BG_MODES.find(t => t.key === bgMode) || BG_MODES[0];
+  b.title = '背景模式：' + cur.label + '（点击切换）';
+  const lbl = b.querySelector('.tb-bgmode-label');
+  if (lbl) lbl.textContent = cur.label;
+}
+function cycleBgMode() {
+  const idx = BG_MODES.findIndex(t => t.key === bgMode);
+  const next = BG_MODES[(idx + 1) % BG_MODES.length];
+  bgMode = next.key;
+  localStorage.setItem('flowcraft-bg-mode', bgMode);
+  drawGrid();
+  updateBgModeBtn();
+  showToast('背景模式：' + next.label, 'info');
+}
+document.getElementById('btnBgMode').addEventListener('click', cycleBgMode);
+updateBgModeBtn();
+
 // 缩放控件
 document.getElementById('zoomIn').onclick = () => {
   const rect = canvasWrap.getBoundingClientRect();
@@ -4956,41 +10236,59 @@ function drawGrid() {
   const h = canvasWrap.clientHeight;
   const cam = workflow.camera;
 
-  // 深色背景
+  // 背景底色（所有模式通用）
   ctx.fillStyle = COLORS.bgDeepest;
   ctx.fillRect(0, 0, w, h);
 
-  // 网点网格 — LOD 策略
-  const baseSpacing = 24; // 屏幕像素基础间距
+  // LOD 策略：基础间距 24 屏幕像素，随缩放放大；过小则倍增直到 ≥ 8px
+  const baseSpacing = 24;
   let spacing = baseSpacing * cam.zoom;
-  // 缩放越低间距越大：小于 8px 时倍增直到 ≥ 8px
   while (spacing < 8) spacing *= 2;
-
   const offsetX = cam.x % spacing;
   const offsetY = cam.y % spacing;
 
-  // 网点颜色：基于 CSS 变量 --grid-line-minor 的 RGB 分量，动态调节透明度
-  const alpha = cam.zoom > 1 ? 0.06 : 0.04;
   const c = COLORS.gridDotRGB;
-  ctx.fillStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
 
-  for (let x = offsetX; x < w; x += spacing) {
-    for (let y = offsetY; y < h; y += spacing) {
-      ctx.fillRect(Math.round(x), Math.round(y), 1.5, 1.5);
-    }
-  }
-
-  // 原点标记（世界原点 0,0 处的十字）
-  const origin = cam.worldToScreen(0, 0);
-  if (origin.x > -20 && origin.x < w + 20 && origin.y > -20 && origin.y < h + 20) {
-    ctx.strokeStyle = COLORS.gridOrigin;
+  if (bgMode === 'grid') {
+    // —— 线网格模式：横竖细线 ——
+    const alpha = cam.zoom > 1 ? 0.05 : 0.035;
+    ctx.strokeStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(origin.x - 10, origin.y);
-    ctx.lineTo(origin.x + 10, origin.y);
-    ctx.moveTo(origin.x, origin.y - 10);
-    ctx.lineTo(origin.x, origin.y + 10);
+    for (let x = offsetX; x < w; x += spacing) {
+      const px = Math.round(x) + 0.5;
+      ctx.moveTo(px, 0); ctx.lineTo(px, h);
+    }
+    for (let y = offsetY; y < h; y += spacing) {
+      const py = Math.round(y) + 0.5;
+      ctx.moveTo(0, py); ctx.lineTo(w, py);
+    }
     ctx.stroke();
+  } else if (bgMode === 'dot') {
+    // —— 网点模式（原行为）——
+    const alpha = cam.zoom > 1 ? 0.06 : 0.04;
+    ctx.fillStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
+    for (let x = offsetX; x < w; x += spacing) {
+      for (let y = offsetY; y < h; y += spacing) {
+        ctx.fillRect(Math.round(x), Math.round(y), 1.5, 1.5);
+      }
+    }
+  }
+  // bgMode === 'solid'：仅纯色底，不绘制任何图案
+
+  // 原点标记（世界原点 0,0 处的十字；纯色模式下不画，保持纯净）
+  if (bgMode !== 'solid') {
+    const origin = cam.worldToScreen(0, 0);
+    if (origin.x > -20 && origin.x < w + 20 && origin.y > -20 && origin.y < h + 20) {
+      ctx.strokeStyle = COLORS.gridOrigin;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(origin.x - 10, origin.y);
+      ctx.lineTo(origin.x + 10, origin.y);
+      ctx.moveTo(origin.x, origin.y - 10);
+      ctx.lineTo(origin.x, origin.y + 10);
+      ctx.stroke();
+    }
   }
 }
 
@@ -4998,6 +10296,721 @@ window.addEventListener('resize', () => { resizeCanvases(); });
 
 //================ 12. 连线绘制 (Canvas 贝塞尔) ================
 let edgesDirty = false;
+// P3：hover 节点 → 该节点涉及的所有连线恢复高亮，其余连线弱化
+let __hoveredNodeId = null;
+document.addEventListener('mouseover', (e) => {
+  const nEl = e.target && e.target.closest ? e.target.closest('.node') : null;
+  const id = nEl ? nEl.dataset.id : null;
+  if (id !== __hoveredNodeId) { __hoveredNodeId = id; markEdgesDirty(); }
+});
+// ===== B 点击连线可删除 =====
+// 点击连线本身 → 选中并高亮，中点浮现 ✕ 删除按钮；点 ✕ 或按 Delete/Backspace 删除。
+let __selectedEdge = null;
+const EDGE_HIT_THRESHOLD = 10; // 命中阈值（屏幕 px）
+
+// 采样贝塞尔曲线点（与 drawBezier 同参数），用于命中测试与中点定位
+function sampleBezierPoints(x1, y1, x2, y2, n = 24) {
+  const dx = Math.max(50, Math.abs(x2 - x1) * 0.5);
+  const cp1x = x1 + dx, cp1y = y1;
+  const cp2x = x2 - dx, cp2y = y2;
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const mt = 1 - t;
+    pts.push({
+      x: mt * mt * mt * x1 + 3 * mt * mt * t * cp1x + 3 * mt * t * t * cp2x + t * t * t * x2,
+      y: mt * mt * mt * y1 + 3 * mt * mt * t * cp1y + 3 * mt * t * t * cp2y + t * t * t * y2,
+    });
+  }
+  return pts;
+}
+function distToSegment(px, py, ax, ay, bx, by) {
+  const vx = bx - ax, vy = by - ay;
+  const wx = px - ax, wy = py - ay;
+  const c1 = vx * wx + vy * wy;
+  if (c1 <= 0) return Math.hypot(px - ax, py - ay);
+  const c2 = vx * vx + vy * vy;
+  if (c2 <= c1) return Math.hypot(px - bx, py - by);
+  const t = c1 / c2;
+  return Math.hypot(px - (ax + t * vx), py - (ay + t * vy));
+}
+// 命中测试：返回离屏幕点最近且距离 < threshold 的连线
+function hitTestEdges(sx, sy, threshold = EDGE_HIT_THRESHOLD) {
+  let best = null, bestDist = threshold;
+  workflow.edges.forEach(edge => {
+    const fn = edge.from.node, tn = edge.to.node;
+    if (!fn.el || !tn.el) return;
+    const fp = getPortScreenPos(fn, 'output', edge.from.port);
+    const tp = getPortScreenPos(tn, 'input', edge.to.port);
+    const pts = sampleBezierPoints(fp.x, fp.y, tp.x, tp.y);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const d = distToSegment(sx, sy, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y);
+      if (d < bestDist) { bestDist = d; best = edge; }
+    }
+  });
+  return best;
+}
+
+function selectEdge(edge) {
+  __selectedEdge = edge;
+  markEdgesDirty();
+  // 立即显示中点 ✕（不依赖下一帧 RAF）
+  positionEdgeDeleteBtn();
+}
+function clearEdgeSelection() {
+  if (!__selectedEdge) return;
+  __selectedEdge = null;
+  const btn = document.getElementById('edgeDeleteBtn');
+  if (btn) btn.hidden = true;
+  markEdgesDirty();
+}
+
+// 删除指定连线（端口若失去唯一连线则取消 connected 标记）
+function deleteEdgeById(id) {
+  const edge = workflow.edges.get(id);
+  if (!edge) return;
+  const fn = edge.from.node, tn = edge.to.node;
+  const portStillUsed = (node, kind, idx, exceptId) => {
+    let used = false;
+    workflow.edges.forEach(e => {
+      if (e.id === exceptId) return;
+      if (e.from.node === node && e.from.kind === kind && e.from.port === idx) used = true;
+      if (e.to.node === node && e.to.kind === kind && e.to.port === idx) used = true;
+    });
+    return used;
+  };
+  if (!portStillUsed(fn, 'output', edge.from.port, id)) updatePortConnected(fn, 'output', edge.from.port, false);
+  if (!portStillUsed(tn, 'input', edge.to.port, id)) updatePortConnected(tn, 'input', edge.to.port, false);
+  pushHistory();
+  workflow.edges.delete(id);
+  clearEdgeSelection();
+  markEdgesDirty();
+  scheduleAutosave();
+  showToast('已删除连线', 'success');
+}
+
+// 把 ✕ 删除按钮定位到选中连线中点
+function positionEdgeDeleteBtn() {
+  const btn = document.getElementById('edgeDeleteBtn');
+  const edge = __selectedEdge;
+  if (!btn || !edge) return;
+  if (!workflow.edges.has(edge.id)) { clearEdgeSelection(); return; }
+  const fn = edge.from.node, tn = edge.to.node;
+  if (!fn.el || !tn.el) { btn.hidden = true; return; }
+  const fp = getPortScreenPos(fn, 'output', edge.from.port);
+  const tp = getPortScreenPos(tn, 'input', edge.to.port);
+  const pts = sampleBezierPoints(fp.x, fp.y, tp.x, tp.y);
+  const mid = pts[Math.floor(pts.length / 2)];
+  const bw = btn.offsetWidth || 22, bh = btn.offsetHeight || 22;
+  btn.style.left = Math.round(mid.x - bw / 2) + 'px';
+  btn.style.top = Math.round(mid.y - bh / 2) + 'px';
+  btn.hidden = false;
+}
+
+// 初始化删除按钮
+(function initEdgeDeleteBtn() {
+  const btn = document.getElementById('edgeDeleteBtn');
+  if (!btn) return;
+  btn.addEventListener('mousedown', (e) => e.stopPropagation());
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (__selectedEdge) deleteEdgeById(__selectedEdge.id);
+  });
+})();
+
+// ===== #2 工具确认全局开关（Agent 安全闸门）=====
+// 开关开启时，Agent 每次执行工具操作前调用 confirmAgentTool 弹确认；关闭则直接放行。
+// #1 Agent 抽屉接入前先落地开关 UI + 持久化 + 调用闸门（默认开启，安全优先）。
+const TOOL_CONFIRM_STORAGE = 'fc_tool_confirm';
+
+function getToolConfirm() {
+  try { return localStorage.getItem(TOOL_CONFIRM_STORAGE) !== '0'; } catch (e) { return true; }
+}
+function setToolConfirm(on) {
+  try { localStorage.setItem(TOOL_CONFIRM_STORAGE, on ? '1' : '0'); } catch (e) {}
+  const btn = document.getElementById('toolConfirmToggle');
+  if (btn) {
+    btn.textContent = on ? '开' : '关';
+    btn.setAttribute('aria-checked', String(on));
+    btn.classList.toggle('off', !on);
+  }
+  const hint = document.getElementById('toolConfirmHint');
+  if (hint) hint.textContent = on ? 'Agent 执行工具操作前弹确认（安全闸门）' : '已关闭：Agent 执行工具操作不再询问';
+}
+
+// Agent 工具调用闸门：返回 Promise<boolean>（true=允许执行）
+function confirmAgentTool(desc) {
+  return new Promise((resolve) => {
+    if (!getToolConfirm()) { resolve(true); return; }
+    let allow = false;
+    try {
+      allow = window.confirm('🛡 Agent 请求执行工具操作：\n\n' + (desc || '未命名操作') + '\n\n是否允许？');
+    } catch (e) { allow = false; }
+    resolve(allow);
+  });
+}
+
+// 初始化开关（读取持久化状态 + 绑定点击）
+(function initToolConfirmToggle() {
+  const btn = document.getElementById('toolConfirmToggle');
+  if (!btn) return;
+  setToolConfirm(getToolConfirm());
+  btn.addEventListener('click', () => {
+    setToolConfirm(!getToolConfirm());
+    showToast('工具确认已' + (getToolConfirm() ? '开启' : '关闭'), 'info');
+  });
+})();
+
+// ===== #1 Agent 全站助手抽屉（连接 / 对话 / 历史 / 日志）=====
+// 借鉴 Infinite Canvas「Agent 全站助手」：4 Tab + 顶部新对话 + 工具确认开关（复用 #2 同源）。
+// 连接目标为「已配置的模型提供方 / 临时端点」，浏览器直连、Key 仅存本地。
+const AGENT_CONN_STORAGE = 'fc_agent_conn';
+const AGENT_SESSIONS_STORAGE = 'fc_agent_sessions';
+const AGENT_CURRENT_STORAGE = 'fc_agent_current';
+const AGENT_LOGS_STORAGE = 'fc_agent_logs';
+let __agentBusy = false;
+
+function agentEl(id) { return document.getElementById(id); }
+
+// —— 日志 ——
+function agentLog(msg, level = 'info') {
+  try {
+    const arr = JSON.parse(localStorage.getItem(AGENT_LOGS_STORAGE) || '[]');
+    arr.unshift({ t: Date.now(), level, msg: String(msg) });
+    localStorage.setItem(AGENT_LOGS_STORAGE, JSON.stringify(arr.slice(0, 300)));
+  } catch (e) {}
+  agentRenderLogs();
+}
+function agentRenderLogs() {
+  const list = agentEl('agentLogList');
+  if (!list) return;
+  let arr = [];
+  try { arr = JSON.parse(localStorage.getItem(AGENT_LOGS_STORAGE) || '[]'); } catch (e) {}
+  if (!arr.length) { list.innerHTML = '<div class="agent-chat-empty">暂无 Agent 日志。</div>'; return; }
+  list.innerHTML = arr.map(e => {
+    const d = new Date(e.t);
+    const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0'), ss = String(d.getSeconds()).padStart(2, '0');
+    return '<div class="agent-log-item ' + e.level + '"><span class="agent-log-time">' + hh + ':' + mm + ':' + ss + '</span><span class="agent-log-msg">' + escapeHtml(e.msg) + '</span></div>';
+  }).join('');
+}
+
+// —— 会话历史 ——
+function agentSessions() {
+  try { const arr = JSON.parse(localStorage.getItem(AGENT_SESSIONS_STORAGE) || '[]'); return Array.isArray(arr) ? arr : []; } catch (e) { return []; }
+}
+function agentSaveSession(messages) {
+  try {
+    const arr = agentSessions();
+    const first = (messages.find(m => m.role === 'user') || {}).content || '';
+    const session = { id: 'as_' + Date.now().toString(36), title: first.replace(/\s+/g, ' ').slice(0, 40) || '（空会话）', t: Date.now(), messages: messages.slice() };
+    arr.unshift(session);
+    localStorage.setItem(AGENT_SESSIONS_STORAGE, JSON.stringify(arr.slice(0, 50)));
+  } catch (e) {}
+}
+function agentPersistCurrentMessages(messages) {
+  try {
+    const arr = Array.isArray(messages) ? messages.slice() : [];
+    if (!arr.length) { localStorage.removeItem(AGENT_CURRENT_STORAGE); return; }
+    localStorage.setItem(AGENT_CURRENT_STORAGE, JSON.stringify(arr));
+  } catch (e) {}
+}
+function agentRestoreCurrentMessages() {
+  try {
+    const raw = localStorage.getItem(AGENT_CURRENT_STORAGE);
+    if (!raw) return false;
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr) || !arr.length) return false;
+    window.__agentMessages = arr.slice();
+    return true;
+  } catch (e) { return false; }
+}
+function agentRenderHist() {
+  const list = agentEl('agentHistList');
+  if (!list) return;
+  const arr = agentSessions();
+  if (!arr.length) { list.innerHTML = '<div class="agent-chat-empty">暂无历史会话。</div>'; return; }
+  list.innerHTML = arr.map(s => {
+    const d = new Date(s.t);
+    const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
+    const n = (s.messages || []).filter(m => m.role === 'user').length;
+    return '<button type="button" class="agent-hist-item" data-agent-session="' + s.id + '">' +
+      '<span class="agent-hist-title">' + escapeHtml(s.title) + '</span>' +
+      '<span class="agent-hist-meta">' + hh + ':' + mm + ' · ' + n + ' 条对话</span></button>';
+  }).join('');
+  list.querySelectorAll('[data-agent-session]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = agentSessions().find(x => x.id === btn.getAttribute('data-agent-session'));
+      if (!s) return;
+      window.__agentMessages = (s.messages || []).slice();
+      agentRenderChat();
+      agentSwitchTab('chat');
+    });
+  });
+}
+
+// —— 连接状态 ——
+function agentConnState() {
+  try { return JSON.parse(localStorage.getItem(AGENT_CONN_STORAGE) || 'null'); } catch (e) { return null; }
+}
+function agentSetConnState(st) {
+  try { localStorage.setItem(AGENT_CONN_STORAGE, JSON.stringify(st || null)); } catch (e) {}
+}
+function agentSetConnDot(state, text) {
+  const dot = agentEl('agentConnDot'), txt = agentEl('agentConnText');
+  if (dot) dot.className = 'agent-dot ' + state;
+  if (txt) txt.textContent = text || (state === 'ok' ? '已连接' : state === 'warn' ? '测试中…' : '未连接');
+}
+function agentSyncConnUI() {
+  const conn = agentConnState();
+  if (conn && conn.base) agentSetConnDot('ok', '已连接');
+  else agentSetConnDot('', '未连接');
+}
+function agentSetConnMsg(msg, kind) {
+  const el = agentEl('agentConnMsg');
+  if (el) { el.textContent = msg; el.className = 'agent-conn-msg' + (kind ? ' ' + kind : ''); }
+}
+
+// 测试端点可用性：GET {base}/models（复用多路径探测思路：根 /models → /v1/models）
+// CORS/网络错误时返回 {corsWarning:true, msg} 而非抛错——让用户能继续连接到已配置提供方（chat/completions 可能仍可用）
+function agentTestConnection(base, key) {
+  const b = normalizeApiBase(base);
+  const headers = { 'Accept': 'application/json' };
+  if (key) headers['Authorization'] = 'Bearer ' + key;
+  return fetch(b + '/models', { method: 'GET', headers })
+    .then(resp => {
+      if (!resp.ok) return resp.text().then(t => { throw new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 160) : '')); });
+      return resp.json();
+    })
+    .then(json => {
+      const arr = (json && Array.isArray(json.data)) ? json.data : (json && Array.isArray(json.models)) ? json.models : (Array.isArray(json) ? json : []);
+      const models = [];
+      arr.forEach(m => { const id = (typeof m === 'string') ? m : (m && (m.id || m.name)); if (id && models.indexOf(id) === -1) models.push(id); });
+      return { ok: true, models, url: b + '/models' };
+    })
+    .catch(err => {
+      var msg = (err && err.message) || String(err);
+      if (/Failed to fetch|NetworkError|TypeError|Load failed/i.test(msg)) {
+        return { ok: false, corsWarning: true, msg: msg, url: b + '/models' };
+      }
+      throw err;
+    });
+}
+
+// 方式一：使用已配置提供方
+function agentConnect() {
+  const sel = agentEl('agentProviderSelect');
+  const p = (getProviders() || []).find(x => x.id === sel.value);
+  if (!p) { agentSetConnMsg('请先在设置中添加模型提供方，或使用「方式二」临时连接。', 'warn'); return; }
+  const model = agentEl('agentModelSelect').value;
+  agentSetConnDot('warn', '测试中…');
+  agentSetConnMsg('正在测试 ' + (p.name || p.base) + ' …', '');
+  agentLog('测试连接：' + (p.name || p.base) + '（' + model + '）');
+  agentTestConnection(p.base, p.key)
+    .then(r => {
+      if (r.corsWarning) {
+        // CORS/网络阻止 /models 探测：信任已配置项，仍标记已连接（黄色），对话时再验证
+        const normBase = normalizeApiBase(p.base);
+        agentSetConnState({ provider: p.id, name: p.name || p.base, base: normBase, key: p.key || '', model, ts: Date.now(), corsWarning: true });
+        agentSetConnDot('warn', '已连接（探测受限）');
+        agentSetConnMsg('无法探测 ' + (p.name || p.base) + ' 的 /models（很可能是 CORS 阻止）。已信任你提供的配置，可直接进入对话验证。', 'warn');
+        agentLog('连接：探测受限（CORS）→ 已信任配置 ' + (p.name || p.base) + ' / ' + model);
+        return;
+      }
+      agentSetConnState({ provider: p.id, name: p.name || p.base, base: p.base, key: p.key || '', model, ts: Date.now() });
+      agentSetConnDot('ok', '已连接');
+      agentSetConnMsg('已连接 ' + (p.name || p.base) + ' · ' + model + (r.models.length ? '（' + r.models.length + ' 个可用模型）' : '') + '。', 'ok');
+      agentLog('连接成功：' + (p.name || p.base) + ' / ' + model);
+    })
+    .catch(err => {
+      agentSetConnState(null);
+      agentSetConnDot('err', '连接失败');
+      agentSetConnMsg('连接失败：' + (err && err.message || err) + '。可改用手动填写，或检查 CORS/端点。', 'warn');
+      agentLog('连接失败：' + (err && err.message || err), 'error');
+    });
+}
+
+// 方式二：临时端点（不持久化到提供方列表）
+function agentTempTest() {
+  const base = (agentEl('agentTempBase').value || '').trim();
+  const key = (agentEl('agentTempKey').value || '').trim();
+  const model = (agentEl('agentTempModel').value || '').trim();
+  if (!base) { agentSetConnMsg('请填写临时端点地址。', 'warn'); return; }
+  agentSetConnDot('warn', '测试中…');
+  agentSetConnMsg('正在测试 ' + base + ' …', '');
+  agentTestConnection(base, key)
+    .then(r => {
+      const normBase = normalizeApiBase(base);
+      if (r.corsWarning) {
+        agentSetConnState({ provider: '', name: base, base: normBase, key, model: model || 'gpt-4o-mini', ts: Date.now(), corsWarning: true });
+        agentSetConnDot('warn', '已连接（探测受限）');
+        agentSetConnMsg('无法探测临时端点的 /models（很可能是 CORS 阻止）。已信任你提供的配置，可直接进入对话验证。', 'warn');
+        agentLog('临时连接：探测受限（CORS）→ 已信任配置 ' + normBase);
+        return;
+      }
+      agentSetConnState({ provider: '', name: base, base: normBase, key, model: model || (r.models[0] || ''), ts: Date.now() });
+      agentSetConnDot('ok', '已连接');
+      agentSetConnMsg('临时连接成功 · ' + (model || r.models[0] || '默认模型') + (r.models.length ? '（' + r.models.length + ' 个可用模型）' : '') + '。', 'ok');
+      agentLog('临时连接成功：' + normBase + (model ? ' / ' + model : ''));
+    })
+    .catch(err => {
+      agentSetConnState(null);
+      agentSetConnDot('err', '连接失败');
+      agentSetConnMsg('连接失败：' + (err && err.message || err) + '。', 'warn');
+      agentLog('临时连接失败：' + (err && err.message || err), 'error');
+    });
+}
+
+// 提供方/模型下拉
+function isLikelyTextModelId(id) {
+  var s = String(id || '').trim().toLowerCase();
+  if (!s) return false;
+  var mediaRe = /(image|img|video|vision|paint|draw|flux|dalle|midjourney|stable[-_ ]?diffusion|sd\d?)/i;
+  if (mediaRe.test(s)) return false;
+  return /(gpt|claude|deepseek|gemini|qwen|llama|mistral|moonshot|doubao|ernie|kimi|yi|hunyuan|step|chat|o\d)/i.test(s);
+}
+function isLikelyMultimodalModelId(id) {
+  var s = String(id || '').trim().toLowerCase();
+  if (!s) return false;
+  return /(vision|multimodal|gpt-image|image|img|video|omni|flash-vision|vision-exp|preview)/i.test(s);
+}
+function isTextCapableProvider(p) {
+  if (!p) return false;
+  var ids = [];
+  if (Array.isArray(p.models)) ids = ids.concat(p.models);
+  if (p.model) ids.push(p.model);
+  ids = ids.filter(function(v, i, arr) { return v && arr.indexOf(v) === i; });
+  if (!ids.length) return false;
+  return ids.some(isLikelyTextModelId);
+}
+function providerCapabilityTag(p) {
+  var ids = getAllProviderModels(p);
+  if (!ids.length) return '未标记';
+  var hasText = ids.some(isLikelyTextModelId);
+  var hasMM = ids.some(isLikelyMultimodalModelId);
+  var hasMedia = ids.some(function(id) { return /(image|img|video|draw|paint|flux|dalle|midjourney|stable[-_ ]?diffusion|sd\d?)/i.test(String(id || '')); });
+  if (hasText && hasMM) return '文本 + 多模态';
+  if (hasText) return '文本';
+  if (hasMM) return '多模态';
+  if (hasMedia) return '图像/视频';
+  return '通用';
+}
+function getAllProviderModels(p) {
+  if (!p) return [];
+  var ids = [];
+  if (Array.isArray(p.models)) ids = ids.concat(p.models);
+  if (p.model) ids.push(p.model);
+  ids = ids.filter(function(v, i, arr) { return v && arr.indexOf(v) === i; });
+  return ids;
+}
+function getTextCapableModelsForProvider(p) {
+  return getAllProviderModels(p).filter(isLikelyTextModelId);
+}
+
+function agentFillProviders() {
+  const sel = agentEl('agentProviderSelect');
+  if (!sel) return;
+  const list = getProviders() || [];
+  const conn = agentConnState();
+  const shownProviders = list;
+  sel.innerHTML = '';
+  if (!shownProviders.length) {
+    const o = document.createElement('option'); o.value = ''; o.textContent = '（暂无提供方，请到设置添加）'; sel.appendChild(o);
+  }
+  shownProviders.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.id;
+    var tag = providerCapabilityTag(p);
+    o.textContent = (p.name || p.base) + (p.model ? ' · ' + p.model : '') + ' · ' + tag;
+    sel.appendChild(o);
+  });
+  if (conn && conn.provider && shownProviders.some(function(p) { return p.id === conn.provider; })) sel.value = conn.provider;
+  agentFillModels(sel.value);
+}
+function agentFillModels(providerId) {
+  const sel = agentEl('agentModelSelect');
+  if (!sel) return;
+  const p = (getProviders() || []).find(x => x.id === providerId);
+  const conn = agentConnState();
+  const models = getAllProviderModels(p);
+  sel.innerHTML = '';
+  if (!models.length) {
+    const o = document.createElement('option'); o.value = ''; o.textContent = '（该提供方暂无模型）'; sel.appendChild(o);
+  }
+  models.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o); });
+  if (conn && conn.model && models.indexOf(conn.model) >= 0) sel.value = conn.model;
+}
+
+// —— 画布上下文（Agent 可理解的当前状态）——
+function agentCanvasContext() {
+  try {
+    const nodes = [...workflow.nodes.values()];
+    const sel = [...workflow.selection];
+    const lines = ['当前画布状态：'];
+    lines.push('- 节点数：' + nodes.length);
+    if (nodes.length) {
+      const byType = {};
+      nodes.forEach(n => { byType[n.type] = (byType[n.type] || 0) + 1; });
+      lines.push('- 节点构成：' + Object.keys(byType).map(t => t + '×' + byType[t]).join('、'));
+    }
+    if (sel.length) {
+      lines.push('- 当前选中：' + sel.map(id => { const n = workflow.nodes.get(id); return n ? (n.title || n.type) : id; }).join('、'));
+    }
+    lines.push('- 连线数：' + workflow.edges.size);
+    const failed = nodes.filter(n => n.status === 'error');
+    if (failed.length) lines.push('- 失败节点：' + failed.map(n => (n.title || n.type)).join('、'));
+    return lines.join('\n');
+  } catch (e) { return '（画布状态读取失败）'; }
+}
+
+// —— 对话 ——
+function agentRenderChat() {
+  const list = agentEl('agentChatList');
+  const msgs = window.__agentMessages || [];
+  if (!list) return;
+  const empty = agentEl('agentChatEmpty');
+  if (!msgs.length) { if (empty) empty.style.display = ''; list.innerHTML = ''; return; }
+  if (empty) empty.style.display = 'none';
+  list.innerHTML = msgs.map(m => {
+    if (m.role === 'system') return '';
+    const body = escapeHtml(m.content || '').replace(/\n/g, '<br>');
+    return '<div class="agent-msg ' + m.role + '"><div class="agent-msg-bubble">' + body + '</div></div>';
+  }).join('');
+  list.scrollTop = list.scrollHeight;
+}
+
+function agentSend() {
+  const input = agentEl('agentChatInput');
+  const text = (input.value || '').trim();
+  if (!text || __agentBusy) return;
+  const conn = agentConnState();
+  if (!conn || !conn.base) {
+    agentLog('对话被拒：未连接 Agent', 'warn');
+    agentSetConnMsg('请先在「连接」页连接提供方或临时端点。', 'warn');
+    agentSwitchTab('conn');
+    return;
+  }
+  input.value = '';
+  input.style.height = 'auto';
+  window.__agentMessages = window.__agentMessages || [];
+  window.__agentMessages.push({ role: 'user', content: text });
+  agentPersistCurrentMessages(window.__agentMessages);
+  agentRenderChat();
+  __agentBusy = true;
+  const sendBtn = agentEl('agentChatSend');
+  if (sendBtn) sendBtn.disabled = true;
+  agentLog('用户：' + text.slice(0, 80));
+
+  const messages = [
+    { role: 'system', content: '你是 FlowCraft 无限画布上的 Agent 全站助手。你能看到当前画布状态（节点构成、选中、连线、失败节点），可据此给出建议、优化提示词、规划节点或排查问题。回答用简洁中文，必要时给步骤清单。\n\n' + agentCanvasContext() }
+  ].concat(window.__agentMessages);
+
+  const base = normalizeApiBase(conn.base);
+  const key = conn.key || '';
+  const model = conn.model || 'gpt-4o-mini';
+  const bubble = agentAppendStreamingBubble();
+  const url = base + '/chat/completions';
+
+  const doStream = (fetchPromise) => {
+    return fetchPromise
+      .then(resp => _consumeSSE(resp, (full) => { bubble.textContent = full; agentScrollChat(); }))
+      .then(full => {
+        const reply = full || '（' + model + ' 返回内容为空）';
+        window.__agentMessages.push({ role: 'assistant', content: reply });
+        bubble.textContent = reply;
+        bubble.classList.remove('streaming');
+        agentLog('Agent：' + reply.slice(0, 80));
+        agentSaveSession(window.__agentMessages);
+        agentPersistCurrentMessages(window.__agentMessages);
+        agentScrollChat();
+      });
+  };
+
+  let req;
+  const proxy = _fcProxy();
+  // 优先走 FlowCraft 代理（服务端转发，绕过浏览器 CORS）；仅在代理未启用时直连
+  if (proxy) {
+    req = doStream(proxy.stream({ provider: conn.provider || 'openai', endpoint: '/chat/completions', body: { model, messages, stream: true, temperature: 0.6 }, token: window.FlowCraft.__userToken || undefined }));
+  } else {
+    const headers = { 'Content-Type': 'application/json' };
+    if (key) headers['Authorization'] = 'Bearer ' + key;
+    req = doStream(fetch(url, { method: 'POST', headers, body: JSON.stringify({ model, messages, stream: true, temperature: 0.6 }) }));
+  }
+
+  req.catch(err => {
+    var msg = (err && err.message) || String(err);
+    // 直连时的 CORS/网络错误：给用户明确指引（启用代理或换支持 CORS 的端点）
+    if (!proxy && /Failed to fetch|NetworkError|TypeError|Load failed/i.test(msg)) {
+      msg = '直连被浏览器 CORS 阻止。\n\n解决方式：\n1) 启用 FlowCraft API 代理（推荐）：设置 → 高级 → 启用代理（agent 走服务端转发，可绕过 CORS）\n2) 换一个支持浏览器 CORS 的端点\n3) 自建反向代理为该端点添加 CORS 头';
+    }
+    bubble.textContent = '⚠ ' + msg;
+    agentLog(msg, 'error');
+    if (window.__agentMessages.length && window.__agentMessages[window.__agentMessages.length - 1].role === 'assistant') window.__agentMessages.pop();
+    agentPersistCurrentMessages(window.__agentMessages);
+    agentScrollChat();
+  }).finally(() => {
+    __agentBusy = false;
+    if (sendBtn) sendBtn.disabled = false;
+  });
+}
+
+function agentAppendStreamingBubble() {
+  const list = agentEl('agentChatList');
+  const empty = agentEl('agentChatEmpty');
+  if (empty) empty.style.display = 'none';
+  const wrap = document.createElement('div');
+  wrap.className = 'agent-msg ai';
+  const bubble = document.createElement('div');
+  bubble.className = 'agent-msg-bubble streaming';
+  wrap.appendChild(bubble);
+  list.appendChild(wrap);
+  agentScrollChat();
+  return bubble;
+}
+function agentScrollChat() {
+  const list = agentEl('agentChatList');
+  if (list) list.scrollTop = list.scrollHeight;
+}
+
+// —— 新对话 / Tab 切换 ——
+function agentNewConversation() {
+  window.__agentMessages = [];
+  agentPersistCurrentMessages(window.__agentMessages);
+  agentRenderChat();
+  agentSwitchTab('chat');
+  agentLog('新对话已开始');
+}
+function agentSwitchTab(name) {
+  document.querySelectorAll('.agent-tab').forEach(b => b.classList.toggle('active', b.getAttribute('data-agent-tab') === name));
+  document.querySelectorAll('.agent-tab-pane').forEach(p => { p.hidden = p.getAttribute('data-agent-pane') !== name; });
+  if (name === 'hist') agentRenderHist();
+  if (name === 'log') agentRenderLogs();
+}
+
+// 初始化
+(function initAgentDrawer() {
+  const drawer = agentEl('agentDrawer');
+  if (!drawer) return;
+  const toggle = agentEl('agentToggleBtn');
+  const open = () => {
+    // 互斥：打开 Agent 抽屉时收起 AI 面板（两者都贴在右侧，避免重叠）
+    if (typeof toggleAIPanel === 'function') toggleAIPanel(true);
+    drawer.hidden = false;
+    agentFillProviders(); agentRenderChat(); agentRenderLogs(); agentSyncConnUI();
+  };
+  const close = () => { drawer.hidden = true; };
+  // 🤖 图标点击 = 显隐切换（打开时再点则收起）
+  if (toggle) toggle.addEventListener('click', function() { drawer.hidden ? open() : close(); });
+  if (agentEl('agentCloseBtn')) agentEl('agentCloseBtn').addEventListener('click', close);
+  if (agentEl('agentNewBtn')) agentEl('agentNewBtn').addEventListener('click', agentNewConversation);
+  if (agentEl('agentProviderSelect')) agentEl('agentProviderSelect').addEventListener('change', (e) => agentFillModels(e.target.value));
+  if (agentEl('agentConnectBtn')) agentEl('agentConnectBtn').addEventListener('click', agentConnect);
+  if (agentEl('agentTempTestBtn')) agentEl('agentTempTestBtn').addEventListener('click', agentTempTest);
+  if (agentEl('agentChatSend')) agentEl('agentChatSend').addEventListener('click', agentSend);
+  if (agentEl('agentChatInput')) {
+    const ta = agentEl('agentChatInput');
+    ta.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); agentSend(); }
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(120, ta.scrollHeight) + 'px';
+    });
+  }
+  if (agentEl('agentHistClear')) agentEl('agentHistClear').addEventListener('click', () => { try { localStorage.removeItem(AGENT_SESSIONS_STORAGE); } catch (e) {} agentRenderHist(); agentLog('历史已清空'); });
+  if (agentEl('agentLogClear')) agentEl('agentLogClear').addEventListener('click', () => { try { localStorage.removeItem(AGENT_LOGS_STORAGE); } catch (e) {} agentRenderLogs(); });
+  document.querySelectorAll('.agent-tab').forEach(b => b.addEventListener('click', () => agentSwitchTab(b.getAttribute('data-agent-tab'))));
+  // 工具确认镜像开关（与 #2 同源）
+  const tc = agentEl('agentToolConfirmToggle');
+  if (tc) {
+    const sync = () => { const on = getToolConfirm(); tc.textContent = on ? '开' : '关'; tc.setAttribute('aria-checked', String(on)); tc.classList.toggle('off', !on); };
+    sync();
+    tc.addEventListener('click', () => { setToolConfirm(!getToolConfirm()); sync(); showToast('工具确认已' + (getToolConfirm() ? '开启' : '关闭'), 'info'); });
+  }
+  agentSyncConnUI();
+  if (!agentRestoreCurrentMessages()) window.__agentMessages = window.__agentMessages || [];
+  window.agentSwitchTab = agentSwitchTab;
+})();
+
+// 防止抽屉内 mousedown 冒泡到画布背景逻辑（避免误框选/误选中连线）
+(function agentDrawerStopProp() {
+  const drawer = agentEl('agentDrawer');
+  if (!drawer) return;
+  drawer.addEventListener('mousedown', (e) => e.stopPropagation());
+})();
+
+// Agent 面板：拖拽移动（通过 header）+ 右下角缩放（与 AI 助手一致）
+(function initAgentDragResize() {
+  const drawer = agentEl('agentDrawer');
+  const header = drawer ? drawer.querySelector('.agent-drawer-head') : null;
+  if (!drawer || !header) return;
+
+  // 拖拽
+  let dragging = false, offsetX = 0, offsetY = 0;
+  header.addEventListener('mousedown', function(e) {
+    if (e.target.closest('.agent-btn, .agent-drawer-new, .agent-drawer-close, button, input, textarea, select, a')) return;
+    e.preventDefault();
+    dragging = true;
+    header.classList.add('dragging');
+    drawer.style.transition = 'none';
+    const rect = drawer.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    const maxLeft = window.innerWidth - 120;
+    const maxTop = window.innerHeight - 60;
+    const newLeft = Math.max(-drawer.offsetWidth + 120, Math.min(maxLeft, e.clientX - offsetX));
+    const newTop = Math.max(0, Math.min(maxTop, e.clientY - offsetY));
+    drawer.style.left = newLeft + 'px';
+    drawer.style.top = newTop + 'px';
+    drawer.style.right = 'auto'; // 解除 right 定位，改用 left
+  });
+  document.addEventListener('mouseup', function() {
+    if (dragging) {
+      dragging = false;
+      header.classList.remove('dragging');
+      drawer.style.transition = '';
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+
+  // 缩放
+  const resizer = agentEl('agentResizer');
+  if (resizer) {
+    let resizing = false, sx = 0, sy = 0, sw = 0, sh = 0;
+    resizer.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      resizing = true;
+      resizer.classList.add('dragging');
+      drawer.style.transition = 'none';
+      sx = e.clientX; sy = e.clientY;
+      sw = drawer.offsetWidth; sh = drawer.offsetHeight;
+      document.body.style.cursor = 'nwse-resize';
+      document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', function(e) {
+      if (!resizing) return;
+      e.preventDefault();
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      drawer.style.width = Math.max(300, Math.min(680, sw + dx)) + 'px';
+      drawer.style.height = Math.max(360, Math.min(window.innerHeight - 40, sh + dy)) + 'px';
+    });
+    document.addEventListener('mouseup', function() {
+      if (resizing) {
+        resizing = false;
+        resizer.classList.remove('dragging');
+        drawer.style.transition = '';
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    });
+  }
+})();
+
 function markEdgesDirty() { edgesDirty = true; }
 
 function getPortScreenPos(node, kind, idx) {
@@ -5027,36 +11040,67 @@ function drawEdges() {
     const fp = getPortScreenPos(fn, 'output', edge.from.port);
     const tp = getPortScreenPos(tn, 'input', edge.to.port);
 
-    // 判断该连线是否承载了真实数据流（上游已产出对应端口数据）
+    // 已建立连线统一样式：默认使用同一颜色，仅在 hover / 选中时高亮
     const hasData = !!(fn.outputsData && fn.outputsData[edge.from.port]);
-    const lineColor = hasData ? COLORS.success : COLORS.primary;
+    const lineColor = COLORS.primary;
+    // P3：hover 节点 → 其涉及连线恢复高亮；其余连线弱化（半透明细线）
+    const related = __hoveredNodeId && (fn.id === __hoveredNodeId || tn.id === __hoveredNodeId);
 
     // 贝塞尔曲线 — 颜色读取自 CSS 变量, 线宽 2px (有数据时加粗并带辉光)
-    if (hasData) {
-      ctx.save();
-      ctx.shadowColor = COLORS.success;
-      ctx.shadowBlur = 8;
-      drawBezier(ctx, fp.x, fp.y, tp.x, tp.y, lineColor, 2.5);
-      ctx.restore();
-    } else {
-      drawBezier(ctx, fp.x, fp.y, tp.x, tp.y, lineColor, 2);
-    }
-
-    // 端点实心圆填充
+    ctx.save();
+    if (!related) ctx.globalAlpha = 0.35; // P3：默认弱化；hover 相关恢复
+    drawBezier(ctx, fp.x, fp.y, tp.x, tp.y, lineColor, related ? 2.8 : 2);
+    // 端点实心圆填充（随弱化态）
+    if (!related) ctx.globalAlpha = 0.35;
     drawPortDot(ctx, fp.x, fp.y, lineColor);
     drawPortDot(ctx, tp.x, tp.y, lineColor);
+    ctx.restore();
 
     // 标记端口为 connected
     updatePortConnected(fn, 'output', edge.from.port, true);
     updatePortConnected(tn, 'input', edge.to.port, true);
   });
 
+  // B：选中连线 → 高亮描边 + 中点 ✕ 删除按钮
+  if (__selectedEdge) {
+    const edge = __selectedEdge;
+    if (!workflow.edges.has(edge.id)) {
+      clearEdgeSelection();
+    } else {
+      const fn = edge.from.node, tn = edge.to.node;
+      if (fn.el && tn.el) {
+        const fp = getPortScreenPos(fn, 'output', edge.from.port);
+        const tp = getPortScreenPos(tn, 'input', edge.to.port);
+        ctx.save();
+        ctx.shadowColor = COLORS.accent || '#C76BF7';
+        ctx.shadowBlur = 10;
+        drawBezier(ctx, fp.x, fp.y, tp.x, tp.y, COLORS.accent || '#C76BF7', 4);
+        ctx.restore();
+        positionEdgeDeleteBtn();
+      }
+    }
+  } else {
+    const btn = document.getElementById('edgeDeleteBtn');
+    if (btn) btn.hidden = true;
+  }
+
+  // A：拖节点自动连线预览（虚线 + 端点高亮）
+  if (__autoConn && __autoConn.fromNode.el && __autoConn.toNode.el) {
+    const fp = getPortScreenPos(__autoConn.fromNode, 'output', __autoConn.fromIdx);
+    const tp = getPortScreenPos(__autoConn.toNode, 'input', __autoConn.toIdx);
+    drawBezierDashed(ctx, fp.x, fp.y, tp.x, tp.y, COLORS.success, 2);
+    drawPortDot(ctx, fp.x, fp.y, COLORS.success);
+    drawPortDot(ctx, tp.x, tp.y, COLORS.success, 6);
+  }
+
   // 拖拽中临时线（草稿线：虚线 + 半透明）
   if (workflow.pendingConnection) {
     const pc = workflow.pendingConnection;
     const fp = getPortScreenPos(pc.fromNode, pc.fromKind, pc.fromIdx);
     const valid = pc.valid;
-    const color = valid ? COLORS.primary : COLORS.danger;
+    // B 磁吸（snap）命中 → 与 A 自动连线预览同款绿色；普通悬停有效端口 → 主蓝；无效 → 危险红
+    const snapped = connecting && connecting.snapped;
+    const color = valid ? (snapped ? COLORS.success : COLORS.primary) : COLORS.danger;
 
     // 草稿线：虚线
     drawBezierDashed(ctx, fp.x, fp.y, pc.toX, pc.toY, color, 2);
@@ -5065,7 +11109,7 @@ function drawEdges() {
     // hover 端口高亮
     if (workflow.hoveredPort) {
       const hp = getPortScreenPos(workflow.hoveredPort.node, workflow.hoveredPort.kind, workflow.hoveredPort.idx);
-      drawPortDot(ctx, hp.x, hp.y, valid ? COLORS.primary : COLORS.danger, 6);
+      drawPortDot(ctx, hp.x, hp.y, valid ? (snapped ? COLORS.success : COLORS.primary) : COLORS.danger, 6);
     }
   }
 }
@@ -5141,7 +11185,9 @@ canvasWrap.addEventListener('mousedown', (e) => {
     fromKind: portEl.dataset.kind,
     fromIdx: parseInt(portEl.dataset.portIdx),
     fromType: portEl.dataset.portType,
+    snapped: false,
   };
+  document.body.classList.add('canvas-ports-visible'); // P1：拖端口时全图端口可见
 
   // 标记起始端口为 connecting
   portEl.classList.add('connecting');
@@ -5161,6 +11207,8 @@ window.addEventListener('mousemove', (e) => {
   const rect = canvasWrap.getBoundingClientRect();
   const sx = e.clientX - rect.left;
   const sy = e.clientY - rect.top;
+  let snappedPort = false;
+  if (connecting) connecting.snapped = false; // 每帧复位，磁吸仅在下方 snap 块置 true
 
   const portEl = e.target.closest && e.target.closest('.node-port');
   let hovered = null, valid = false;
@@ -5183,7 +11231,7 @@ window.addEventListener('mousemove', (e) => {
       const vres = (window.FlowCraft && window.FlowCraft.nodes && window.FlowCraft.nodes.validateConnection)
         ? window.FlowCraft.nodes.validateConnection({
             from: { nodeType: connecting.fromNode.type, portIdx: connecting.fromIdx, kind: connecting.fromKind, portType: connecting.fromType },
-            to:   { nodeType: toNodeId, portIdx: parseInt(portEl.dataset.portIdx), kind: toKind, portType: toType },
+            to:   { nodeType: (workflow.nodes.get(toNodeId) || {}).type, portIdx: parseInt(portEl.dataset.portIdx), kind: toKind, portType: toType },
           })
         : null;
       if (vres) { valid = vres.ok; connecting.reason = vres.reason || ''; }
@@ -5202,8 +11250,62 @@ window.addEventListener('mousemove', (e) => {
     }
   }
 
-  workflow.pendingConnection.toX = sx;
-  workflow.pendingConnection.toY = sy;
+  // B：端口拖拽时，若光标未落在任何端口上、但靠近某节点兼容端口（窗口 = 自动连线同款阈值，按 zoom 缩放），则把连线吸附到该端口（不移动目标节点）
+  if (!hovered) {
+    const fromType = connecting.fromType;
+    const fromKind = connecting.fromKind;
+    const wantKind = fromKind === 'output' ? 'input' : 'output';
+    const thrX = (typeof AUTOCONN_GAP_X_MAX !== 'undefined' ? AUTOCONN_GAP_X_MAX : 140) * workflow.camera.zoom;
+    const thrY = (typeof AUTOCONN_GAP_Y_MAX !== 'undefined' ? AUTOCONN_GAP_Y_MAX : 90) * workflow.camera.zoom;
+    let best = null, bestScore = Infinity;
+    workflow.nodes.forEach(n => {
+      if (!n.el || n === connecting.fromNode) return;
+      const defs = wantKind === 'input' ? (n.def.inputs || []) : (n.def.outputs || []);
+      defs.forEach((portDef, idx) => {
+        const vres = (window.FlowCraft && window.FlowCraft.nodes && window.FlowCraft.nodes.validateConnection)
+          ? window.FlowCraft.nodes.validateConnection({
+              from: { nodeType: connecting.fromNode.type, portIdx: connecting.fromIdx, kind: fromKind, portType: fromType },
+              to:   { nodeType: n.type, portIdx: idx, kind: wantKind, portType: portDef.type },
+            })
+          : null;
+        const ok = vres ? !!vres.ok : (fromType === portDef.type);
+        if (!ok) return;
+        const p = getPortScreenPos(n, wantKind, idx);
+        const dx = Math.abs(p.x - sx);
+        const dy = Math.abs(p.y - sy);
+        if (dx < thrX && dy < thrY) {
+          const score = dx + dy * 2;
+          if (score < bestScore) {
+            bestScore = score;
+            best = { node: n, kind: wantKind, idx, p, portEl: n.el.querySelector(`.node-port.${wantKind}[data-port-idx="${idx}"]`) };
+          }
+        }
+      });
+    });
+    if (best) {
+      hovered = { node: best.node, kind: best.kind, idx: best.idx };
+      valid = true;
+      connecting.reason = '';
+      if (best.portEl) best.portEl.classList.add('compatible');
+      workflow.pendingConnection.toX = best.p.x;
+      workflow.pendingConnection.toY = best.p.y;
+      snappedPort = true;
+      connecting.snapped = true;
+    }
+  }
+
+  // 跟踪 hover 的节点（用于多选批量连线）：鼠标落在某节点（含其端口）上时记录
+  const nodeEl = e.target.closest && e.target.closest('.node');
+  if (nodeEl && nodeEl.dataset && nodeEl.dataset.id && nodeEl.dataset.id !== connecting.fromNode.id) {
+    connecting.hoverNode = workflow.nodes.get(nodeEl.dataset.id) || null;
+  } else {
+    connecting.hoverNode = null;
+  }
+
+  if (!snappedPort) {
+    workflow.pendingConnection.toX = sx;
+    workflow.pendingConnection.toY = sy;
+  }
   workflow.pendingConnection.valid = valid;
   workflow.hoveredPort = hovered;
   markEdgesDirty();
@@ -5239,24 +11341,33 @@ window.addEventListener('mouseup', (e) => {
       toIdx = connecting.fromIdx;
     }
 
-    // 检查是否已存在相同连线（避免重复）
-    let exists = false;
-    workflow.edges.forEach(e => {
-      if (e.from.node.id === fromNode.id && e.from.port === fromIdx &&
-          e.to.node.id === toNode.id && e.to.port === toIdx) {
-        exists = true;
-      }
-    });
+    // 多选批量：从 output 拖出、当前选中 ≥2 且起始节点在选中集内 → 全部选中节点连到目标节点
+    if (connecting.fromKind === 'output' && workflow.selection.size >= 2 && workflow.selection.has(connecting.fromNode.id)) {
+      batchConnectToNode(toNode, connecting.fromNode);
+      // 批量后直接结束（不再走下方单连逻辑）
+    } else {
+      // 检查是否已存在相同连线（避免重复）
+      let exists = false;
+      workflow.edges.forEach(e => {
+        if (e.from.node.id === fromNode.id && e.from.port === fromIdx &&
+            e.to.node.id === toNode.id && e.to.port === toIdx) {
+          exists = true;
+        }
+      });
 
-    if (!exists) {
-      // 允许多条连线连到同一输入端口（支持参考图等多输入场景）
-      pushHistory();
-      const edge = new Edge(fromNode, fromIdx, toNode, toIdx);
-      workflow.edges.set(edge.id, edge);
-      resetNodeData(toNode); // 连线变化 → 下游输入已改变，清除旧数据
-      updateStatusbar();
-      scheduleAutosave();
+      if (!exists) {
+        // 允许多条连线连到同一输入端口（支持参考图等多输入场景）
+        pushHistory();
+        const edge = new Edge(fromNode, fromIdx, toNode, toIdx);
+        workflow.edges.set(edge.id, edge);
+        resetNodeData(toNode); // 连线变化 → 下游输入已改变，清除旧数据
+        updateStatusbar();
+        scheduleAutosave();
+      }
     }
+  } else if (connecting.fromKind === 'output' && workflow.selection.size >= 2 && workflow.selection.has(connecting.fromNode.id) && connecting.hoverNode && connecting.hoverNode.id !== connecting.fromNode.id) {
+    // 多选批量连线：从多个选中节点的输出端口0 依次连到目标节点的输入端口 0、1、2…
+    batchConnectToNode(connecting.hoverNode, connecting.fromNode);
   } else {
     // 拖到端口但类型不符：提示具体原因（T2-3）；否则（拖到空白处）弹出节点快捷组合菜单
     if (workflow.hoveredPort && !workflow.pendingConnection.valid && connecting.reason) {
@@ -5278,8 +11389,54 @@ window.addEventListener('mouseup', (e) => {
   connecting = null;
   workflow.pendingConnection = null;
   workflow.hoveredPort = null;
+  document.body.classList.remove('canvas-ports-visible'); // P1：取消全图端口可见
   markEdgesDirty();
 });
+
+// 多选批量连线：把选中的多个节点（输出端口0）按「类型匹配优先」连到 target 节点的输入端口
+// （图片源连图片输入、文本源连文本输入；多个同类型源可连到同一端口 → 形成多参考图）
+function batchConnectToNode(target, originNode) {
+  const targetInputs = (target.def && target.def.inputs) || [];
+  if (targetInputs.length === 0) { showToast(`「${target.title}」没有输入端口`, 'warn'); return; }
+
+  // 选中且有输出端口的节点，按画布 order 排序保证稳定
+  const selSrcs = workflow.order
+    .map(id => workflow.nodes.get(id))
+    .filter(n => n && workflow.selection.has(n.id) && n.id !== target.id && (n.def.outputs || []).length > 0);
+  if (selSrcs.length === 0) { showToast('选中的节点没有可用输出端口', 'warn'); return; }
+
+  // 预计算待建连线：每个选中源找一个类型匹配的目标输入端口（允许多源连同一端口，AI 绘图等多参考图节点会合并发送）
+  const newEdges = [];
+  selSrcs.forEach((src) => {
+    const fromPort = (src.def.outputs || [])[0];
+    if (!fromPort) return;
+    const fromIdx = 0;
+    for (let toIdx = 0; toIdx < targetInputs.length; toIdx++) {
+      if (targetInputs[toIdx].type !== fromPort.type) continue; // 类型不匹配，找下一个匹配端口
+      // 去重：相同源-端口对不重复
+      let exists = false;
+      workflow.edges.forEach(e => {
+        if (e.from.node.id === src.id && e.from.port === fromIdx && e.to.node.id === target.id && e.to.port === toIdx) exists = true;
+      });
+      if (exists) break;
+      newEdges.push([src, fromIdx, toIdx]);
+      break; // 该源连入一个匹配端口后即结束（不重复连到所有同类型端口）
+    }
+  });
+
+  if (newEdges.length === 0) { showToast('没有可连接的端口（目标输入端口不足或类型不匹配）', 'warn'); return; }
+
+  pushHistory();
+  newEdges.forEach(([src, fromIdx, toIdx]) => {
+    const edge = new Edge(src, fromIdx, target, toIdx);
+    workflow.edges.set(edge.id, edge);
+  });
+  resetNodeData(target);
+  updateStatusbar();
+  scheduleAutosave();
+  markEdgesDirty();
+  showToast(`已批量连接 ${newEdges.length} 条：选中节点 → 「${target.title}」`, 'success');
+}
 
 //================ 14b. 连线节点快捷组合菜单 ================
 let connectionMenuState = null;
@@ -5332,7 +11489,7 @@ function downscaleImage(dataURL, maxDim) {
       cv.width = w; cv.height = h;
       const ctx = cv.getContext('2d');
       ctx.drawImage(img, 0, 0, w, h);
-      try { resolve(cv.toDataURL('image/jpeg', 0.82)); }
+      try { resolve(cv.toDataURL('image/png')); }
       catch (err) { resolve(dataURL); }
     };
     img.onerror = () => resolve(dataURL);
@@ -5351,9 +11508,18 @@ function loadImageFile(file, node) {
   reader.onload = (e) => {
     const raw = e.target.result;
     downscaleImage(raw, 720).then((thumb) => {
+      node.params = node.params || {};
+      node.params.name = file.name;
       node.thumb = thumb;
       node.uploadedImage = raw;          // 保留原图，供真实导出使用
+      node.croppedImage = '';
+      node.cropMeta = null;
+      node.ratio = null;
+      node._fitProbed = false;
+      node.outputsData = computeNodeOutput(node);
       if (node.el) buildNodeBody(node.el, node);
+      probeFitNode(node);
+      if (node === __composerNode) showNodeComposer(node);
       markEdgesDirty();
       scheduleAutosave();
       refreshAssetPanelIfOpen();
@@ -5405,6 +11571,62 @@ function loadVideoFile(file, node) {
   vid.preload = 'metadata';
   vid.muted = true;
   vid.src = url;
+  let poster = '';
+  let durationText = '';
+  let rawVideo = '';
+  let posterReady = false;
+  let rawReady = false;
+  let finalized = false;
+  const cleanup = () => {
+    if (finalized) return;
+    finalized = true;
+    try { URL.revokeObjectURL(url); } catch (_) {}
+    try { if (vid.parentNode) vid.remove(); } catch (_) {}
+  };
+  const finalize = () => {
+    if (finalized || !posterReady || !rawReady) return;
+    cleanup();
+    node.thumb = poster || createPlaceholderDataURL(120, 70, (parseInt(node.id.replace(/\D/g, '')) || 1) + 300, '视频');
+    node.uploadedVideo = rawVideo || '';
+    node.params.name = file.name;
+    node.params.duration = durationText || '00:00';
+    node.videoAspect = vid.videoWidth && vid.videoHeight ? (vid.videoWidth / vid.videoHeight) : node.videoAspect || null;
+    node.outputsData = computeNodeOutput(node);
+    if (node.el) {
+      if (node.type === 'videoInput' && node.videoAspect) {
+        const headerH = (node.el.querySelector('.node-header') && node.el.querySelector('.node-header').offsetHeight) || 42;
+        const chromeH = headerH + 8;
+        const MAX_W = Math.max(240, Math.round(window.innerWidth * 0.42));
+        const MAX_H = Math.max(180, Math.round(window.innerHeight * 0.42));
+        const MIN_W = 200;
+        const scale = Math.min(1, MAX_W / Math.max(1, vid.videoWidth || 1), MAX_H / Math.max(1, vid.videoHeight || 1));
+        const contentW = Math.max(MIN_W, Math.round((vid.videoWidth || 640) * scale));
+        const contentH = Math.max(120, Math.round(contentW / node.videoAspect));
+        node.width = contentW + 32;
+        node.height = contentH + chromeH;
+        node.el.style.width = node.width + 'px';
+        node.el.style.minHeight = node.height + 'px';
+      }
+      buildNodeBody(node.el, node);
+    }
+    if (node === __composerNode) showNodeComposer(node);
+    markEdgesDirty();
+    scheduleAutosave();
+    refreshAssetPanelIfOpen();
+    showToast('已载入视频：' + file.name, 'success');
+  };
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    rawVideo = e.target && typeof e.target.result === 'string' ? e.target.result : '';
+    rawReady = true;
+    finalize();
+  };
+  reader.onerror = () => {
+    rawVideo = '';
+    rawReady = true;
+    finalize();
+  };
+  reader.readAsDataURL(file);
   vid.onloadedmetadata = () => {
     // 跳到第 0.1 秒抽帧，避免空白首帧
     try { vid.currentTime = Math.min(0.1, (vid.duration || 1) / 2); } catch (_) {}
@@ -5415,31 +11637,20 @@ function loadVideoFile(file, node) {
       cv.width = 320; cv.height = Math.round(320 * (vid.videoHeight / Math.max(1, vid.videoWidth)));
       const c = cv.getContext('2d');
       c.drawImage(vid, 0, 0, cv.width, cv.height);
-      const poster = cv.toDataURL('image/png');
-      node.thumb = poster;
-      node.params.name = file.name;
-      node.params.duration = formatVideoDuration(vid.duration);
-      if (node.el) buildNodeBody(node.el, node);
-      markEdgesDirty();
-      scheduleAutosave();
-      showToast('已载入视频：' + file.name, 'success');
+      poster = cv.toDataURL('image/png');
+      durationText = formatVideoDuration(vid.duration);
     } catch (err) {
-      node.thumb = createPlaceholderDataURL(120, 70, (parseInt(node.id.replace(/\D/g, '')) || 1) + 300, '视频');
-      node.params.name = file.name;
-      if (node.el) buildNodeBody(node.el, node);
-      markEdgesDirty();
-      scheduleAutosave();
-    } finally {
-      URL.revokeObjectURL(url);
+      poster = createPlaceholderDataURL(120, 70, (parseInt(node.id.replace(/\D/g, '')) || 1) + 300, '视频');
+      durationText = formatVideoDuration(vid.duration);
     }
+    posterReady = true;
+    finalize();
   };
   vid.onerror = () => {
-    node.thumb = createPlaceholderDataURL(120, 70, (parseInt(node.id.replace(/\D/g, '')) || 1) + 300, '视频');
-    node.params.name = file.name;
-    if (node.el) buildNodeBody(node.el, node);
-    markEdgesDirty();
-    scheduleAutosave();
-    URL.revokeObjectURL(url);
+    poster = createPlaceholderDataURL(120, 70, (parseInt(node.id.replace(/\D/g, '')) || 1) + 300, '视频');
+    durationText = '00:00';
+    posterReady = true;
+    finalize();
     showToast('视频解析失败，已用占位封面', 'warn');
   };
   // 某些浏览器需要 append 后才能触发加载
@@ -5531,6 +11742,261 @@ function closeImageLightbox() {
   if (img) img.src = '';
   resetLightboxTransform();
 }
+
+let __imageCropState = null;
+
+function fitContainRect(srcW, srcH, maxW, maxH) {
+  const w = Math.max(1, Number(srcW) || 1);
+  const h = Math.max(1, Number(srcH) || 1);
+  const boxW = Math.max(1, Number(maxW) || 1);
+  const boxH = Math.max(1, Number(maxH) || 1);
+  const scale = Math.min(boxW / w, boxH / h);
+  const dw = Math.max(1, Math.round(w * scale));
+  const dh = Math.max(1, Math.round(h * scale));
+  return { x: Math.round((boxW - dw) / 2), y: Math.round((boxH - dh) / 2), w: dw, h: dh, scale };
+}
+
+function cropAspectValue(v) {
+  if (!v || v === 'free') return null;
+  const ratio = parseAspectRatio(v);
+  return ratio && isFinite(ratio) && ratio > 0 ? ratio : null;
+}
+
+function cropBoxForAspect(rect, aspect) {
+  const margin = 0.12;
+  const maxW = Math.max(24, Math.round(rect.w * (1 - margin)));
+  const maxH = Math.max(24, Math.round(rect.h * (1 - margin)));
+  let w = maxW;
+  let h = maxH;
+  if (aspect) {
+    w = maxW;
+    h = Math.round(w / aspect);
+    if (h > maxH) {
+      h = maxH;
+      w = Math.round(h * aspect);
+    }
+  }
+  w = Math.max(24, Math.min(rect.w, w));
+  h = Math.max(24, Math.min(rect.h, h));
+  return {
+    x: Math.round((rect.w - w) / 2),
+    y: Math.round((rect.h - h) / 2),
+    w, h,
+  };
+}
+
+function clampCropBox(box, rect) {
+  const min = 24;
+  const out = { ...box };
+  out.w = Math.max(min, Math.min(rect.w, out.w));
+  out.h = Math.max(min, Math.min(rect.h, out.h));
+  out.x = Math.max(0, Math.min(rect.w - out.w, out.x));
+  out.y = Math.max(0, Math.min(rect.h - out.h, out.y));
+  return out;
+}
+
+function renderImageCropModal() {
+  const st = __imageCropState;
+  const overlay = document.getElementById('imageCropOverlay');
+  if (!st || !overlay || !overlay.classList.contains('show')) return;
+  const stage = overlay.querySelector('.image-crop-stage');
+  const img = overlay.querySelector('.image-crop-img');
+  const box = overlay.querySelector('.image-crop-box');
+  const aspectSel = overlay.querySelector('#imageCropAspect');
+  const meta = overlay.querySelector('.image-crop-meta');
+  if (!stage || !img || !box || !aspectSel) return;
+  const sr = stage.getBoundingClientRect();
+  if (!sr.width || !sr.height) return;
+  const rect = fitContainRect(st.naturalW, st.naturalH, sr.width, sr.height);
+  st.displayRect = rect;
+  if (!st.box || st._boxReset) {
+    st.box = cropBoxForAspect(rect, cropAspectValue(aspectSel.value));
+    st._boxReset = false;
+  } else {
+    st.box = clampCropBox(st.box, rect);
+  }
+  img.src = st.src;
+  img.style.left = rect.x + 'px';
+  img.style.top = rect.y + 'px';
+  img.style.width = rect.w + 'px';
+  img.style.height = rect.h + 'px';
+  box.style.left = (rect.x + st.box.x) + 'px';
+  box.style.top = (rect.y + st.box.y) + 'px';
+  box.style.width = st.box.w + 'px';
+  box.style.height = st.box.h + 'px';
+  if (meta) meta.textContent = `裁剪后 ${Math.max(1, Math.round(st.naturalW * (st.box.w / rect.w)))} × ${Math.max(1, Math.round(st.naturalH * (st.box.h / rect.h)))}`;
+}
+
+function closeImageCropModal() {
+  const overlay = document.getElementById('imageCropOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('show');
+  overlay.classList.remove('dragging');
+  __imageCropState = null;
+}
+
+function openImageCropModal(node) {
+  const src = getNodeDisplayImageSource(node) || normalizeImageSrc(node && (node.uploadedImage || node.thumb));
+  if (!node || node.type !== 'image' || !src) {
+    showToast('请先上传图片，再进行裁剪', 'info');
+    return;
+  }
+  const probe = new Image();
+  probe.onload = () => {
+    __imageCropState = {
+      node,
+      src,
+      naturalW: probe.naturalWidth || probe.width || 1,
+      naturalH: probe.naturalHeight || probe.height || 1,
+      box: null,
+      displayRect: null,
+      drag: null,
+      _boxReset: false,
+    };
+    let overlay = document.getElementById('imageCropOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'imageCropOverlay';
+      overlay.className = 'image-crop-overlay';
+      overlay.innerHTML =
+        '<div class="image-crop-modal">' +
+          '<div class="image-crop-head">' +
+            '<div><div class="image-crop-title">图片裁剪</div><div class="image-crop-meta"></div></div>' +
+            '<div class="image-crop-actions">' +
+              '<select id="imageCropAspect" class="image-crop-select">' +
+                '<option value="free">自由裁剪</option>' +
+                '<option value="1:1">1:1</option>' +
+                '<option value="4:3">4:3</option>' +
+                '<option value="3:4">3:4</option>' +
+                '<option value="16:9">16:9</option>' +
+                '<option value="9:16">9:16</option>' +
+              '</select>' +
+              '<button type="button" class="wf-btn" id="imageCropReset">重置</button>' +
+              '<button type="button" class="wf-btn" id="imageCropCancel">取消</button>' +
+              '<button type="button" class="wf-btn primary" id="imageCropApply">应用裁剪</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="image-crop-stage"><img class="image-crop-img" alt="裁剪预览"><div class="image-crop-box"><div class="image-crop-handle br"></div></div></div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      overlay.addEventListener('mousedown', (e) => {
+        if (!__imageCropState) return;
+        const stage = overlay.querySelector('.image-crop-stage');
+        const boxEl = overlay.querySelector('.image-crop-box');
+        if (!stage || !boxEl) return;
+        const target = e.target;
+        if (!target.closest('.image-crop-box')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const sr = stage.getBoundingClientRect();
+        const st = __imageCropState;
+        const box = st.box ? { ...st.box } : cropBoxForAspect(st.displayRect || fitContainRect(st.naturalW, st.naturalH, sr.width, sr.height), cropAspectValue(overlay.querySelector('#imageCropAspect').value));
+        const start = { x: e.clientX, y: e.clientY, box };
+        const aspect = cropAspectValue(overlay.querySelector('#imageCropAspect').value);
+        st.drag = { start, aspect };
+        overlay.classList.add('dragging');
+        const move = (ev) => {
+          if (!st.drag) return;
+          const dx = ev.clientX - start.x;
+          const dy = ev.clientY - start.y;
+          const rect = st.displayRect || fitContainRect(st.naturalW, st.naturalH, sr.width, sr.height);
+          let next = { ...start.box };
+          if (target.closest('.image-crop-handle')) {
+            if (st.drag.aspect) {
+              let w = Math.max(24, Math.min(rect.w - start.box.x, start.box.w + dx));
+              let h = Math.round(w / st.drag.aspect);
+              if (h > rect.h - start.box.y) { h = Math.max(24, Math.min(rect.h - start.box.y, start.box.h + dy)); w = Math.round(h * st.drag.aspect); }
+              next.w = w;
+              next.h = h;
+            } else {
+              next.w = Math.max(24, Math.min(rect.w - start.box.x, start.box.w + dx));
+              next.h = Math.max(24, Math.min(rect.h - start.box.y, start.box.h + dy));
+            }
+          } else {
+            next.x = Math.max(0, Math.min(rect.w - start.box.w, start.box.x + dx));
+            next.y = Math.max(0, Math.min(rect.h - start.box.h, start.box.y + dy));
+          }
+          st.box = clampCropBox(next, rect);
+          renderImageCropModal();
+        };
+        const up = () => {
+          st.drag = null;
+          overlay.classList.remove('dragging');
+          document.removeEventListener('mousemove', move);
+          document.removeEventListener('mouseup', up);
+        };
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
+      });
+      overlay.querySelector('#imageCropAspect').onchange = (e) => {
+        if (!__imageCropState) return;
+        const rect = __imageCropState.displayRect || fitContainRect(__imageCropState.naturalW, __imageCropState.naturalH, 800, 520);
+        __imageCropState.box = cropBoxForAspect(rect, cropAspectValue(e.target.value));
+        renderImageCropModal();
+      };
+      overlay.querySelector('#imageCropReset').onclick = (e) => {
+        e.stopPropagation();
+        if (!__imageCropState) return;
+        __imageCropState._boxReset = true;
+        renderImageCropModal();
+      };
+      overlay.querySelector('#imageCropCancel').onclick = (e) => { e.stopPropagation(); closeImageCropModal(); };
+      overlay.querySelector('#imageCropApply').onclick = (e) => {
+        e.stopPropagation();
+        if (!__imageCropState) return;
+        const st = __imageCropState;
+        const stage = overlay.querySelector('.image-crop-stage');
+        if (!stage || !st.box || !st.displayRect) return;
+        const imgEl = overlay.querySelector('.image-crop-img');
+        if (!imgEl) return;
+        const sx = Math.max(0, Math.round((st.box.x / st.displayRect.w) * st.naturalW));
+        const sy = Math.max(0, Math.round((st.box.y / st.displayRect.h) * st.naturalH));
+        const sw = Math.max(1, Math.round((st.box.w / st.displayRect.w) * st.naturalW));
+        const sh = Math.max(1, Math.round((st.box.h / st.displayRect.h) * st.naturalH));
+        const canvas = document.createElement('canvas');
+        canvas.width = sw;
+        canvas.height = sh;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(imgEl, sx, sy, sw, sh, 0, 0, sw, sh);
+        let cropped = '';
+        try { cropped = canvas.toDataURL('image/png'); } catch (err) { cropped = ''; }
+        if (!cropped) { showToast('裁剪失败，请重试', 'danger'); return; }
+        pushHistory();
+        st.node.croppedImage = cropped;
+        st.node.thumb = cropped;
+        st.node.cropMeta = {
+          aspect: overlay.querySelector('#imageCropAspect').value || 'free',
+          box: { ...st.box },
+          sourceSize: { w: st.naturalW, h: st.naturalH },
+          croppedAt: Date.now(),
+        };
+        st.node.outputsData = computeNodeOutput(st.node);
+        if (st.node.el) buildNodeBody(st.node.el, st.node);
+        probeFitNode(st.node);
+        markEdgesDirty();
+        scheduleAutosave();
+        refreshAssetPanelIfOpen();
+        showToast('图片已裁剪', 'success');
+        closeImageCropModal();
+      };
+    }
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeImageCropModal();
+    });
+  }
+  const overlay = document.getElementById('imageCropOverlay');
+  if (!overlay) return;
+  overlay.classList.add('show');
+  const aspectSel = overlay.querySelector('#imageCropAspect');
+  if (aspectSel) aspectSel.value = 'free';
+  requestAnimationFrame(() => renderImageCropModal());
+}
+
+window.addEventListener('resize', () => { if (__imageCropState) renderImageCropModal(); });
 
 function renderConnectionNodeMenu() {
   if (!connectionMenuState) return;
@@ -5811,14 +12277,37 @@ canvasWrap.addEventListener('drop', (e) => {
 
   // 优先处理拖入的图片文件 → 自动创建图片节点并载入
   const files = e.dataTransfer.files;
-  if (files && files.length && files[0].type && files[0].type.startsWith('image/')) {
+  if (files && files.length) {
     const rect = canvasWrap.getBoundingClientRect();
     const cam = workflow.camera;
     const wx = (e.clientX - rect.left - cam.x) / cam.zoom;
     const wy = (e.clientY - rect.top - cam.y) / cam.zoom;
-    const node = addNode('image', wx - 140, wy - 50);
-    loadImageFile(files[0], node);
-    showToast('已创建图片节点并载入图片', 'success');
+    const imgFiles = [...files].filter(f => f.type && f.type.startsWith('image/'));
+    if (imgFiles.length === 0) {
+      // 视频文件 → 自动创建「反推提示词」节点并载入
+      const vidFiles = [...files].filter(f => f.type && f.type.startsWith('video/'));
+      if (vidFiles.length >= 1) {
+        const node = addNode('reversePrompt', wx - 150, wy - 60);
+        if (node.__handleDropVideo) node.__handleDropVideo(vidFiles[0]);
+        showToast('已创建「反推提示词」节点并载入视频', 'success');
+      }
+      return; // 其它非图片文件，交给下方节点拖放逻辑（getData 为空会直接 return）
+    }
+    if (imgFiles.length === 1) {
+      const node = addNode('image', wx - 140, wy - 50);
+      loadImageFile(imgFiles[0], node);
+      showToast('已创建图片节点并载入图片', 'success');
+    } else {
+      // 多图：每个图片一个节点，网格错位排布
+      const cols = Math.ceil(Math.sqrt(imgFiles.length));
+      const gapX = 200, gapY = 170;
+      imgFiles.forEach((f, i) => {
+        const col = i % cols, row = Math.floor(i / cols);
+        const node = addNode('image', wx - 140 + col * gapX, wy - 50 + row * gapY);
+        loadImageFile(f, node);
+      });
+      showToast(`已创建 ${imgFiles.length} 个图片节点`, 'success');
+    }
     return;
   }
 
@@ -5863,6 +12352,7 @@ document.getElementById('sidebarCollapseBtn').addEventListener('click', () => {
 // 清空某节点的运行数据（连线结构变化时调用，避免脏数据残留）
 function resetNodeData(node) {
   node.inputsData = (node.def.inputs || []).map(() => null);
+  node._multiInputs = (node.def.inputs || []).map(() => []);
   node.outputsData = (node.def.outputs || []).map(() => null);
   node.status = 'idle';
   if (node.el) {
@@ -5872,15 +12362,24 @@ function resetNodeData(node) {
 }
 
 // 收集该节点每个输入端口的上游载荷
+// 多源支持：同一端口允许多条线连入（如多张参考图）。
+//   node.inputsData[i]   = 第一个非空 payload（保持向后兼容，单值读取点无感）
+//   node._multiInputs[i] = 所有连入该端口的 payload 数组（供需要"多参考图"的节点消费）
 function gatherInputs(node) {
   const def = node.def;
   const inputs = def.inputs || [];
   node.inputsData = inputs.map(() => null);
+  node._multiInputs = inputs.map(() => []);
   [...workflow.edges.values()].forEach(e => {
     if (e.to.node === node) {
       const src = e.from.node;
       const payload = (src.outputsData && src.outputsData[e.from.port]) || null;
-      node.inputsData[e.to.port] = payload;
+      if (payload) {
+        // 单值槽位：保留首个非空（避免被后面的覆盖）
+        if (!node.inputsData[e.to.port]) node.inputsData[e.to.port] = payload;
+        // 多源数组：累加所有 payload
+        node._multiInputs[e.to.port].push(payload);
+      }
     }
   });
 }
@@ -5895,22 +12394,24 @@ function computeNodeOutput(node) {
 
   switch (node.type) {
     case 'image':
-      out[0] = { type: 'image', value: node.thumb || createPlaceholderDataURL(40, 40, seed, 'IMG') };
+      out[0] = { type: 'image', value: getNodeDisplayImageSource(node) || createPlaceholderDataURL(40, 40, seed, 'IMG') };
       break;
     case 'videoInput':
       out[0] = { type: 'video', value: {
         poster: node.thumb || createPlaceholderDataURL(80, 50, seed + 200, ''),
         duration: node.params.duration || '00:12',
-        name: node.params.name || '视频'
+        name: node.params.name || '视频',
+        src: node.uploadedVideo || ''
       } };
       break;
     case 'text':
-      out[0] = { type: 'text', value: applyLoopVars((node.prompt || '').trim()) || '(空文本)' };
+      out[0] = { type: 'text', value: applyLoopVars(nodeFullText(node).trim()) || '(空文本)' };
       break;
     case 'bgm':
       out[0] = { type: 'audio', value: { name: node.params.name, duration: node.params.duration } };
       break;
     case 'aiImage':
+    case 'imageEdit':
     case 'aiVideo':
     case 'upscale':
     case 'lineart':
@@ -5921,7 +12422,7 @@ function computeNodeOutput(node) {
       // 优先使用上游传入的图片，否则用自身缩略图或生成占位
       const upImg = inputs.find(d => d && d.type === 'image');
       const gen = (upImg && upImg.value) ? upImg.value
-        : (node.thumb || createPlaceholderDataURL(40, 40, seed + 500, node.def.label));
+        : (getNodeDisplayImageSource(node) || normalizeImageSrc(node.uploadedImage) || node.thumb || createPlaceholderDataURL(40, 40, seed + 500, node.def.label));
       out[0] = { type: (node.type === 'aiVideo' ? 'video' : 'image'), value: gen };
       break;
     }
@@ -5935,17 +12436,20 @@ function computeNodeOutput(node) {
       const frames = node.params.frames || 6;
       const segs = node.params.segments || 3;
       const upVid = inputs.find(d => d && d.type === 'video');
-      const basePoster = (upVid && upVid.value && upVid.value.poster)
-        ? upVid.value.poster
+      const upVidValue = upVid && upVid.value;
+      const basePoster = (upVidValue && upVidValue.poster)
+        ? upVidValue.poster
         : createPlaceholderDataURL(120, 70, seed + 600, '');
+      const upVidSrc = upVidValue && typeof upVidValue.src === 'string' ? upVidValue.src : '';
       // 关键帧：以占位图代表"拆解 N 帧"的合集，可作为下游图片输入
-      out[0] = { type: 'image', value: upVid && upVid.value && upVid.value.poster
-        ? upVid.value.poster
+      out[0] = { type: 'image', value: upVidValue && upVidValue.poster
+        ? upVidValue.poster
         : createPlaceholderDataURL(120, 120, seed + 600, '拆解' + frames + '帧') };
       // 片段：多段视频
       out[1] = { type: 'video', value: {
         poster: basePoster,
-        duration: '片段×' + segs
+        duration: '片段×' + segs,
+        src: upVidSrc
       } };
       break;
     }
@@ -6061,7 +12565,7 @@ const COMFY_WORKFLOWS = {
 };
 
 function comfyGetInputImage(node) {
-  const list = (node.inputsData || []).filter(d => d && d.type === 'image' && typeof d.value === 'string' && d.value.startsWith('data:'));
+  const list = (node.inputsData || []).filter(d => d && d.type === 'image' && normalizeImageSrc(d.value));
   return list.length ? list[0].value : null;
 }
 
@@ -6381,6 +12885,8 @@ function executeNodeAsync(node, delay) {
     if (window.FlowCraft && window.FlowCraft.nodes && window.FlowCraft.nodes.beforeRun) {
       const br = window.FlowCraft.nodes.beforeRun(node);
       if (!br.ok && !(br.stub && _fcProxy())) {
+        // 语义落点区分：stub 是「能力未实现」，validate 不通过是「本次参数不合法」，两者不可混标
+        setNodeResultMode(node, br.stub ? 'unimplemented' : 'failed');
         node.status = 'failure';
         updateNodeStatus(node);
         markEdgesDirty();
@@ -6399,6 +12905,7 @@ function executeNodeAsync(node, delay) {
         // 循环节点：批量驱动下游节点重复执行，聚合产出入图集
         if (node.type === 'loop') {
           await runLoopNode(node);
+          setNodeResultMode(node, 'demo');
           node.status = 'done';
           logRun(node, true, Date.now() - _t0);
           if (node.el) buildNodeBody(node.el, node);
@@ -6409,15 +12916,18 @@ function executeNodeAsync(node, delay) {
           return;
         }
 
-        // 上游文本输入 → 生成提示词（连线传词优先于节点内手输）
-        if (node.type === 'aiImage' || node.type === 'aiVideo') {
+        // 上游文本输入 → 生成提示词（角色描述在前 + 节点自身视角指令在后拼接；仅一方存在时用其一）
+        if (node.type === 'aiImage' || node.type === 'imageEdit' || node.type === 'aiVideo') {
           const textIn = (node.inputsData || []).find(d => d && d.type === 'text');
           const upText = textIn && textIn.value && textIn.value !== '(空文本)' ? String(textIn.value).trim() : '';
-          node.effectivePrompt = applyLoopVars(upText || (node.prompt || '').trim());
+          const ownText = (node.prompt || '').trim();
+          const merged = (upText && ownText) ? (upText + '\n' + ownText) : (ownText || upText);
+          node.effectivePrompt = applyLoopVars(merged);
         }
 
         // 保存节点：实际触发本地下载
         if (node.type === 'save') {
+          setNodeResultMode(node, 'demo');
           runSaveNode(node);
           if (node.el) buildNodeBody(node.el, node);
           updateNodeStatus(node);
@@ -6429,17 +12939,20 @@ function executeNodeAsync(node, delay) {
 
         // 智能超清 / 线稿：基于上游真实图片做图生图（img2img）
         // 有上游图且配置了 OpenAI Key 时调用 images/edits；否则 / 失败时回退到下方 computeNodeOutput（保留原图透传）。
-        if (node.type === 'upscale' || node.type === 'lineart') {
+        if (node.type === 'upscale' || node.type === 'lineart' || node.type === 'imageEdit') {
           const upImg = getNodeInputImage(node);
           const editKey = localStorage.getItem(OPENAI_KEY_STORAGE);
-          if (upImg && editKey) {
+          const proxyOn = !!_fcProxy();
+          if (upImg && (editKey || proxyOn)) {
             try {
               const edited = await generateOpenAIImageEdit(node, upImg);
               if (edited) {
                 node.thumb = edited;
                 node.outputsData = [{ type: 'image', value: edited }];
                 node._galleryImages = [edited];
+                setNodeResultMode(node, 'real');
                 node.status = 'done';
+                captureGenMeta(node, Date.now() - _t0);
                 logRun(node, true, Date.now() - _t0);
                 if (node.el) buildNodeBody(node.el, node);
                 updateNodeStatus(node);
@@ -6458,7 +12971,9 @@ function executeNodeAsync(node, delay) {
         // ComfyUI 节点：浏览器直连本地 ComfyUI
         if (node.type === 'comfyui') {
           const ok = await runComfyUINode(node);
+          if (ok) setNodeResultMode(node, 'real');
           node.status = ok ? 'done' : 'error';
+          if (ok) captureGenMeta(node, Date.now() - _t0);
           logRun(node, ok, Date.now() - _t0, ok ? '' : (node._comfyErr || 'ComfyUI 运行失败'));
           if (node.el) buildNodeBody(node.el, node);
           updateNodeStatus(node);
@@ -6468,33 +12983,40 @@ function executeNodeAsync(node, delay) {
           return;
         }
 
-        const isGptImage = node.type === 'aiImage' && node.params && node.params.model === 'GPT Image 2';
+        // AI 绘图节点统一走真实生成；节点上的模型名称仅作为 UI 标签，不再把真实生成绑死到单一选项
+        const isAiImageNode = node.type === 'aiImage';
         if (node.type === 'aiVideo') {
           // 阶段 5：经 API 安全代理异步生成视频；未启用代理则回退 computeNodeOutput 占位（保 four-features 等价）
           if (_fcProxy()) {
             const v = await runVideoNodeViaProxy(node);
             node.thumb = v.thumb;
             node.outputsData = v.outputsData;
+            setNodeResultMode(node, 'real');
           } else {
             node.outputsData = computeNodeOutput(node);
+            setNodeResultMode(node, 'demo');
           }
           node.status = 'done';
+          captureGenMeta(node, Date.now() - _t0);
           logRun(node, true, Date.now() - _t0);
-        } else if (isGptImage) {
-          // 真实调用 gpt-image-2 生成图片（代理启用时经 FlowCraft.proxy）
+        } else if (isAiImageNode) {
+          // 真实调用图片生成（代理启用时经 FlowCraft.proxy）
           const img = await generateOpenAIImage(node);
           if (!img) { resolve(); return; } // 失败时状态已置 error
           node.thumb = img;
           node.outputsData = [{ type: 'image', value: img }];
+          setNodeResultMode(node, 'real');
           node.status = 'done';
+          captureGenMeta(node, Date.now() - _t0);
           logRun(node, true, Date.now() - _t0);
         } else {
           const out = computeNodeOutput(node);
           node.outputsData = out;
+          setNodeResultMode(node, 'demo');
 
           // 图片类节点：把产出图片同步到缩略图，直观体现"继承上游"
           const imgOut = out.find(d => d && d.type === 'image');
-          const imgTypes = ['image', 'aiImage', 'upscale', 'lineart', 'aiSet', 'material', 'light', 'layout', 'videoBreak'];
+          const imgTypes = ['image', 'aiImage', 'imageEdit', 'upscale', 'lineart', 'aiSet', 'material', 'light', 'layout', 'videoBreak'];
           if (imgOut && imgOut.value && typeof imgOut.value === 'string' && imgOut.value.startsWith('data:')
               && imgTypes.includes(node.type)) {
             node.thumb = imgOut.value;
@@ -6503,8 +13025,10 @@ function executeNodeAsync(node, delay) {
           logRun(node, true, Date.now() - _t0);
         }
       } catch (err) {
-        node.status = 'error';
         const loc = localizeError(err);
+        // 运行时异常（网络失败、上游报错等）属于「本次失败」，不代表节点能力未实现
+        setNodeResultMode(node, 'failed');
+        setNodeStatus(node, 'error', loc);
         logRun(node, false, Date.now() - _t0, loc);
         try {
           logRegen({
@@ -6519,6 +13043,7 @@ function executeNodeAsync(node, delay) {
         showToast(node.title + ' 运行失败：' + loc, 'danger');
       }
       if (node.el) buildNodeBody(node.el, node);
+      if (node === __composerNode) showNodeComposer(node);
       updateNodeStatus(node);
       markEdgesDirty();
       scheduleAutosave();
@@ -6616,7 +13141,7 @@ function responseImageSrc(item) {
       if (c.type === 'input_image' && c.image_url) cands.push(typeof c.image_url === 'string' ? c.image_url : c.image_url.url || '');
     });
   }
-  return cands.find(s => s && s.indexOf('data:') === 0) || cands.find(Boolean) || null;
+  return cands.map(normalizeImageSrc).find(Boolean) || null;
 }
 function extractResponseImages(data) {
   const list = [];
@@ -6640,28 +13165,307 @@ function generateOpenAIImageViaResponses(base, key, model, prompt, n) {
   return Promise.all(Array.from({ length: count }, () => one()))
     .then(groups => groups.reduce((acc, g) => acc.concat(g), []));
 }
-// gpt-image-2 图像生成（候选模型名依次尝试，兼容官方 API 与第三方中转）
-// 失败根因：部分服务不认 "gpt-image-2" 这个模型名（官方为 gpt-image-1 / dall-e-3），
-// 原代码只在这个名字上重试不同接口，两端都失败 → 生成失败。
-var OPENAI_IMAGE_MODELS = ['gpt-image-2', 'image', 'gpt-image-1', 'dall-e-3'];
+// gpt-image-2 图像生成（精简版：只保留常用主模型 + 备选模型）
+// 目标：减少兜底链路，避免一次生成触发过多请求。
+var OPENAI_IMAGE_MODELS = ['gpt-image-2', 'gpt-image-1'];
 
 // 根据「比例 + 分辨率」挑选 API 支持的具体尺寸
 // gpt-image-1 官方支持：1024x1024 / 1024x1536 / 1536x1024 / 1536x1536 / 1536x2048 / 2048x1024 / 2048x1536 / 2048x2048
 // 第三方中转（gpt-image-2）可能支持更大的尺寸
-function pickOpenAISize(aspect, resolution) {
+const AI_SPEC_ASPECTS = ['1:1', '1:4', '4:5', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9', '9:21', 'custom'];
+const AI_SPEC_RESOLUTION_LABELS = { '高清1K': '1K', '超清2K': '2K', '原画4K': '4K' };
+const AI_SPEC_RESOLUTIONS = ['高清1K', '超清2K', '原画4K'];
+const AI_SPEC_ASPECT_META = {
+  '1:1': { label: '1:1', ratio: 1 },
+  '1:4': { label: '1:4', ratio: 1 / 4 },
+  '4:5': { label: '4:5', ratio: 4 / 5 },
+  '3:2': { label: '3:2', ratio: 3 / 2 },
+  '2:3': { label: '2:3', ratio: 2 / 3 },
+  '4:3': { label: '4:3', ratio: 4 / 3 },
+  '3:4': { label: '3:4', ratio: 3 / 4 },
+  '16:9': { label: '16:9', ratio: 16 / 9 },
+  '9:16': { label: '9:16', ratio: 9 / 16 },
+  '21:9': { label: '21:9', ratio: 21 / 9 },
+  '9:21': { label: '9:21', ratio: 9 / 21 },
+  custom: { label: '自定义', ratio: null }
+};
+
+function resolveAiSpecRatio(aspect, customAspect) {
+  const parsedCustom = parseAspectRatio(customAspect);
+  if (aspect === 'custom' && parsedCustom) return parsedCustom;
+  const meta = AI_SPEC_ASPECT_META[aspect];
+  if (meta && typeof meta.ratio === 'number') return meta.ratio;
+  return parsedCustom || null;
+}
+
+function normalizeAiSpecParams(node) {
+  if (!node) return { aspect: '1:1', resolution: '高清1K' };
+  node.params = node.params || {};
+  const defaultAspect = node.type === 'aiVideo' ? '9:16' : '1:1';
+  const aspect = AI_SPEC_ASPECTS.includes(node.params.aspect) ? node.params.aspect : defaultAspect;
+  const resolution = AI_SPEC_RESOLUTIONS.includes(node.params.resolution) ? node.params.resolution : AI_SPEC_RESOLUTIONS[0];
+  node.params.aspect = aspect;
+  node.params.resolution = resolution;
+  return { aspect, resolution };
+}
+
+function buildUnifiedAiSpecSelect(node, wrapperClass) {
+  const current = normalizeAiSpecParams(node);
+  const selectClass = wrapperClass || 'nc-select';
+  const wrap = document.createElement('button');
+  const aspectLabel = AI_SPEC_ASPECT_META[current.aspect] ? AI_SPEC_ASPECT_META[current.aspect].label : current.aspect;
+  const resolutionLabel = AI_SPEC_RESOLUTION_LABELS[current.resolution] || current.resolution;
+  wrap.type = 'button';
+  wrap.className = selectClass + ' ai-spec-trigger';
+  wrap.title = '点击选择比例与分辨率';
+  wrap.innerHTML = '<span class="ai-spec-trigger-aspect">' + escapeHtml(aspectLabel) + '</span>' +
+    '<span class="ai-spec-trigger-sep">·</span>' +
+    '<span class="ai-spec-trigger-resolution">' + escapeHtml(resolutionLabel) + '</span>' +
+    '<span class="ai-spec-trigger-caret">▾</span>';
+  wrap.onmousedown = (e) => e.stopPropagation();
+  wrap.onclick = (e) => { e.stopPropagation(); openAiSpecModal(node, wrap); };
+  return wrap;
+}
+
+function aiSpecSummary(node) {
+  const current = normalizeAiSpecParams(node);
+  return {
+    aspect: current.aspect,
+    resolution: current.resolution,
+    aspectLabel: AI_SPEC_ASPECT_META[current.aspect] ? AI_SPEC_ASPECT_META[current.aspect].label : current.aspect,
+    resolutionLabel: AI_SPEC_RESOLUTION_LABELS[current.resolution] || current.resolution,
+  };
+}
+
+function applyAiSpecSelection(node, aspect, resolution) {
+  if (!node) return;
+  node.params = node.params || {};
+  if (aspect) node.params.aspect = aspect;
+  if (resolution) node.params.resolution = resolution;
+  if (aspect && aspect !== 'custom' && node.params.customAspect) delete node.params.customAspect;
+  normalizeAiSpecParams(node);
+  if (node.type === 'aiImage' || node.type === 'imageEdit' || node.type === 'aiVideo') applySpecSizeToAiImageNode(node);
+  if (node.el) buildNodeBody(node.el, node);
+  if (node === __composerNode) showNodeComposer(node);
+  scheduleAutosave();
+}
+
+let __aiSpecModalState = null;
+
+function closeAiSpecModal() {
+  const pop = document.getElementById('aiSpecPopover');
+  if (!pop) return;
+  pop.classList.remove('show');
+  __aiSpecModalState = null;
+}
+
+function positionAiSpecPopover(pop, anchor) {
+  const margin = 8;
+  const pw = pop.offsetWidth || 320;
+  const ph = pop.offsetHeight || 320;
+  const rect = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
+  let left = margin;
+  let top = margin;
+  if (rect) {
+    left = rect.left;
+    top = rect.bottom + 6;
+    if (left + pw > window.innerWidth - margin) left = Math.max(margin, window.innerWidth - pw - margin);
+    if (top + ph > window.innerHeight - margin) top = Math.max(margin, rect.top - ph - 6);
+  }
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+}
+
+function renderAiSpecModal() {
+  const st = __aiSpecModalState;
+  const pop = document.getElementById('aiSpecPopover');
+  if (!st || !pop || !pop.classList.contains('show')) return;
+  const bodyEl = pop.querySelector('.ai-spec-modal-body');
+  if (!bodyEl) return;
+
+  const summary = aiSpecSummary(st.node);
+  bodyEl.innerHTML = '';
+
+  const aspectSection = document.createElement('div');
+  aspectSection.className = 'ai-spec-modal-section';
+  const aspectTitle = document.createElement('div');
+  aspectTitle.className = 'ai-spec-modal-section-title';
+  aspectTitle.textContent = '比例';
+  const aspectGrid = document.createElement('div');
+  aspectGrid.className = 'ai-spec-grid';
+  AI_SPEC_ASPECTS.filter(aspect => aspect !== 'custom').forEach((aspect) => {
+    const meta = AI_SPEC_ASPECT_META[aspect];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ai-aspect-card' + (summary.aspect === aspect ? ' active' : '');
+    btn.innerHTML = '<span class="ai-aspect-figure" data-aspect="' + aspect + '"></span><span class="ai-aspect-text">' + meta.label + '</span>';
+    btn.title = meta.label + ' · ' + (aspect === '1:1' ? '方形' : aspect.indexOf(':') > -1 ? aspect : '比例');
+    btn.onmousedown = (e) => e.stopPropagation();
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      applyAiSpecSelection(st.node, aspect, st.node.params && st.node.params.resolution);
+      renderAiSpecModal();
+    };
+    aspectGrid.appendChild(btn);
+  });
+  const customRow = document.createElement('div');
+  customRow.className = 'ai-spec-custom-row' + (summary.aspect === 'custom' ? ' active' : '');
+  const customRaw = String((st.node.params && st.node.params.customAspect) || '1:1').split(':');
+  const customW = document.createElement('input');
+  customW.type = 'number';
+  customW.min = '1';
+  customW.max = '4096';
+  customW.className = 'ai-spec-custom-input';
+  customW.value = String(Math.max(1, parseInt(customRaw[0], 10) || 1));
+  const customH = customW.cloneNode(false);
+  customH.value = String(Math.max(1, parseInt(customRaw[1], 10) || 1));
+  const customSep = document.createElement('span');
+  customSep.className = 'ai-spec-custom-sep';
+  customSep.textContent = ':';
+  const customLabel = document.createElement('span');
+  customLabel.className = 'ai-spec-custom-label';
+  customLabel.textContent = '自定义';
+  const commitCustom = () => {
+    const w = Math.max(1, parseInt(customW.value, 10) || 1);
+    const h = Math.max(1, parseInt(customH.value, 10) || 1);
+    st.node.params = st.node.params || {};
+    st.node.params.customAspect = w + ':' + h;
+    applyAiSpecSelection(st.node, 'custom', st.node.params && st.node.params.resolution);
+    customRow.classList.add('active');
+  };
+  customW.onchange = commitCustom;
+  customH.onchange = commitCustom;
+  customW.onkeydown = customH.onkeydown = (e) => { if (e.key === 'Enter') e.target.blur(); };
+  customRow.appendChild(customLabel);
+  customRow.appendChild(customW);
+  customRow.appendChild(customSep);
+  customRow.appendChild(customH);
+  aspectSection.appendChild(aspectTitle);
+  aspectSection.appendChild(aspectGrid);
+  aspectSection.appendChild(customRow);
+
+  const resolutionSection = document.createElement('div');
+  resolutionSection.className = 'ai-spec-modal-section';
+  const resolutionTitle = document.createElement('div');
+  resolutionTitle.className = 'ai-spec-modal-section-title';
+  resolutionTitle.textContent = '分辨率';
+  const resolutionGrid = document.createElement('div');
+  resolutionGrid.className = 'ai-spec-resolution-grid';
+  AI_SPEC_RESOLUTIONS.forEach((resolution) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ai-spec-resolution-btn' + (summary.resolution === resolution ? ' active' : '');
+    btn.textContent = AI_SPEC_RESOLUTION_LABELS[resolution] || resolution;
+    btn.title = resolution;
+    btn.onmousedown = (e) => e.stopPropagation();
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      applyAiSpecSelection(st.node, st.node.params && st.node.params.aspect, resolution);
+      renderAiSpecModal();
+    };
+    resolutionGrid.appendChild(btn);
+  });
+  resolutionSection.appendChild(resolutionTitle);
+  resolutionSection.appendChild(resolutionGrid);
+
+  bodyEl.appendChild(aspectSection);
+  bodyEl.appendChild(resolutionSection);
+}
+
+function openAiSpecModal(node, anchor) {
+  if (!node) return;
+  node.params = node.params || {};
+  normalizeAiSpecParams(node);
+  let pop = document.getElementById('aiSpecPopover');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'aiSpecPopover';
+    pop.className = 'ai-spec-popover';
+    pop.innerHTML = '<div class="ai-spec-modal-body"></div>';
+    document.body.appendChild(pop);
+    pop.addEventListener('mousedown', (e) => e.stopPropagation());
+    document.addEventListener('mousedown', (e) => {
+      const el = document.getElementById('aiSpecPopover');
+      if (!el || !el.classList.contains('show')) return;
+      if (el.contains(e.target)) return;
+      if (e.target.closest && e.target.closest('.ai-spec-trigger')) return;
+      closeAiSpecModal();
+    }, true);
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const el = document.getElementById('aiSpecPopover');
+      if (el && el.classList.contains('show')) closeAiSpecModal();
+    });
+    window.addEventListener('wheel', (e) => {
+      const el = document.getElementById('aiSpecPopover');
+      if (!el || !el.classList.contains('show')) return;
+      if (el.contains(e.target)) return;
+      closeAiSpecModal();
+    }, { passive: true });
+  }
+  __aiSpecModalState = { node };
+  pop.classList.add('show');
+  renderAiSpecModal();
+  positionAiSpecPopover(pop, anchor || null);
+}
+
+function pickOpenAISize(aspect, resolution, customAspect) {
   const ar = aspect || '1:1';
+  const customRatio = resolveAiSpecRatio(ar, customAspect);
   if (resolution === '超清2K' || resolution === '原画4K') {
     const m = {
-      '1:1': '2048x2048', '16:9': '2048x1152', '9:16': '1152x2048',
-      '3:2': '1920x1280', '3:4': '1024x1536', '4:3': '2048x1536', '21:9': '1920x822'
+      '1:1': resolution === '原画4K' ? '4096x4096' : '2048x2048',
+      '1:4': resolution === '原画4K' ? '1024x4096' : '512x2048',
+      '4:5': resolution === '原画4K' ? '4096x5120' : '2048x2560',
+      '16:9': resolution === '原画4K' ? '4096x2304' : '2048x1152',
+      '9:16': resolution === '原画4K' ? '2304x4096' : '1152x2048',
+      '3:2': resolution === '原画4K' ? '3840x2560' : '1920x1280',
+      '3:4': resolution === '原画4K' ? '3072x4096' : '1024x1536',
+      '4:3': resolution === '原画4K' ? '4096x3072' : '2048x1536',
+      '21:9': resolution === '原画4K' ? '4096x1754' : '1920x822'
     };
+    if (ar === 'custom' && customRatio) {
+      const longSide = resolution === '原画4K' ? 4096 : 2048;
+      const shortSide = Math.max(256, Math.round(longSide / customRatio));
+      const safeShortSide = Math.max(256, Math.round(shortSide / 8) * 8);
+      return customRatio >= 1 ? longSide + 'x' + safeShortSide : safeShortSide + 'x' + longSide;
+    }
     return m[ar] || '2048x2048';
   }
   const m = {
-    '1:1': '1024x1024', '16:9': '1536x1024', '9:16': '1024x1536',
+    '1:1': '1024x1024', '1:4': '512x2048', '4:5': '1024x1280', '16:9': '1536x1024', '9:16': '1024x1536',
     '3:2': '1536x1024', '3:4': '1024x1536', '4:3': '1536x1024', '21:9': '1536x1024'
   };
+  if (ar === 'custom' && customRatio) {
+    return customRatio >= 1 ? '1536x1024' : '1024x1536';
+  }
   return m[ar] || '1024x1024';
+}
+
+// 解析「16:9」这类比例为数值
+function parseAspectRatio(s) {
+  const m = /^(\d+(?:\.\d+)?)\s*[:：]\s*(\d+(?:\.\d+)?)$/.exec(String(s || ''));
+  return m ? Number(m[1]) / Number(m[2]) : null;
+}
+// 按目标比例居中裁剪 dataURL（上游忽略尺寸参数时的兜底；比例已一致或非 dataURL 时原样返回）
+function cropDataUrlToAspect(src, targetRatio) {
+  return new Promise(function(resolve) {
+    if (typeof src !== 'string' || !src.startsWith('data:') || !targetRatio) { resolve(src); return; }
+    const img = new Image();
+    img.onload = function() {
+      const cur = img.width / img.height;
+      if (Math.abs(cur - targetRatio) < 0.02) { resolve(src); return; }
+      let sw, sh, sx, sy;
+      if (cur > targetRatio) { sh = img.height; sw = img.height * targetRatio; sx = (img.width - sw) / 2; sy = 0; }
+      else { sw = img.width; sh = img.width / targetRatio; sx = 0; sy = (img.height - sh) / 2; }
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(sw); canvas.height = Math.round(sh);
+      canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      try { resolve(canvas.toDataURL('image/jpeg', 0.92)); } catch (e) { resolve(src); }
+    };
+    img.onerror = function() { resolve(src); };
+    img.src = src;
+  });
 }
 
 // 把多张生成图拼成网格（一张图作为节点输出），张数=1 时直接返回原图
@@ -6722,13 +13526,13 @@ function openAIImageSingle(base, key, model, prompt, size) {
     .then(function(data) {
       const item = data && data.data && data.data[0];
       if (!item) throw new Error('返回数据为空');
-      const img = item.b64_json ? 'data:image/png;base64,' + item.b64_json : (item.url || null);
-      if (!img) throw new Error('未获取到图片');
+      const img = normalizeImageSrc(item.b64_json ? 'data:image/png;base64,' + item.b64_json : (item.url || null));
+      if (!img) throw new Error(describeImagePayloadIssue(item));
       return img;
     });
 }
 
-// 依次尝试候选模型名：每个先走 /images/generations，遇 404/不支持回退 /responses，再失败换下一个模型名
+// 依次尝试候选模型名：每个只走 /images/generations，失败就换下一个模型名
 // 阶段 9：支持 models 覆盖（路由选中的图片模型优先尝试）
 function openAIImageWithFallback(base, key, prompt, count, size, models) {
   var lastErr = null;
@@ -6756,25 +13560,42 @@ function openAIImageWithFallback(base, key, prompt, count, size, models) {
       .catch(function(err) {
         lastErr = err;
         attempts.push(m);
-        if (shouldFallbackToResponses(err)) {
-          return generateOpenAIImageViaResponses(base, key, m, prompt, 1)
-            .then(function(imgs) {
-              if (count > 1) {
-                var extra = [];
-                for (var j = 1; j < count; j++) extra.push(generateOpenAIImageViaResponses(base, key, m, prompt, 1));
-                return Promise.all(extra).then(function(gs) {
-                  var all = imgs.concat.apply(imgs, gs);
-                  return all.slice(0, count);
-                }).catch(function() { return imgs; });
-              }
-              return imgs;
-            })
-            .catch(function(err2) { lastErr = err2; return attempt(rest); });
-        }
         return attempt(rest);
       });
   }
   return attempt(_cands);
+}
+
+function isCorsLikeError(err) {
+  var msg = String((err && err.message) || err || '');
+  return /Failed to fetch|NetworkError|Load failed|TypeError: Failed|CORS|cross-origin|blocked by.*policy/i.test(msg);
+}
+
+function generateImageViaProxyFallback(node, prompt, count, size, reason) {
+  var proxy = _fcProxy();
+  if (!proxy) return Promise.reject(new Error('代理未配置'));
+  var route = _routeModel('image');
+  var model = (route && route.model) || 'gpt-image-2';
+  var provider = (route && route.provider) || 'openai';
+  var t0 = Date.now();
+  if (reason) showToast('直连被拦截，已切换代理生成：' + reason, 'warn');
+  return proxy.call({
+    provider: provider,
+    endpoint: '/images/generations',
+    token: window.FlowCraft.__userToken || undefined,
+    body: { model: model, prompt: prompt, n: count, size: size }
+  }).then(function(json) {
+    var imgs = [];
+    if (Array.isArray(json && json.data)) {
+      imgs = json.data.map(function(d) { return normalizeImageSrc(d && d.b64_json ? 'data:image/png;base64,' + d.b64_json : (d && d.url ? d.url : '')) || ''; });
+    } else if (Array.isArray(json && json.output)) {
+      imgs = json.output.map(function(o) { return normalizeImageSrc(o && o.image && o.image.b64_json ? 'data:image/png;base64,' + o.image.b64_json : (o && o.image && o.image.url ? o.image.url : '')) || ''; });
+    }
+    imgs = imgs.filter(Boolean);
+    if (!imgs.length) throw new ProxyError('代理未返回图片数据', { kind: 'system', retryable: false, code: 'empty_image' });
+    if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: provider + '/' + model, ok: true, ms: Date.now() - t0 });
+    return imgs;
+  });
 }
 
 // 把 OpenAI 接口错误翻译成可操作的提示（区分网络/CORS 与 API 错误）
@@ -6888,15 +13709,15 @@ function openAIImageEditMulti(base, key, model, prompt, imageDataUrls, size, use
   }).then(function(data) {
     const it = (data && data.data && data.data[0]) || null;
     if (!it) throw new Error('参考图生成接口返回为空');
-    const img = it.b64_json ? 'data:image/png;base64,' + it.b64_json : (it.url || null);
-    if (!img) throw new Error('未获取到图片');
+    const img = normalizeImageSrc(it.b64_json ? 'data:image/png;base64,' + it.b64_json : (it.url || null));
+    if (!img) return createImageErrorPlaceholder(describeImagePayloadIssue(it));
     return img;
   });
 }
 
 // 依次尝试：候选模型 × (多图 image[] → 单图 image)，全失败则抛出
 function generateImageWithRefs(base, key, prompt, images, count, size) {
-  const models = ['gpt-image-1', 'gpt-image-2', 'dall-e-2'];
+  const models = ['gpt-image-1', 'gpt-image-2'];
   const multi = (images || []).length > 1;
   let lastErr = null;
   function once(model, useArray) {
@@ -6938,15 +13759,39 @@ function generateImageWithRefs(base, key, prompt, images, count, size) {
 // 失败时抛出 ProxyError，由 executeNodeAsync 的 catch 交由执行引擎分类（transient 可重试）。
 async function generateImageViaProxy(node) {
   const proxy = _fcProxy();
-  const prompt = (node.effectivePrompt || node.prompt || '').trim();
-  if (!prompt) {
+  const rawPrompt = (node.effectivePrompt || node.prompt || '').trim();
+  if (!rawPrompt) {
     throw new ProxyError('请先输入提示词（或在节点内输入）', { kind: 'param', retryable: false, code: 'empty_prompt' });
   }
+  // 负向提示词合并发送：gpt-image 系列无 negative_prompt 参数，以「避免以下问题」追加到提示词末尾
+  const neg = ((node.params && node.params.negativePrompt) || '').trim();
+  const prompt = neg ? rawPrompt + '\n避免以下问题：' + neg : rawPrompt;
+
   const countMap = { '1张': 1, '2张': 2, '4张': 4, '6张': 6, '8张': 8 };
   const count = countMap[node.params.count] || 1;
-  const size = pickOpenAISize(node.params.aspect, node.params.resolution);
+  const size = pickOpenAISize(node.params.aspect, node.params.resolution, node.params.customAspect);
+  applySpecSizeToAiImageNode(node); // 生成前确保框型与规格一致
   node.status = 'running';
   updateNodeStatus(node);
+
+  // 参考图：<<<资产令牌>>> + 面板直传 + 多源连入（与直连路径口径一致，最多 4 张）
+  let refImages = [];
+  try {
+    const ref = resolveRefTokens(rawPrompt);
+    const inlineRefs = collectInlineRefs(node);
+    if (inlineRefs.length) ref.images = ref.images.concat(inlineRefs.map(function(r) { return r.src; }));
+    if (node._multiInputs && node._multiInputs[0] && node._multiInputs[0].length > 1) {
+      const extraImgs = node._multiInputs[0]
+        .filter(function(p) { return p && p.type === 'image' && typeof p.value === 'string' && p.value.startsWith('data:'); })
+        .map(function(p) { return p.value; });
+      ref.images = ref.images.concat(extraImgs);
+    }
+    refImages = (ref.images || []).filter(Boolean).slice(0, 4);
+    node._refInfo = { hit: (ref.refs || []).length, missing: ref.missing || [], names: (ref.refs || []).map(function(r) { return r.name; }) };
+    if (ref.missing && ref.missing.length) {
+      showToast('有 ' + ref.missing.length + ' 个引用未在素材库找到：' + ref.missing.join('、'), 'warn');
+    }
+  } catch (e) { /* 参考图收集失败不阻断文生图 */ }
 
   // 阶段 9：路由选中的图片模型（默认 gpt-image-2，行为等价）
   const _rImg = _routeModel('image');
@@ -6954,21 +13799,56 @@ async function generateImageViaProxy(node) {
   const _imgProvider = (_rImg && _rImg.provider) || 'openai';
   const _imgModelId = _imgProvider + '/' + _imgModel;
   const _t0 = Date.now();
+  const _token = (window.FlowCraft && window.FlowCraft.__userToken) || undefined;
 
-  const json = await proxy.call({
-    provider: _imgProvider,
-    endpoint: '/images/generations',
-    token: (window.FlowCraft && window.FlowCraft.__userToken) || undefined,
-    body: { model: _imgModel, prompt: prompt, n: count, size: size }
-  });
-
-  let imgs = [];
-  if (Array.isArray(json && json.data)) {
-    imgs = json.data.map(d => 'data:image/png;base64,' + (d && d.b64_json ? d.b64_json : ''));
-  } else if (Array.isArray(json && json.output)) {
-    imgs = json.output.filter(o => o && o.image && o.image.url).map(o => o.image.url);
+  // 中转对 n>1 支持不稳（上游 400 unknown_parameter）：恒按 n=1 生成，多张并行（与直连路径口径一致）
+  let editsUnsupported = false;
+  // 失败不自动重试：直接报错，由用户决定是否手动重试
+  async function once() {
+    if (refImages.length && !editsUnsupported) {
+      try {
+        return await proxy.call({
+          provider: _imgProvider, endpoint: '/images/edits', token: _token,
+          body: { model: _imgModel, prompt: prompt, n: 1, size: size, imageDataUrls: refImages }
+        });
+      } catch (errEdits) {
+        editsUnsupported = true;
+        showToast('参考图生成失败（' + ((errEdits && errEdits.message) || errEdits) + '），已改为纯文生图', 'warn', 4000);
+      }
+    }
+    return proxy.call({
+      provider: _imgProvider, endpoint: '/images/generations', token: _token,
+      body: { model: _imgModel, prompt: prompt, n: 1, size: size }
+    });
   }
-  imgs = imgs.filter(Boolean);
+  function collect(json) {
+    const arr = [];
+    if (Array.isArray(json && json.data)) {
+      json.data.forEach(d => arr.push('data:image/png;base64,' + (d && d.b64_json ? d.b64_json : '')));
+    } else if (Array.isArray(json && json.output)) {
+      json.output.filter(o => o && o.image && o.image.url).forEach(o => arr.push(o.image.url));
+    }
+    return arr.filter(Boolean);
+  }
+
+  const first = await once();
+  let imgs = collect(first);
+  if (count > 1 && imgs.length) {
+    const extra = await Promise.all(Array.from({ length: count - 1 }, () => once().catch(() => null)));
+    extra.forEach(j => { if (j) imgs = imgs.concat(collect(j)); });
+  }
+  imgs = imgs.filter(Boolean).slice(0, count);
+  // 兜底：该中转实测忽略尺寸参数（恒返回方形）→ 按所选比例居中裁剪
+  const _arTarget = resolveAiSpecRatio(node.params.aspect, node.params.customAspect);
+  if (_arTarget && imgs.length) {
+    let _cropped = false;
+    imgs = await Promise.all(imgs.map(async function(src) {
+      const out = await cropDataUrlToAspect(src, _arTarget);
+      if (out !== src) _cropped = true;
+      return out;
+    }));
+    if (_cropped) showToast('该中转不支持尺寸参数，已按所选比例（' + node.params.aspect + '）居中裁剪', 'warn', 4000);
+  }
   if (!imgs.length) {
     if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _imgModelId, ok: false, ms: Date.now() - _t0 });
     throw new ProxyError('代理未返回图片数据', { kind: 'system', retryable: false, code: 'empty_image' });
@@ -6976,11 +13856,9 @@ async function generateImageViaProxy(node) {
 
   if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _imgModelId, ok: true, ms: Date.now() - _t0 });
   node._galleryImages = imgs.slice();
-  if (count > 1) {
-    const grid = await composeImageGrid(imgs, node.params.aspect);
-    node._imageCount = imgs.length;
-    return grid;
-  }
+  node._fitProbed = false;
+  node._imageCount = imgs.length;
+  if (imgs[0]) node.thumb = imgs[0];
   return imgs[0];
 }
 
@@ -6991,23 +13869,29 @@ async function generateImageViaProxy(node) {
 async function runVideoNodeViaProxy(node) {
   const proxy = _fcProxy();
   const prompt = (node.effectivePrompt || node.prompt || '').trim() || '生成一段视频';
-  const imgIn = (node.inputsData || []).find(d => d && d.type === 'image' && typeof d.value === 'string' && d.value.startsWith('data:'));
+  const imgIn = (node.inputsData || []).find(d => d && d.type === 'image' && normalizeImageSrc(d.value));
+  const videoRefs = collectAiVideoRefs(node);
+  const model = String((node.params && node.params.model) || '可灵 2.0').trim();
+  const provider = /runway/i.test(model) ? 'runway' : 'kling';
+  const videoLabel = provider + ' / ' + model;
   const body = {
-    model: (node.params && node.params.model) || 'Sora 2',
+    model: model,
     prompt: prompt,
     image: imgIn ? imgIn.value : null,
     aspect: (node.params && node.params.aspect) || '9:16',
-    duration: (node.params && node.params.duration) || '5秒'
+    duration: (node.params && node.params.duration) || '5秒',
+    refVideos: videoRefs.map(function(r) { return { name: r.name, src: r.src }; })
   };
 
   const submit = await proxy.call({
-    provider: 'kling',
+    provider: provider,
     endpoint: '/videos',
     token: (window.FlowCraft && window.FlowCraft.__userToken) || undefined,
     body: body
   });
   if (!submit || !submit.taskId) {
-    throw new ProxyError('视频任务提交未返回 taskId', { kind: 'system', retryable: true, code: 'video_submit' });
+    const submitKeys = submit && typeof submit === 'object' ? Object.keys(submit).slice(0, 6).join(', ') : '';
+    throw new ProxyError('视频任务提交失败：代理未返回 taskId（' + videoLabel + '）' + (submitKeys ? '，返回字段：' + submitKeys : ''), { kind: 'system', retryable: true, code: 'video_submit' });
   }
 
   const taskId = submit.taskId;
@@ -7020,15 +13904,17 @@ async function runVideoNodeViaProxy(node) {
     task = await proxy.getTask(taskId);
     if (task && task.status === 'success') break;
     if (task && task.status === 'failed') {
-      throw new ProxyError('视频生成任务失败', { kind: 'system', retryable: true, code: 'video_failed' });
+      const reason = (task.error || task.message || (task.result && (task.result.error || task.result.message)) || '未知原因');
+      throw new ProxyError('视频生成失败：' + reason + '（' + videoLabel + '）', { kind: 'system', retryable: true, code: 'video_failed' });
     }
     await new Promise(r => setTimeout(r, 500));
   }
   if (!task || task.status !== 'success') {
-    throw new ProxyError('视频生成超时', { kind: 'timeout', retryable: true, code: 'video_timeout' });
+    const lastStatus = task && task.status ? task.status : 'unknown';
+    throw new ProxyError('视频生成超时：' + videoLabel + ' 在 120 秒内仍处于 ' + lastStatus + ' 状态', { kind: 'timeout', retryable: true, code: 'video_timeout' });
   }
   const videoUrl = (task.result && (task.result.video_url || task.result.url)) || '';
-  return { thumb: videoUrl, outputsData: [{ type: 'video', value: videoUrl }] };
+  return { thumb: videoUrl, outputsData: [{ type: 'video', value: videoUrl }], refVideos: videoRefs };
 }
 
 function generateOpenAIImage(node) {
@@ -7041,22 +13927,45 @@ function generateOpenAIImage(node) {
     showToast('未配置 OpenAI API Key：请打开 AI 助手面板 → 模型选「GPT Image 2」→ 点 ⚙ 填入 API Key', 'warn');
     return Promise.resolve(null);
   }
-  const prompt = (node.effectivePrompt || node.prompt || '').trim();
-  if (!prompt) {
+  const _rawPrompt0 = (node.effectivePrompt || node.prompt || '').trim();
+  if (!_rawPrompt0) {
     node.status = 'error';
     showToast('请先输入提示词（或在节点内输入）', 'warn');
     return Promise.resolve(null);
   }
+  // 负向提示词合并发送（代理/直连口径一致）
+  const _neg0 = ((node.params && node.params.negativePrompt) || '').trim();
+  const prompt = _neg0 ? _rawPrompt0 + '\n避免以下问题：' + _neg0 : _rawPrompt0;
   const base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
   const countMap = { '1张': 1, '2张': 2, '4张': 4, '6张': 6, '8张': 8 };
   const count = countMap[node.params.count] || 1;
-  const size = pickOpenAISize(node.params.aspect, node.params.resolution);
+  const size = pickOpenAISize(node.params.aspect, node.params.resolution, node.params.customAspect);
 
   node.status = 'running';
   updateNodeStatus(node);
 
   // 解析 <<<名称>>> 引用令牌 → 命中的资产图作为参考图随请求发送
   const ref = resolveRefTokens(prompt);
+  // 合并「面板内直传参考图」（文本节点本体或上游文本节点的 node.refImages）
+  const inlineRefs = collectInlineRefs(node);
+  if (inlineRefs.length) {
+    inlineRefs.forEach(function(r) { ref.refs.push({ token: r.name, name: r.name, src: r.src }); });
+    ref.images = ref.images.concat(inlineRefs.map(function(r) { return r.src; }));
+  }
+  // 合并「多源连入 image 端口」的额外参考图（批量连线：多张图连到同一 image 端口）
+  try {
+    if (node._multiInputs && node._multiInputs[0] && node._multiInputs[0].length > 1) {
+      const extraImgs = node._multiInputs[0]
+        .filter(function(p) { return p && p.type === 'image' && typeof p.value === 'string' && p.value.startsWith('data:'); })
+        .map(function(p) { return p.value; });
+      if (extraImgs.length) {
+        ref.images = ref.images.concat(extraImgs);
+        showToast(`已将 ${extraImgs.length} 张多源参考图合并发送`, 'info');
+      }
+    }
+  } catch (e) { /* 容错：多源参考图读取失败不影响主流程 */ }
+  const shouldSpawnPreview = true;
+  ref.augmented = buildRefAugmentedPrompt(ref);
   node._refInfo = { hit: ref.refs.length, missing: ref.missing.length, names: ref.refs.map(function(r) { return r.name; }) };
   if (ref.missing.length) {
     showToast('有 ' + ref.missing.length + ' 个引用未在素材库找到：' + ref.missing.join('、') +
@@ -7065,16 +13974,22 @@ function generateOpenAIImage(node) {
 
   function finish(imgs) {
     node._galleryImages = imgs.slice();
-    if (count > 1) {
-      return composeImageGrid(imgs, node.params.aspect).then(function(grid) {
-        node._imageCount = imgs.length;
-        return grid;
-      });
-    }
+    node._fitProbed = false;
+    node._imageCount = imgs.length;
+    if (imgs[0]) node.thumb = imgs[0];
     return imgs[0];
   }
   function plain() {
     return openAIImageWithFallback(base, key, prompt, count, size).then(finish);
+  }
+
+  function plainWithProxyFallback() {
+    return openAIImageWithFallback(base, key, prompt, count, size).then(finish).catch(function(err) {
+      if (isCorsLikeError(err)) {
+        return generateImageViaProxyFallback(node, prompt, count, size, describeOpenAIError(err)).then(finish);
+      }
+      throw err;
+    });
   }
 
   let task;
@@ -7085,10 +14000,10 @@ function generateOpenAIImage(node) {
       .then(finish)
       .catch(function(err) {
         showToast('带参考图生成失败，已回退为纯文本生成：' + describeOpenAIError(err), 'warn');
-        return plain();
+        return plainWithProxyFallback();
       });
   } else {
-    task = plain();
+    task = plainWithProxyFallback();
   }
 
   return task.catch(err => {
@@ -7154,19 +14069,23 @@ function openAIImageEditSingle(base, key, model, prompt, imageDataUrl, size) {
   }).then(function(data) {
     const it = (data && data.data && data.data[0]) || null;
     if (!it) throw new Error('编辑接口返回为空');
-    const img = it.b64_json ? 'data:image/png;base64,' + it.b64_json : (it.url || null);
-    if (!img) throw new Error('未获取到图片');
+    const img = normalizeImageSrc(it.b64_json ? 'data:image/png;base64,' + it.b64_json : (it.url || null));
+    if (!img) return createImageErrorPlaceholder(describeImagePayloadIssue(it));
     return img;
   });
 }
 
 // 根据节点类型构造图生图提示词
 function buildImg2ImgPrompt(node) {
-  const extra = (node.prompt || '').trim();
+  const extra = (node.effectivePrompt || node.prompt || '').trim();
   const base = extra ? extra + '. ' : '';
   if (node.type === 'upscale') {
     return base + 'Upscale this image to higher resolution (2x), enhance sharpness and fine details, ' +
       'preserve the original composition, subjects, colors and artistic style. Clean, photorealistic, no distortion.';
+  }
+  if (node.type === 'imageEdit') {
+    return base + '请根据修正说明对提供的图片进行修正。尽量保留原始构图、主体身份、色彩和整体结构，除非说明中明确要求更改。' +
+      '输出干净、自然、高质量的修正结果，不要额外添加无关元素，也不要造成明显畸变。';
   }
   // lineart：提取为干净黑白线稿
   return base + 'Convert this image into clean black-and-white line art / sketch on a white background. ' +
@@ -7176,14 +14095,42 @@ function buildImg2ImgPrompt(node) {
 
 // 图生图主入口：依次尝试候选模型，全部失败则抛出（调用方捕获并回退）
 function generateOpenAIImageEdit(node, imageDataUrl) {
+  const proxy = _fcProxy();
+  if (proxy) {
+    const prompt = buildImg2ImgPrompt(node);
+    const aspect = node.params.aspect || '1:1';
+    const resolution = node.type === 'upscale' ? '超清2K' : '高清1K';
+    const size = pickOpenAISize(aspect, resolution, node.params && node.params.customAspect);
+    const route = _routeModel('image');
+    const model = 'gpt-image-2';
+    const provider = (route && route.provider) || 'openai';
+    const t0 = Date.now();
+    let extraRefs = [];
+    try {
+      extraRefs = Array.isArray(node.refImages) ? node.refImages.filter(function(r) { return r && r.src && r.src !== imageDataUrl; }).map(function(r) { return r.src; }) : [];
+    } catch (e) { extraRefs = []; }
+    return proxy.call({
+      provider: provider,
+      endpoint: '/images/edits',
+      token: window.FlowCraft.__userToken || undefined,
+      body: { model: model, prompt: prompt, size: size, n: 1, imageDataUrl: imageDataUrl, imageDataUrls: extraRefs.length ? [imageDataUrl].concat(extraRefs) : [imageDataUrl] }
+    }).then(function(data) {
+      const it = (data && data.data && data.data[0]) || null;
+      const img = it && normalizeImageSrc(it.b64_json ? 'data:image/png;base64,' + it.b64_json : (it.url || null));
+      if (!img) return createImageErrorPlaceholder(describeImagePayloadIssue(it));
+      if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: provider + '/' + model, ok: true, ms: Date.now() - t0 });
+      return img;
+    });
+  }
   const key = localStorage.getItem(OPENAI_KEY_STORAGE);
   if (!key) return Promise.resolve(null);
   const base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
   const prompt = buildImg2ImgPrompt(node);
   const aspect = node.params.aspect || '1:1';
   const resolution = node.type === 'upscale' ? '超清2K' : '高清1K';
-  const size = pickOpenAISize(aspect, resolution);
-  const models = ['gpt-image-1', 'gpt-image-2', 'dall-e-2'];
+  const size = pickOpenAISize(aspect, resolution, node.params && node.params.customAspect);
+  const extraRefs = Array.isArray(node.refImages) ? node.refImages.filter(function(r) { return r && r.src && r.src !== imageDataUrl; }).map(function(r) { return r.src; }) : [];
+  const models = ['gpt-image-2'];
   let lastErr = null;
   function attempt(ms) {
     if (!ms.length) {
@@ -7192,6 +14139,16 @@ function generateOpenAIImageEdit(node, imageDataUrl) {
       throw e;
     }
     const m = ms[0];
+    if (extraRefs.length) {
+      return openAIImageEditMulti(base, key, m, prompt, [imageDataUrl].concat(extraRefs), size, true)
+        .catch(function(err) {
+          lastErr = err;
+          if (shouldFallbackToResponses(err) || (err && err.status === 400)) {
+            return openAIImageEditSingle(base, key, m, prompt, imageDataUrl, size);
+          }
+          throw err;
+        });
+    }
     return openAIImageEditSingle(base, key, m, prompt, imageDataUrl, size)
       .catch(function(err) {
         lastErr = err;
@@ -7211,16 +14168,92 @@ function getNodeInputImage(node) {
   const img = inData.find(function(d) {
     return d && d.type === 'image' && typeof d.value === 'string' && /^data:image/.test(d.value);
   });
-  return img ? img.value : null;
+  if (img && img.value) return img.value;
+  if (node && typeof node.croppedImage === 'string' && /^data:image/.test(node.croppedImage)) return node.croppedImage;
+  if (node && typeof node.uploadedImage === 'string' && /^data:image/.test(node.uploadedImage)) return node.uploadedImage;
+  const refImg = node && Array.isArray(node.refImages) ? node.refImages.find(r => r && typeof r.src === 'string' && /^data:image/.test(r.src)) : null;
+  if (refImg && refImg.src) return refImg.src;
+  const thumb = node && typeof node.thumb === 'string' && /^data:image/.test(node.thumb) ? node.thumb : null;
+  return thumb;
 }
 
 //================ 16b. 循环节点驱动逻辑 ================
 // 当前循环迭代上下文（仅循环运行期间有效，循环外为 null）
 let LOOP_STATE = null;
 
-// 判断值是否为 data: 图片
+// 判断值是否为可展示的图片地址：data: 图片 / http(s) / blob:
+// 这里会过滤掉空的 data URL（例如 data:image/png;base64,），避免渲染出黑块或空预览。
+function normalizeImageSrc(v) {
+  if (typeof v !== 'string') return null;
+  const s = v.trim();
+  if (!s) return null;
+  if (/^(https?:|blob:)/i.test(s)) return s;
+  if (!/^data:image\//i.test(s)) return null;
+  const comma = s.indexOf(',');
+  if (comma < 0) return null;
+  const payload = s.slice(comma + 1).trim();
+  return payload ? s : null;
+}
 function isDataImage(v) {
-  return typeof v === 'string' && v.indexOf('data:image') === 0;
+  return typeof v === 'string' && /^data:image\//i.test(v.trim()) && v.trim().indexOf(',') >= 0 && v.trim().slice(v.trim().indexOf(',') + 1).trim().length > 0;
+}
+
+// 用于提示“为什么这张图没法显示”：区分“没返回图”与“返回了空/损坏的图片字段”。
+function describeImagePayloadIssue(item) {
+  if (!item) return '返回数据为空';
+  const issues = [];
+  if (Object.prototype.hasOwnProperty.call(item, 'b64_json') && !String(item.b64_json || '').trim()) issues.push('b64_json 为空');
+  if (Object.prototype.hasOwnProperty.call(item, 'url') && !normalizeImageSrc(item.url)) issues.push('url 无效');
+  if (Object.prototype.hasOwnProperty.call(item, 'result') && !normalizeImageSrc(item.result)) issues.push('result 无效');
+  if (Object.prototype.hasOwnProperty.call(item, 'image') && item.image) {
+    if (Object.prototype.hasOwnProperty.call(item.image, 'b64_json') && !String(item.image.b64_json || '').trim()) issues.push('image.b64_json 为空');
+    if (Object.prototype.hasOwnProperty.call(item.image, 'url') && !normalizeImageSrc(item.image.url)) issues.push('image.url 无效');
+  }
+  return issues.length ? ('返回了无效图片数据（' + issues.join('；') + '）') : '未获取到图片';
+}
+
+function createImageErrorPlaceholder(message) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 480;
+  canvas.height = 320;
+  const ctx = canvas.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  g.addColorStop(0, '#111827');
+  g.addColorStop(0.52, '#0E1220');
+  g.addColorStop(1, '#151028');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const glow = ctx.createLinearGradient(36, 24, canvas.width - 36, canvas.height - 24);
+  glow.addColorStop(0, 'rgba(118, 135, 255, 0.20)');
+  glow.addColorStop(1, 'rgba(182, 104, 255, 0.18)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(16, 16, canvas.width - 32, canvas.height - 32);
+
+  ctx.strokeStyle = 'rgba(112, 141, 255, 0.42)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+  // 顶部小状态条
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.beginPath();
+  ctx.roundRect(24, 24, 112, 28, 14);
+  ctx.fill();
+  ctx.fillStyle = '#FFB4B4';
+  ctx.font = '600 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('图片异常', 80, 38);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.94)';
+  ctx.font = '600 20px sans-serif';
+  ctx.fillText('预览图未能正常显示', canvas.width / 2, 150);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.70)';
+  ctx.font = '14px sans-serif';
+  const lines = String(message || '无效图片数据').split(/\n+/).slice(0, 2);
+  lines.forEach((line, idx) => ctx.fillText(line.slice(0, 34), canvas.width / 2, 180 + idx * 18));
+  return canvas.toDataURL('image/png');
 }
 
 // 收集某节点的全部下游（后代）
@@ -7441,6 +14474,7 @@ document.body.appendChild(contextMenu);
 const MENU_ICONS = {
   copy:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="8" height="8" rx="1"/><path d="M3 11V3h8"/></svg>',
   duplicate: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="5" y="5" width="8" height="8" rx="1"/></svg>',
+  split:     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="4" height="4" rx="1"/><rect x="10" y="2" width="4" height="4" rx="1"/><rect x="2" y="10" width="4" height="4" rx="1"/><rect x="10" y="10" width="4" height="4" rx="1"/></svg>',
   delete:    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10"/></svg>',
   front:     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="8" height="8" rx="1"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/></svg>',
   back:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="8" height="8" rx="1" opacity="0.4"/><rect x="6" y="6" width="8" height="8" rx="1"/></svg>',
@@ -7478,7 +14512,7 @@ function recordRecentNode(type) {
   saveRecentNodes(list);
 }
 const CTX_NODE_SECTIONS = [
-  { label: 'AI 生成', types: ['aiImage', 'aiVideo', 'aiSet'] },
+  { label: 'AI 生成', types: ['aiImage', 'imageEdit', 'aiVideo', 'aiSet'] },
   { label: '文本 / 提示词', types: ['text', 'script'] },
   { label: '素材 / 处理', types: ['image', 'videoInput', 'lineart', 'upscale', 'compare', 'material', 'light', 'layout'] },
   { label: '视频成片', types: ['videoBreak', 'footage', 'voiceover', 'subtitle', 'bgm', 'compose', 'publish'] },
@@ -7487,7 +14521,7 @@ const CTX_NODE_SECTIONS = [
 ];
 let _ctxWorld = { x: 0, y: 0 };
 
-const CTX_COMMON_TYPES = ['aiImage', 'aiVideo', 'text', 'image', 'upscale', 'save'];
+const CTX_COMMON_TYPES = ['aiImage', 'imageEdit', 'aiVideo', 'text', 'image', 'upscale', 'save'];
 
 function ensureCtxFlyout() {
   if (!_ctxFlyout) {
@@ -7607,6 +14641,15 @@ function showContextMenu(x, y, node) {
   if (node) {
     // —— 节点上下文菜单 ——
     addMenuItem('创建副本', MENU_ICONS.duplicate, getShortcutDisplay(keybindings.duplicateSelected), () => duplicateNode(node));
+    if (node.type === 'aiImage' && Array.isArray(node._galleryImages) && node._galleryImages.length > 1) {
+      addMenuItem('拆分为独立节点', MENU_ICONS.split, '', () => splitAiImageGalleryToNodes(node));
+    }
+    // 右键查看大图：单图直接开灯箱，多图画廊传入列表支持左右切换
+    const _lbList = (node.type === 'aiImage' && Array.isArray(node._galleryImages) && node._galleryImages.length > 1) ? node._galleryImages : null;
+    const _lbSrc = normalizeImageSrc(_lbList ? _lbList[0] : (getNodeDisplayImageSource(node) || node.thumb));
+    if (_lbSrc) {
+      addMenuItem('查看大图', MENU_ICONS.zoom, '', () => openImageLightbox(_lbSrc, _lbList || undefined, 0));
+    }
     addMenuItem('删除节点', MENU_ICONS.delete, getShortcutDisplay(keybindings.deleteSelected), () => deleteNode(node.id), true);
     addMenuSeparator();
     addMenuItem('置于顶层', MENU_ICONS.front, '', () => bringToFront(node));
@@ -7646,8 +14689,10 @@ canvasWrap.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   const nodeEl = e.target.closest('.node');
   const node = nodeEl ? workflow.nodes.get(nodeEl.dataset.id) : null;
-  if (node) selectNode(node);
-  if (node) showContextMenu(e.clientX, e.clientY, node);
+  if (node) {
+    selectNode(node);
+    showContextMenu(e.clientX, e.clientY, node);
+  }
   else showCanvasAddMenu(e);
 });
 
@@ -7663,10 +14708,29 @@ function duplicateNode(node) {
   const newNode = addNode(node.type, node.x + 40, node.y + 40, node.thumb);
   newNode.prompt = node.prompt;
   newNode.params = { ...node.params };
+  newNode.uploadedImage = typeof node.uploadedImage === 'string' ? node.uploadedImage : '';
+  newNode.croppedImage = typeof node.croppedImage === 'string' ? node.croppedImage : '';
+  newNode.cropMeta = node.cropMeta ? JSON.parse(JSON.stringify(node.cropMeta)) : null;
+  newNode.refImages = node.refImages ? JSON.parse(JSON.stringify(node.refImages)) : [];
+  newNode.refVideos = node.refVideos ? JSON.parse(JSON.stringify(node.refVideos)) : [];
+  newNode._galleryImages = Array.isArray(node._galleryImages) ? node._galleryImages.slice() : [];
+  newNode._imageCount = node._imageCount || newNode._galleryImages.length || 0;
+  newNode.charDesc = node.charDesc || '';
+  newNode.stateMeta = node.stateMeta ? { ...node.stateMeta } : null;
+  newNode.semanticMode = node.semanticMode || getNodeSemanticTier(node.type);
+  newNode.resultMode = node.resultMode || 'pending';
+  newNode.previewOnly = !!node.previewOnly;
+  newNode.previewSourceId = node.previewSourceId || '';
+  if (newNode.previewOnly && newNode.el) newNode.el.classList.add('preview-only-node');
   buildNodeBody(newNode.el, newNode);
   selectNode(newNode);
   markEdgesDirty();
   scheduleAutosave();
+  return newNode;
+}
+
+function isPreviewOnlyNode(node) {
+  return !!(node && node.previewOnly);
 }
 
 function bringToFront(node) {
@@ -7737,6 +14801,7 @@ function init() {
   document.getElementById('btnRedo').onclick = redo;
   document.getElementById('btnRecycle').onclick = () => toggleRecyclePanel();
   document.getElementById('btnExport').onclick = exportJSON;
+  document.getElementById('btnExportPng').onclick = () => { exportCanvasPNG(); };
   document.getElementById('btnImport').onclick = () => document.getElementById('importFileInput').click();
   document.getElementById('btnClearSave').onclick = () => {
     if (confirm('确定清空已保存数据？这将无法恢复之前自动保存的画布状态。')) {
@@ -7799,11 +14864,20 @@ function init() {
   document.getElementById('btnWorkflow').onclick = () => {
     toggleWorkflowPanel();
   };
+  document.getElementById('btnWorkbench').onclick = () => {
+    toggleWorkbenchPanel();
+  };
+  document.getElementById('btnWorkbenchNew').onclick = () => {
+    const nn = prompt('新工作台名称（留空自动命名）', '');
+    newWorkbench(nn || '');
+  };
   document.getElementById('btnAssets').onclick = () => {
     toggleAssetPanel();
   };
   document.getElementById('workflowClose').onclick = () => toggleWorkflowPanel(false);
   document.getElementById('workflowOverlay').onclick = () => toggleWorkflowPanel(false);
+  document.getElementById('workbenchClose').onclick = () => toggleWorkbenchPanel(false);
+  document.getElementById('workbenchOverlay').onclick = () => toggleWorkbenchPanel(false);
   document.getElementById('btnSaveWorkflow').onclick = () => {
     const n = prompt('为当前工作流命名', '我的工作流 ' + new Date().toLocaleDateString());
     if (n && n.trim()) saveNamedWorkflow(n.trim());
@@ -7970,8 +15044,14 @@ function init() {
   workflow.camera.x = canvasWrap.clientWidth / 2;
   workflow.camera.y = canvasWrap.clientHeight / 2;
 
-  // 尝试从 localStorage 恢复
+  // #13 多工作台：确保存在活跃工作台（并把旧 AUTOSAVE_KEY 迁移为「默认工作台」）
+  ensureWorkbench();
+  renderWorkbenchSelect();
+
+  // 尝试从 localStorage 恢复（剥离版快速启动）
   const restored = restoreFromStorage();
+  _initCanvasSig = canvasSignature(); // 记录初始画布签名，防止后台补全覆盖用户现场
+  restoreFullAutosaveFromIDB(true); // #13b：后台从 IndexedDB 补全完整大图版本（仅画布未改动时）
 
   if (restored !== false && restored > 0) {
     // 有保存数据，恢复成功
@@ -8066,6 +15146,15 @@ function createExampleNodes() {
 // 页面卸载前保存一次
 window.addEventListener('beforeunload', () => {
   doAutosave();
+  try { persistAIChatHistory(); } catch (_) {}
+});
+window.addEventListener('pagehide', function() {
+  try { persistAIChatHistory(); } catch (_) {}
+});
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'hidden') {
+    try { persistAIChatHistory(); } catch (_) {}
+  }
 });
 
 //================ 19. AI 面板交互逻辑 ================
@@ -8075,71 +15164,273 @@ var aiCurrentModel = 'gpt-5.4';
 var aiIsGenerating = false;
 // Deepseek 对话上下文（仅真实模型使用）
 var aiConversation = [];
+var AI_CHAT_HISTORY_STORAGE = 'flowcraft-ai-chat-history-v1';
+var AI_CHAT_HISTORY_SESSION_STORAGE = 'flowcraft-ai-chat-history-v1-session';
+var AI_CHAT_HISTORY_MAX = 60;
+var aiChatRestoring = false;
 var DEEPSEEK_KEY_STORAGE = 'flowcraft-deepseek-key';
 var OPENAI_KEY_STORAGE = 'flowcraft-openai-key';
 var OPENAI_BASE_STORAGE = 'flowcraft-openai-base';
-var OPENAI_DEFAULT_BASE = 'https://api.openai.com/v1';
+var PROXY_BASE_STORAGE = 'flowcraft-proxy-base';
+var PROXY_TOKEN_STORAGE = 'flowcraft-proxy-token';
+var OPENAI_DEFAULT_BASE = 'https://infistar.cc/v1';
+
+// ===== 模型提供方（多端点 / 多 Key）子系统 =====
+// 让用户自行添加任意 OpenAI 兼容端点（base + key + model），并在画布内切换使用。
+// 选中某个提供方时，会把它写入既有的 OPENAI_KEY_STORAGE / OPENAI_BASE_STORAGE，
+// 从而让所有现网调用点（AI 助手对话 / 反推提示词视觉模型 / 生图）自动复用，无需改动各调用点。
+var PROVIDERS_STORAGE = 'flowcraft-providers';
+var ACTIVE_PROVIDER_STORAGE = 'flowcraft-active-provider';
+
+function getProviders() {
+  try {
+    var raw = localStorage.getItem(PROVIDERS_STORAGE);
+    if (raw === null) return null; // 尚未初始化
+    var arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch (_) { return []; }
+}
+function setProviders(arr) {
+  try { localStorage.setItem(PROVIDERS_STORAGE, JSON.stringify(arr || [])); } catch (_) {}
+}
+function saveProvidersAndRefresh(list) {
+  setProviders(list);
+  syncActiveProviderToLegacy();
+  syncProviderModelsToAiSelects();
+  renderProviderSelect();
+  renderProviderList();
+  try { if (typeof agentFillProviders === 'function') agentFillProviders(); } catch (_) {}
+}
+function getActiveProviderId() {
+  try { return localStorage.getItem(ACTIVE_PROVIDER_STORAGE) || ''; } catch (_) { return ''; }
+}
+function getActiveProvider() {
+  var id = getActiveProviderId();
+  if (!id) return null;
+  var list = getProviders() || [];
+  for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === id) return list[i];
+  return null;
+}
+function getProviderById(id) {
+  var list = getProviders() || [];
+  for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === id) return list[i];
+  return null;
+}
+function seedProvidersIfNeeded() {
+  if (localStorage.getItem(PROVIDERS_STORAGE) !== null) return; // 已初始化过
+  // 首次启动不创建虚假的默认提供方；用户在设置中自行添加端点和 Key。
+  setProviders([]);
+}
+// 把当前激活提供方的 base/key 同步进现网 OPENAI 存储；model 同步进 chat 模型选择。
+// 仅在「选中提供方」或启动时调用，避免覆盖用户在 OpenAI 设置里手动填的值。
+function syncActiveProviderToLegacy() {
+  var p = getActiveProvider();
+  if (!p) return;
+  try {
+    if (p.key) localStorage.setItem(OPENAI_KEY_STORAGE, p.key);
+    if (p.base) localStorage.setItem(OPENAI_BASE_STORAGE, p.base);
+    // 只有当前模型不属于该提供方时，才切换到该提供方的默认/首个模型。
+    // 这样切换提供方时不会把用户刚选中的模型立刻覆盖回去。
+    var current = String(aiCurrentModel || '').trim();
+    var models = getAllProviderModels(p);
+    var nextModel = p.model || (models.length ? models[0] : '');
+    if (nextModel && models.indexOf(current) === -1) setGlobalModel(nextModel, null);
+  } catch (_) {}
+}
+
+function syncProxyConfigToRuntime() {
+  try {
+    var base = localStorage.getItem(PROXY_BASE_STORAGE) || '';
+    var token = localStorage.getItem(PROXY_TOKEN_STORAGE) || '';
+    var proxy = window.FlowCraft && window.FlowCraft.proxy;
+    if (proxy && typeof proxy.configure === 'function') {
+      proxy.configure({ base: base, token: token });
+      if (window.FlowCraft) window.FlowCraft.__userToken = token;
+    }
+    if (window.FlowCraft) {
+      window.FlowCraft.__fcProxyConfigured = !!base;
+    }
+    return !!base;
+  } catch (_) {
+    return false;
+  }
+}
+function syncProviderSectionToggle() {
+  if (!providerSectionToggle || !providerSection) return;
+  var collapsed = providerSection.classList.contains('collapsed');
+  providerSectionToggle.textContent = collapsed ? '展开' : '收起';
+  providerSectionToggle.setAttribute('aria-expanded', String(!collapsed));
+}
+function setProviderSectionCollapsed(collapsed) {
+  if (!providerSection) return;
+  providerSection.classList.toggle('collapsed', !!collapsed);
+  try { localStorage.setItem('flowcraft-provider-section-collapsed', collapsed ? '1' : '0'); } catch (_) {}
+  syncProviderSectionToggle();
+}
+function restoreProviderSectionCollapsed() {
+  if (!providerSection) return;
+  var v = '0';
+  try { v = localStorage.getItem('flowcraft-provider-section-collapsed') || '0'; } catch (_) {}
+  setProviderSectionCollapsed(v === '1');
+}
+function syncProxySectionToggle() {
+  if (!proxySectionToggle || !proxySection) return;
+  var collapsed = proxySection.classList.contains('collapsed');
+  proxySectionToggle.textContent = collapsed ? '展开' : '收起';
+  proxySectionToggle.setAttribute('aria-expanded', String(!collapsed));
+}
+function setProxySectionCollapsed(collapsed) {
+  if (!proxySection) return;
+  proxySection.classList.toggle('collapsed', !!collapsed);
+  try { localStorage.setItem('flowcraft-proxy-section-collapsed', collapsed ? '1' : '0'); } catch (_) {}
+  syncProxySectionToggle();
+}
+function restoreProxySectionCollapsed() {
+  if (!proxySection) return;
+  var v = '0';
+  try { v = localStorage.getItem('flowcraft-proxy-section-collapsed') || '0'; } catch (_) {}
+  setProxySectionCollapsed(v === '1');
+}
 var SYSTEM_PROMPT = '你是 FlowCraft 的 AI 设计助手，专注于室内设计、参考图构思、线稿、材质、灯光与布局方案。' +
   '请用简洁、专业、可操作的中文回答，必要时给出步骤清单或要点。不要编造不确定的事实。';
 var AI_MODEL_NAMES = {
   'gpt-5.4': 'GPT-5.4',
   'gpt-5.4-mini': 'GPT-5.4 Mini',
-  'gpt-5.5': 'GPT-5.5',
-  'gpt-5.5-openai-compact': 'GPT-5.5 Compact',
-  'gpt-5.6-luna': 'GPT-5.6 Luna',
-  'gpt-5.6-sol': 'GPT-5.6 Sol',
-  'gpt-5.6-terra': 'GPT-5.6 Terra',
-  'claude-sonnet-4-6': 'Claude Sonnet 4.6',
-  'claude-sonnet-4-6-thinking': 'Claude Sonnet 4.6 Thinking',
-  'claude-sonnet-5': 'Claude Sonnet 5',
-  'claude-opus-4-6': 'Claude Opus 4.6',
-  'claude-opus-4-6-thinking': 'Claude Opus 4.6 Thinking',
-  'claude-opus-4-7': 'Claude Opus 4.7',
-  'claude-opus-4-8': 'Claude Opus 4.8',
-  'claude-opus-5': 'Claude Opus 5',
-  'claude-haiku-4-5': 'Claude Haiku 4.5',
-  'claude-fable-5': 'Claude Fable 5',
-  'claude-ccmax': 'Claude CCMax',
-  'gemini-3-flash-preview': 'Gemini 3 Flash',
-  'gemini-3.1-pro-preview': 'Gemini 3.1 Pro',
-  'gemini-3-pro-image-preview': 'Gemini 3 Pro Image',
-  'gemini-3.1-flash-image-preview': 'Gemini 3.1 Flash Image',
-  'gemini-anti': 'Gemini Anti',
-  'gemini-anti-0.25': 'Gemini Anti 0.25',
-  'grok-4': 'Grok 4',
-  'grok-4-deepsearch': 'Grok 4 DeepSearch',
-  'grok-4.3': 'Grok 4.3',
-  'grok-4.3-fast': 'Grok 4.3 Fast',
-  'grok-4.5': 'Grok 4.5',
-  'grok-4.5-fast': 'Grok 4.5 Fast',
-  'grok-420-fast': 'Grok 420 Fast',
-  'grok-420-thinking': 'Grok 420 Thinking',
-  'grok-auto': 'Grok Auto',
-  'codex': 'Codex',
-  'codex-auto-review': 'Codex Auto Review',
-  'kiro': 'Kiro',
-  'vertex': 'Vertex',
-  'default': 'Default',
-  'test': 'Test',
   'gpt-image-2': 'GPT Image 2',
-  'deepseek': 'DeepSeek V3'
+  'deepseek-v4-flash': 'DeepSeek V4 Flash'
 };
+function normalizeAiImageModelName(model) {
+  var v = String(model || '').trim();
+  if (v === 'gpt-image-2' || v === 'GPT Image 2') return 'GPT Image 2';
+  return v;
+}
+function aiModelLabelForSelect(model) {
+  return AI_MODEL_NAMES[model] || model;
+}
+function ensureAiModelOption(select, model) {
+  if (!select || !model) return;
+  var value = String(model).trim();
+  if (!value) return;
+  var exists = false;
+  Array.prototype.forEach.call(select.options || [], function(opt) {
+    if (opt && opt.value === value) exists = true;
+  });
+  if (exists) return;
+  var o = document.createElement('option');
+  o.value = value;
+  o.textContent = aiModelLabelForSelect(value);
+  o.title = aiModelLabelForSelect(value);
+  select.appendChild(o);
+}
+function getSelectableAiModels() {
+  var list = [];
+  var seen = {};
+  AI_MODELS.forEach(function(m) {
+    if (!m || seen[m.value]) return;
+    seen[m.value] = 1;
+    list.push(m);
+  });
+  (getProviders() || []).forEach(function(p) {
+    getAllProviderModels(p).forEach(function(id) {
+      if (!id || seen[id]) return;
+      seen[id] = 1;
+      list.push({ value: id, label: aiModelLabelForSelect(id), shortLabel: aiModelLabelForSelect(id) });
+    });
+  });
+  return list;
+}
+function renderAiModelSelectOptions(select, selectedModel) {
+  if (!select) return;
+  var keep = selectedModel != null ? String(selectedModel) : String(select.value || '');
+  var list = getSelectableAiModels();
+  select.innerHTML = '';
+  list.forEach(function(m) {
+    var o = document.createElement('option');
+    o.value = m.value;
+    o.textContent = m.shortLabel || m.label || m.value;
+    o.title = m.label || m.value;
+    select.appendChild(o);
+  });
+  if (keep) {
+    ensureAiModelOption(select, keep);
+    select.value = keep;
+  }
+}
+function syncProviderModelsToAiSelects() {
+  renderAiModelSelectOptions(aiModelSelect, aiModelSelect && aiModelSelect.value);
+  document.querySelectorAll('.text-node-model').forEach(function(sel) {
+    renderAiModelSelectOptions(sel, sel && sel.value);
+  });
+}
+function getProviderForModelId(model, preferredProviderId) {
+  var id = String(model || '').trim();
+  if (!id) return null;
+  var list = getProviders() || [];
+  var i;
+  if (preferredProviderId) {
+    for (i = 0; i < list.length; i++) {
+      var pref = list[i];
+      if (!pref || pref.id !== preferredProviderId) continue;
+      if (getAllProviderModels(pref).indexOf(id) >= 0) return pref;
+      break;
+    }
+  }
+  for (i = 0; i < list.length; i++) {
+    var p = list[i];
+    if (!p) continue;
+    if (getAllProviderModels(p).indexOf(id) >= 0) return p;
+  }
+  return null;
+}
+function syncProviderContextByModel(model) {
+  var p = getProviderForModelId(model, getActiveProviderId());
+  if (!p) return false;
+  try {
+    if (p.id) localStorage.setItem(ACTIVE_PROVIDER_STORAGE, p.id);
+    if (p.key) {
+      var vendor = resolveProviderVendor(p, model);
+      if (vendor === 'deepseek' || /(^|[\s\/-])deepseek/i.test(String(model || ''))) localStorage.setItem(DEEPSEEK_KEY_STORAGE, p.key);
+      else localStorage.setItem(OPENAI_KEY_STORAGE, p.key);
+    }
+    if (p.base) localStorage.setItem(OPENAI_BASE_STORAGE, p.base);
+  } catch (_) {}
+  return true;
+}
+function resolveProviderIdForModel(model) {
+  var p = getProviderForModelId(model, getActiveProviderId());
+  return p && p.id ? p.id : 'openai';
+}
+function resolveProviderVendor(provider, model) {
+  var explicit = provider && (provider.vendor || provider.providerType || provider.type);
+  if (explicit) return String(explicit).trim().toLowerCase();
+  var text = [provider && provider.id, provider && provider.name, provider && provider.base, provider && provider.model, model].filter(Boolean).join(' ').toLowerCase();
+  if (/deepseek/.test(text)) return 'deepseek';
+  if (/claude|anthropic/.test(text)) return 'anthropic';
+  if (/gemini|google/.test(text)) return 'google';
+  if (/grok|xai/.test(text)) return 'xai';
+  return 'openai';
+}
+function updateModelBindingStatus() {
+  var el = document.getElementById('aiModelBindingStatus');
+  if (!el) return;
+  var provider = getProviderForModelId(aiCurrentModel, getActiveProviderId());
+  if (!provider) {
+    el.textContent = '当前模型：' + (AI_MODEL_NAMES[aiCurrentModel] || aiCurrentModel || '未选择') + '；未找到匹配的提供方。';
+    el.className = 'ai-settings-status warn';
+    return;
+  }
+  var base = provider.base || '（未设置 base）';
+  var hasKey = !!provider.key;
+  el.textContent = '当前模型：' + (AI_MODEL_NAMES[aiCurrentModel] || aiCurrentModel || '未选择') + '；绑定提供方：' + (provider.name || provider.id) + '；base：' + base + '；Key：' + (hasKey ? '已配置' : '未配置');
+  el.className = 'ai-settings-status ' + (provider.base && hasKey ? 'ok' : 'warn');
+}
 // 模型列表（由 AI_MODEL_NAMES 生成，保证与下拉框一致）
 // shortLabel 用于文本节点等紧凑场景；label 走 AI_MODEL_NAMES 全称
 var AI_MODELS = Object.keys(AI_MODEL_NAMES).map(function(k) {
   var shorts = {
-    'gpt-5.4': 'GPT-5.4', 'gpt-5.4-mini': 'GPT-5.4 Mini', 'gpt-5.5': 'GPT-5.5',
-    'gpt-5.5-openai-compact': 'GPT-5.5 C', 'gpt-5.6-luna': 'GPT-5.6 Luna', 'gpt-5.6-sol': 'GPT-5.6 Sol',
-    'gpt-5.6-terra': 'GPT-5.6 Terra', 'claude-sonnet-4-6': 'Sonnet 4.6', 'claude-sonnet-4-6-thinking': 'Sonnet 4.6T',
-    'claude-sonnet-5': 'Sonnet 5', 'claude-opus-4-6': 'Opus 4.6', 'claude-opus-4-6-thinking': 'Opus 4.6T',
-    'claude-opus-4-7': 'Opus 4.7', 'claude-opus-4-8': 'Opus 4.8', 'claude-opus-5': 'Opus 5',
-    'claude-haiku-4-5': 'Haiku 4.5', 'claude-fable-5': 'Fable 5', 'claude-ccmax': 'CCMax',
-    'gemini-3-flash-preview': 'G3 Flash', 'gemini-3.1-pro-preview': 'G3.1 Pro', 'gemini-3-pro-image-preview': 'G3 Pro Img',
-    'gemini-3.1-flash-image-preview': 'G3.1 Flash Img', 'gemini-anti': 'G-Anti', 'gemini-anti-0.25': 'G-Anti 0.25',
-    'grok-4': 'Grok 4', 'grok-4-deepsearch': 'Grok 4 DS', 'grok-4.3': 'Grok 4.3', 'grok-4.3-fast': 'Grok 4.3 F',
-    'grok-4.5': 'Grok 4.5', 'grok-4.5-fast': 'Grok 4.5 F', 'grok-420-fast': 'Grok 420 F', 'grok-420-thinking': 'Grok 420T',
-    'grok-auto': 'Grok Auto', 'codex': 'Codex', 'codex-auto-review': 'Codex Review', 'kiro': 'Kiro',
-    'vertex': 'Vertex', 'default': 'Default', 'test': 'Test', 'gpt-image-2': 'GPT-Img2', 'deepseek': 'DS V3'
+    'gpt-5.4': 'GPT-5.4', 'gpt-5.4-mini': 'GPT-5.4 Mini',
+    'claude-sonnet-4-6': 'Sonnet 4.6', 'gemini-3-flash-preview': 'G3 Flash',
+    'gpt-image-2': 'GPT-Img2', 'deepseek-v4-flash': 'DS V4 Flash'
   };
   return { value: k, label: AI_MODEL_NAMES[k], shortLabel: shorts[k] || AI_MODEL_NAMES[k] };
 });
@@ -8148,10 +15439,14 @@ var AI_MODELS = Object.keys(AI_MODEL_NAMES).map(function(k) {
 // 修改任意一处，另一处自动同步更新
 function setGlobalModel(model, sourceEl) {
   aiCurrentModel = model;
+  ensureAiModelOption(aiModelSelect, model);
+  syncProviderContextByModel(model);
   if (aiModelSelect && aiModelSelect.value !== model) aiModelSelect.value = model;
   if (typeof updateAISettingsUI === 'function') updateAISettingsUI();
+  updateModelBindingStatus();
   // 同步所有文本输入节点上的模型下拉
   document.querySelectorAll('.text-node-model').forEach(function(sel) {
+    ensureAiModelOption(sel, model);
     if (sel !== sourceEl && sel.value !== model) sel.value = model;
   });
 }
@@ -8241,7 +15536,7 @@ function addAIReplyToTextNode(bubble) {
 // 文本节点「增强提示词」：调公共 runPromptEnhance，结果直接写回文本框
 // 行为与 AI 设计助手 ✨ 提示词扩写完全一致（对齐 WorkBuddy 输入框「增强提示词」）
 function enhanceTextNodePrompt(node, textBody) {
-  var ta = textBody.querySelector('.node-textarea');
+  var ta = textBody.querySelector('.node-main-textarea');
   var btn = textBody.querySelector('.text-node-enhance');
   var text = (node.prompt || '').trim();
   if (!text) { showToast('请先输入要增强的提示词', 'warn'); return; }
@@ -8292,6 +15587,11 @@ function toggleAIPanel(forceCollapse) {
   }
   var isOpen = !aiPanel.classList.contains('collapsed');
   aiToggleBtn.classList.toggle('active', isOpen);
+  // 互斥：打开 AI 面板时收起 Agent 抽屉（两者都贴在右侧，避免重叠）
+  if (isOpen) {
+    const ad = document.getElementById('agentDrawer');
+    if (ad && !ad.hidden) ad.hidden = true;
+  }
   // 记忆开关状态
   try { localStorage.setItem('flowcraft-ai-panel', isOpen ? 'open' : 'collapsed'); } catch (_) {}
   // 悬浮面板不影响画布尺寸，无需重绘
@@ -8393,13 +15693,143 @@ function removeAIWelcome() {
   if (welcome) welcome.remove();
 }
 
+function deriveAIPlainText(html) {
+  var div = document.createElement('div');
+  div.innerHTML = html || '';
+  return (div.textContent || div.innerText || '').trim();
+}
+
+// AI 对话历史只保留「可读文本 + 轻量 HTML」，避免把生成图片的 dataURL 一起写入 localStorage。
+// 这样既能保留聊天上下文，又不会因为图片太大导致对话无法持久化。
+function sanitizeAIChatHTMLForHistory(html) {
+  var raw = String(html || '');
+  if (!raw) return '';
+  if (!/<img\b/i.test(raw) && raw.indexOf('data:image') < 0 && raw.indexOf('blob:') < 0) return raw;
+  var div = document.createElement('div');
+  div.innerHTML = raw;
+  var gen = div.querySelector('.ai-gen-images');
+  if (gen) {
+    var genCount = gen.querySelectorAll('img').length;
+    if (genCount > 0) {
+      var stub = document.createElement('div');
+      stub.className = 'ai-gen-images ai-gen-images-history';
+      stub.innerHTML = '<div class="ai-gen-image-placeholder">已生成 ' + genCount + ' 张图片（历史记录未保存图片本体）</div>';
+      gen.replaceWith(stub);
+    }
+  }
+  div.querySelectorAll('img').forEach(function(img) {
+    var alt = img.getAttribute('alt') || '图片';
+    var span = document.createElement('span');
+    span.className = 'ai-image-placeholder';
+    span.textContent = '［' + alt + '］';
+    img.replaceWith(span);
+  });
+  return div.innerHTML;
+}
+
+function collectAIChatState() {
+  var messages = [];
+  var conversation = [];
+  aiChat.querySelectorAll('.ai-message').forEach(function(msg) {
+    if (msg.dataset && msg.dataset.transient === '1') return;
+    var role = msg.classList.contains('user') ? 'user' : 'ai';
+    var bubble = msg.querySelector('.ai-bubble');
+    var html = bubble ? sanitizeAIChatHTMLForHistory(bubble.innerHTML) : '';
+    var text = bubble ? ((bubble.dataset && bubble.dataset.plainText) || deriveAIPlainText(html)) : '';
+    messages.push({ role: role, html: html, text: text });
+    if (text) conversation.push({ role: role, content: text });
+  });
+  return { messages: messages, conversation: conversation };
+}
+
+function persistAIChatHistory() {
+  try {
+    if (!aiChat) return;
+    var state = collectAIChatState();
+    if (!state.messages.length) {
+      localStorage.removeItem(AI_CHAT_HISTORY_STORAGE);
+      try { sessionStorage.removeItem(AI_CHAT_HISTORY_SESSION_STORAGE); } catch (_) {}
+      return;
+    }
+    state.savedAt = Date.now();
+    state.storageVersion = 2;
+    var raw = JSON.stringify(state);
+    try {
+      localStorage.setItem(AI_CHAT_HISTORY_STORAGE, raw);
+    } catch (err) {
+      var trimmed = {
+        messages: state.messages.slice(-Math.min(AI_CHAT_HISTORY_MAX, 24)),
+        conversation: state.conversation.slice(-Math.min(AI_CHAT_HISTORY_MAX, 24))
+      };
+      trimmed.savedAt = state.savedAt;
+      trimmed.storageVersion = 2;
+      raw = JSON.stringify(trimmed);
+      try { localStorage.setItem(AI_CHAT_HISTORY_STORAGE, raw); } catch (_) {}
+      try { sessionStorage.setItem(AI_CHAT_HISTORY_SESSION_STORAGE, raw); } catch (_) {}
+    }
+    try { sessionStorage.setItem(AI_CHAT_HISTORY_SESSION_STORAGE, raw); } catch (_) {}
+  } catch (_) {}
+}
+
+function pushAIConversation(role, content) {
+  aiConversation.push({ role: role, content: content });
+  persistAIChatHistory();
+}
+
+function restoreAIChatHistory() {
+  try {
+    var raw = null;
+    var state = null;
+    var backup = null;
+    try { raw = localStorage.getItem(AI_CHAT_HISTORY_STORAGE); } catch (_) {}
+    if (raw) {
+      try { state = JSON.parse(raw); } catch (_) { state = null; }
+    }
+    if (!state) {
+      try { raw = sessionStorage.getItem(AI_CHAT_HISTORY_SESSION_STORAGE); } catch (_) {}
+      if (raw) {
+        try { state = JSON.parse(raw); } catch (_) { state = null; }
+      }
+    }
+    try {
+      var rawBackup = sessionStorage.getItem(AI_CHAT_HISTORY_SESSION_STORAGE);
+      if (rawBackup) backup = JSON.parse(rawBackup);
+    } catch (_) {}
+    if (backup && (!state || (backup.savedAt || 0) > (state.savedAt || 0))) state = backup;
+    if (!state) return false;
+    if (!state || !Array.isArray(state.messages) || !state.messages.length) return false;
+    aiChat.innerHTML = '';
+    aiChatRestoring = true;
+    aiConversation = Array.isArray(state.conversation) ? state.conversation.slice(0) : [];
+    state.messages.slice(-AI_CHAT_HISTORY_MAX).forEach(function(m) {
+      appendAIMessage(m.role === 'user' ? 'user' : 'ai', sanitizeAIChatHTMLForHistory(m.html || ''), { plainText: m.text || '', skipPersist: true });
+    });
+    aiChatRestoring = false;
+    aiToggleBtn.classList.add('has-messages');
+    persistAIChatHistory();
+    return true;
+  } catch (_) {
+    aiChatRestoring = false;
+    return false;
+  }
+}
+
 /**
  * 追加一条 AI 对话消息。
  * @param {string} role - 'user' | 'ai'
  * @param {string} contentHTML - 气泡内 HTML
  * @returns {HTMLElement} 返回 bubble 元素，便于后续替换内容
  */
-function appendAIMessage(role, contentHTML) {
+function setAIBubbleHTML(bubble, contentHTML, plainText) {
+  if (!bubble) return;
+  bubble.innerHTML = contentHTML;
+  bubble.dataset.plainText = typeof plainText === 'string' ? plainText : deriveAIPlainText(contentHTML);
+  bubble.parentElement && bubble.parentElement.parentElement && bubble.parentElement.parentElement.dataset && delete bubble.parentElement.parentElement.dataset.transient;
+  persistAIChatHistory();
+}
+
+function appendAIMessage(role, contentHTML, opts) {
+  opts = opts || {};
   removeAIWelcome();
 
   var msg = document.createElement('div');
@@ -8412,6 +15842,8 @@ function appendAIMessage(role, contentHTML) {
   var bubble = document.createElement('div');
   bubble.className = 'ai-bubble';
   bubble.innerHTML = contentHTML;
+  bubble.dataset.plainText = typeof opts.plainText === 'string' ? opts.plainText : deriveAIPlainText(contentHTML);
+  if (opts.transient || /ai-thinking/.test(contentHTML || '')) msg.dataset.transient = '1';
 
   var content = document.createElement('div');
   content.className = 'ai-content';
@@ -8445,6 +15877,7 @@ function appendAIMessage(role, contentHTML) {
   scrollAIToBottom();
 
   aiToggleBtn.classList.add('has-messages');
+  if (!opts.skipPersist && !aiChatRestoring) persistAIChatHistory();
   return bubble;
 }
 
@@ -8552,12 +15985,12 @@ function expandPromptWithAI() {
 
   var loadingHTML = '<div class="ai-thinking"><span>正在生成</span>' +
     '<div class="ai-thinking-dots"><span></span><span></span><span></span></div></div>';
-  var bubble = appendAIMessage('ai', loadingHTML);
+  var bubble = appendAIMessage('ai', loadingHTML, { transient: true });
 
   // 提示词扩写始终走 Deepseek 真实模型，与画布文本节点共用 runPromptEnhance
   var apiKey = localStorage.getItem(DEEPSEEK_KEY_STORAGE);
   if (!apiKey && !_fcProxy()) {
-    bubble.innerHTML = '<div class="ai-reply-text">提示词扩写需要 Deepseek API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，配置后即可一键扩写。</div>';
+    setAIBubbleHTML(bubble, '<div class="ai-reply-text">提示词扩写需要 Deepseek API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，配置后即可一键扩写。</div>', '提示词扩写需要 Deepseek API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，配置后即可一键扩写。');
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
@@ -8569,22 +16002,22 @@ function expandPromptWithAI() {
     useLibrary: true,
     onToken: function(t) {
       if (t) {
-        bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(t).replace(/\n/g, '<br>') + '</div>';
+        setAIBubbleHTML(bubble, '<div class="ai-reply-text">' + escapeHtml(t).replace(/\n/g, '<br>') + '</div>', t);
         scrollAIToBottom();
       }
     }
   })
     .then(function(reply) {
       if (reply) {
-        bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(reply).replace(/\n/g, '<br>') + '</div>';
+        setAIBubbleHTML(bubble, '<div class="ai-reply-text">' + escapeHtml(reply).replace(/\n/g, '<br>') + '</div>', reply);
       } else {
-        bubble.innerHTML = '<div class="ai-reply-text">扩写结果为空</div>';
+        setAIBubbleHTML(bubble, '<div class="ai-reply-text">扩写结果为空</div>', '扩写结果为空');
       }
       scrollAIToBottom();
     })
     .catch(function(err) {
-      bubble.innerHTML = '<div class="ai-reply-text" style="color:#E15353">扩写失败：' + escapeHtml(err.message) +
-        '<br>请检查 API Key 是否正确、网络是否可访问 api.deepseek.com。</div>';
+      setAIBubbleHTML(bubble, '<div class="ai-reply-text" style="color:#E15353">扩写失败：' + escapeHtml(err.message) +
+        '<br>请检查 API Key 是否正确、网络是否可访问 api.deepseek.com。</div>', '扩写失败：' + (err && err.message || err) + '；请检查 API Key 是否正确、网络是否可访问 api.deepseek.com。');
       scrollAIToBottom();
     })
     .finally(function() {
@@ -8597,6 +16030,9 @@ function expandPromptWithAI() {
 function sendAIMessage() {
   var text = aiInput.value.trim();
   if (!text || aiIsGenerating) return;
+
+  var explicitProvider = getProviderForModelId(aiCurrentModel, getActiveProviderId());
+  var explicitModelSelected = !!explicitProvider;
 
   // 追加 user 消息
   appendAIMessage('user', escapeHtml(text));
@@ -8612,12 +16048,12 @@ function sendAIMessage() {
   // 追加 AI "生成中" 消息
   var loadingHTML = '<div class="ai-thinking"><span>正在生成</span>' +
     '<div class="ai-thinking-dots"><span></span><span></span><span></span></div></div>';
-  var bubble = appendAIMessage('ai', loadingHTML);
+  var bubble = appendAIMessage('ai', loadingHTML, { transient: true });
 
   // 阶段 9：智能路由（opt-in，默认关闭）。启用时文本走路由选定模型，覆盖 aiCurrentModel 选择（含 Deepseek 分支）。
-  var _rt = _routeModel('text');
+  var _rt = (!explicitModelSelected) ? _routeModel('text') : null;
   if (_rt) {
-    aiConversation.push({ role: 'user', content: text });
+    pushAIConversation('user', text);
     callRelayChat(_rt.model, bubble, _rt.provider);
     return;
   }
@@ -8625,50 +16061,52 @@ function sendAIMessage() {
   // GPT Image 2 真实图像生成分支（阶段 9：路由启用时改用路由选中的图片模型）
   if (aiCurrentModel === 'gpt-image-2') {
     var _rImg = _routeModel('image');
+    pushAIConversation('user', text);
     generateChatImage(text, bubble, _rImg ? _rImg.model : null, _rImg ? _rImg.provider : null);
     return;
   }
 
   // Deepseek 真实调用分支
-  if (aiCurrentModel === 'deepseek') {
+  if (aiCurrentModel === 'deepseek-v4-flash') {
     var apiKey = localStorage.getItem(DEEPSEEK_KEY_STORAGE);
     var _proxyOn = !!_fcProxy();
     if (!apiKey && !_proxyOn) {
-      bubble.innerHTML = '<div class="ai-reply-text">尚未配置 Deepseek API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，配置后即可使用 Deepseek 真实回复。</div>';
+      setAIBubbleHTML(bubble, '<div class="ai-reply-text">尚未配置 Deepseek API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，配置后即可使用 DeepSeek V4 Flash 真实回复。</div>', '尚未配置 Deepseek API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，配置后即可使用 DeepSeek V4 Flash 真实回复。');
       scrollAIToBottom();
       aiIsGenerating = false;
       aiSendBtn.disabled = false;
       return;
     }
-    aiConversation.push({ role: 'user', content: text });
+    pushAIConversation('user', text);
     callDeepseek(apiKey, bubble);
     return;
   }
 
   // 其他模型：经中转真实对话（OpenAI 格式 chat/completions）
-  aiConversation.push({ role: 'user', content: text });
-  callRelayChat(aiCurrentModel, bubble);
+  pushAIConversation('user', text);
+  callRelayChat(aiCurrentModel, bubble, resolveProviderIdForModel(aiCurrentModel));
 }
 
 
 // GPT Image 2 聊天图像生成（AI 助手对话内直接出图）
 // 阶段 9：modelOverride/provider 支持路由选中的图片模型（默认 gpt-image-2，行为等价）
 function generateChatImage(text, bubble, modelOverride, provider) {
+  var providerEntry = getProviderForModelId(modelOverride || 'gpt-image-2', provider || getActiveProviderId());
   var _modelId = 'openai/' + (modelOverride || 'gpt-image-2');
   var _t0 = Date.now();
-  var key = localStorage.getItem(OPENAI_KEY_STORAGE);
+  var key = (providerEntry && providerEntry.key) || localStorage.getItem(OPENAI_KEY_STORAGE);
   if (!key) {
-    bubble.innerHTML = '<div class="ai-reply-text">尚未配置 OpenAI API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，即可使用 GPT Image 2 生成图片。</div>';
+    setAIBubbleHTML(bubble, '<div class="ai-reply-text">尚未配置 OpenAI API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，即可使用 GPT Image 2 生成图片。</div>', '尚未配置 OpenAI API Key。请点击面板右上角的 ⚙ 图标粘贴你的 Key 并保存，即可使用 GPT Image 2 生成图片。');
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
     if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: false, ms: Date.now() - _t0 });
     return;
   }
-  var base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
+  var base = normalizeApiBase((providerEntry && providerEntry.base) || localStorage.getItem(OPENAI_BASE_STORAGE));
   var prompt = text.trim();
   if (!prompt) {
-    bubble.innerHTML = '<div class="ai-reply-text">请输入要生成的画面描述。</div>';
+    setAIBubbleHTML(bubble, '<div class="ai-reply-text">请输入要生成的画面描述。</div>', '请输入要生成的画面描述。');
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
@@ -8681,16 +16119,20 @@ function generateChatImage(text, bubble, modelOverride, provider) {
     var html = imgs.map(function(src) {
       return '<img src="' + src + '" alt="生成结果">';
     }).join('');
-    bubble.innerHTML = '<div class="ai-reply-text">已根据您的描述生成：</div><div class="ai-gen-images">' + html + '</div>';
+    setAIBubbleHTML(bubble, '<div class="ai-reply-text">已根据您的描述生成：</div><div class="ai-gen-images">' + html + '</div>', '已根据您的描述生成');
+    pushAIConversation('assistant', '已根据您的描述生成图片');
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
     if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: true, ms: Date.now() - _t0 });
   })
   .catch(function(err) {
-    bubble.innerHTML = '<div class="ai-reply-text" style="color:#E15353">图像生成失败：' + escapeHtml(describeOpenAIError(err)) +
+    setAIBubbleHTML(bubble, '<div class="ai-reply-text" style="color:#E15353">图像生成失败：' + escapeHtml(describeOpenAIError(err)) +
       '（已尝试模型：' + (err.tried || _cands.join(' / ')) + '）。' +
-      '<br>请检查 API Key、⚙ 中自定义 API 地址，或当前服务是否支持 gpt-image-2 / gpt-image-1 / dall-e-3。</div>';
+      '<br>请检查 API Key、⚙ 中自定义 API 地址，或当前服务是否支持 gpt-image-2 / gpt-image-1 / dall-e-3。</div>', '图像生成失败：' + describeOpenAIError(err));
+    if (aiConversation.length && aiConversation[aiConversation.length - 1].role === 'user') {
+      aiConversation.pop();
+    }
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
@@ -8701,13 +16143,15 @@ function generateChatImage(text, bubble, modelOverride, provider) {
 // --- 中转对话（OpenAI 格式 /chat/completions，支持 GPT/Claude/Gemini/Grok 等）---
 // 阶段 9：provider 参数支持多厂商路由（默认 'openai'）；成功/失败回写 ModelHealth。
 function callRelayChat(model, bubble, provider) {
-  provider = provider || 'openai';
-  var _modelId = provider + '/' + model;
+  var providerEntry = getProviderForModelId(model, provider || getActiveProviderId());
+  var providerId = providerEntry && providerEntry.id ? providerEntry.id : (provider || resolveProviderIdForModel(model));
+  var vendor = resolveProviderVendor(providerEntry, model);
+  var _modelId = vendor + '/' + model;
   var _t0 = Date.now();
-  var key = localStorage.getItem(OPENAI_KEY_STORAGE);
+  var key = (providerEntry && providerEntry.key) || localStorage.getItem(OPENAI_KEY_STORAGE);
   var proxy = _fcProxy();
   if (!key && !proxy) {
-    bubble.innerHTML = '<div class="ai-reply-text">尚未配置中转 API Key。请点击面板右上角的 ⚙ 图标粘贴你的中转 Key 并保存，即可使用 ' + escapeHtml(model) + ' 真实回复。</div>';
+    setAIBubbleHTML(bubble, '<div class="ai-reply-text">尚未配置中转 API Key。请点击面板右上角的 ⚙ 图标粘贴你的中转 Key 并保存，即可使用 ' + escapeHtml(model) + ' 真实回复。</div>', '尚未配置中转 API Key。请点击面板右上角的 ⚙ 图标粘贴你的中转 Key 并保存，即可使用 ' + model + ' 真实回复。');
     scrollAIToBottom();
     aiIsGenerating = false;
     aiSendBtn.disabled = false;
@@ -8715,11 +16159,11 @@ function callRelayChat(model, bubble, provider) {
     if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: false, ms: Date.now() - _t0 });
     return;
   }
-  var base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
+  var base = normalizeApiBase((providerEntry && providerEntry.base) || localStorage.getItem(OPENAI_BASE_STORAGE));
   var messages = [{ role: 'system', content: SYSTEM_PROMPT }].concat(aiConversation);
   var relayReq;
   if (proxy) {
-    relayReq = proxy.call({ provider: provider, endpoint: '/chat/completions', body: { model: model, messages: messages, stream: false }, token: window.FlowCraft.__userToken || undefined })
+    relayReq = proxy.call({ provider: vendor, endpoint: '/chat/completions', body: { model: model, messages: messages, stream: false }, token: window.FlowCraft.__userToken || undefined })
       .catch(function(err) { if (err && err.kind) { var m = new Error(err.message || 'proxy error'); m.status = err.status || 0; m.proxyKind = err.kind; throw m; } throw err; });
   } else {
     relayReq = fetch(base + '/chat/completions', {
@@ -8729,19 +16173,25 @@ function callRelayChat(model, bubble, provider) {
     }).then(function(resp) {
       if (!resp.ok) { return resp.text().then(function(t) { throw new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 120) : '')); }); }
       return resp.json();
+    }).catch(function(err) {
+      if (proxy && /Failed to fetch|NetworkError|TypeError|Load failed|CORS|cross-origin|blocked by.*policy/i.test(String(err && err.message || err))) {
+        return proxy.call({ provider: vendor, endpoint: '/chat/completions', body: { model: model, messages: messages, stream: false }, token: window.FlowCraft.__userToken || undefined })
+          .catch(function(err2) { if (err2 && err2.kind) { var m2 = new Error(err2.message || 'proxy error'); m2.status = err2.status || 0; m2.proxyKind = err2.kind; throw m2; } throw err2; });
+      }
+      throw err;
     });
   }
   relayReq
   .then(function(data) {
     var reply = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '（' + model + ' 返回内容为空）';
-    aiConversation.push({ role: 'assistant', content: reply });
-    bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(reply).replace(/\n/g, '<br>') + '</div>';
+    pushAIConversation('assistant', reply);
+    setAIBubbleHTML(bubble, '<div class="ai-reply-text">' + escapeHtml(reply).replace(/\n/g, '<br>') + '</div>', reply);
     scrollAIToBottom();
     if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: true, ms: Date.now() - _t0 });
   })
   .catch(function(err) {
-    bubble.innerHTML = '<div class="ai-reply-text" style="color:#E15353">调用 ' + escapeHtml(model) + ' 失败：' + escapeHtml(err && err.message || err) +
-      '<br>请检查中转 API Key、⚙ 中的 API 地址，或该模型是否可用。</div>';
+    setAIBubbleHTML(bubble, '<div class="ai-reply-text" style="color:#E15353">调用 ' + escapeHtml(model) + ' 失败：' + escapeHtml(err && err.message || err) +
+      '<br>请检查中转 API Key、⚙ 中的 API 地址，或该模型是否可用。</div>', '调用 ' + model + ' 失败：' + (err && err.message || err) + '；请检查中转 API Key、⚙ 中的 API 地址，或该模型是否可用。');
     if (aiConversation.length && aiConversation[aiConversation.length - 1].role === 'user') aiConversation.pop();
     scrollAIToBottom();
     if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: _modelId, ok: false, ms: Date.now() - _t0 });
@@ -8798,20 +16248,42 @@ function _consumeSSE(resp, onText) {
 }
 
 function streamDeepseek(apiKey, messages, onText) {
+  var model = 'deepseek-v4-flash';
   var proxy = _fcProxy();
-  if (proxy) {
-    return proxy.stream({ provider: 'deepseek', endpoint: '/chat/completions', body: { model: 'deepseek-chat', messages: messages, temperature: 0.7, stream: true }, token: window.FlowCraft.__userToken || undefined })
+  function streamViaProxy(p) {
+    return p.stream({ provider: 'deepseek', endpoint: '/chat/completions', body: { model: model, messages: messages, temperature: 0.7, stream: true }, token: window.FlowCraft.__userToken || undefined })
       .then(function(resp) { return _consumeSSE(resp, onText); })
       .catch(function(err) {
         if (err && err.kind) { var m = new Error(err.message || 'proxy error'); m.status = err.status || 0; m.proxyKind = err.kind; throw m; }
         throw err;
       });
   }
-  return fetch('https://api.deepseek.com/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-    body: JSON.stringify({ model: 'deepseek-chat', messages: messages, temperature: 0.7, stream: true })
-  }).then(function(resp) { return _consumeSSE(resp, onText); });
+  function streamDirect() {
+    return fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({ model: model, messages: messages, temperature: 0.7, stream: true })
+    }).then(function(resp) { return _consumeSSE(resp, onText); });
+  }
+  // 直连优先策略：本地已配 Deepseek Key 时选择该模型即直连，不占用代理；
+  // 仅直连出现网络层失败（无 HTTP status，如断网/DNS/被拦截）才回退代理。
+  // Key 无效等 HTTP 错误（401/402）直接抛出，不回退，避免「换通道意外成功」掩盖配置问题。
+  if (apiKey) {
+    return streamDirect().catch(function(err) {
+      if (err && err.status) throw err;
+      if (proxy) return streamViaProxy(proxy);
+      throw err;
+    });
+  }
+  if (proxy) {
+    return streamViaProxy(proxy);
+  }
+  return streamDirect().catch(function(err) {
+    try { syncProxyConfigToRuntime(); } catch (_) {}
+    proxy = _fcProxy();
+    if (proxy) return streamViaProxy(proxy);
+    throw err;
+  });
 }
 
 // --- Deepseek 真实 API 调用（流式，带错误处理）---
@@ -8823,19 +16295,23 @@ function callDeepseek(apiKey, bubble) {
   streamDeepseek(apiKey, messages, function(text) {
     // 实时把已生成的部分渲染到气泡，首字到达即替换「正在生成」
     if (text) {
-      bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>';
+      setAIBubbleHTML(bubble, '<div class="ai-reply-text">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>', text);
       scrollAIToBottom();
     }
   })
   .then(function(reply) {
     var finalText = reply || '（Deepseek 返回内容为空）';
-    aiConversation.push({ role: 'assistant', content: finalText });
-    bubble.innerHTML = '<div class="ai-reply-text">' + escapeHtml(finalText).replace(/\n/g, '<br>') + '</div>';
+    pushAIConversation('assistant', finalText);
+    setAIBubbleHTML(bubble, '<div class="ai-reply-text">' + escapeHtml(finalText).replace(/\n/g, '<br>') + '</div>', finalText);
     scrollAIToBottom();
   })
   .catch(function(err) {
-    bubble.innerHTML = '<div class="ai-reply-text" style="color:#E15353">调用 Deepseek 失败：' + escapeHtml(err.message) +
-      '<br>请检查 API Key 是否正确、网络是否可访问 api.deepseek.com。</div>';
+    var _p = _fcProxy();
+    var tip = (err && err.proxyKind)
+      ? '代理转发失败（代理：' + ((_p && _p.base()) || '未知') + '），请检查代理地址或在 ⚙ 中清空代理改用直连。'
+      : '请检查 API Key 是否正确、网络是否可访问 api.deepseek.com。';
+    setAIBubbleHTML(bubble, '<div class="ai-reply-text" style="color:#E15353">调用 Deepseek 失败：' + escapeHtml(err.message) +
+      '<br>' + tip + '</div>', '调用 Deepseek 失败：' + (err && err.message || err) + '；' + tip);
     // 失败则回滚刚才压入的 user 消息，避免污染上下文
     if (aiConversation.length && aiConversation[aiConversation.length - 1].role === 'user') {
       aiConversation.pop();
@@ -8883,10 +16359,11 @@ function updateAISettingsUI() {
   var settingsTitle = document.getElementById('aiSettingsTitle');
   if (settingsTitle) settingsTitle.textContent = 'API Key 设置';
   if (aiSettingsBtn) {
-    aiSettingsBtn.title = aiCurrentModel === 'deepseek' || aiCurrentModel === 'gpt-image-2'
+    aiSettingsBtn.title = aiCurrentModel === 'deepseek-v4-flash' || aiCurrentModel === 'gpt-image-2'
       ? '配置 ' + name + ' API Key'
       : 'API 设置（Deepseek / OpenAI）';
   }
+  updateModelBindingStatus();
 }
 
 aiModelSelect.addEventListener('change', function(e) {
@@ -8905,8 +16382,11 @@ aiSettingsBtn.addEventListener('click', function() {
   if (aiSettingsPanel.classList.contains('open')) {
     deepseekKeyInput.value = localStorage.getItem(DEEPSEEK_KEY_STORAGE) || '';
     openaiKeyInput.value = localStorage.getItem(OPENAI_KEY_STORAGE) || '';
-    openaiBaseInput.value = localStorage.getItem(OPENAI_BASE_STORAGE) || '';
+    openaiBaseInput.value = localStorage.getItem(OPENAI_BASE_STORAGE) || OPENAI_DEFAULT_BASE;
+    proxyBaseInput.value = localStorage.getItem(PROXY_BASE_STORAGE) || '';
+    proxyTokenInput.value = localStorage.getItem(PROXY_TOKEN_STORAGE) || '';
     syncOpenAIBasePreset();
+    syncProxyConfigToRuntime();
     deepseekKeyInput.focus();
   }
 });
@@ -8916,6 +16396,12 @@ var openaiKeySave = document.getElementById('openaiKeySave');
 var openaiBaseInput = document.getElementById('openaiBaseInput');
 var openaiKeyStatus = document.getElementById('openaiKeyStatus');
 var openaiBasePreset = document.getElementById('openaiBasePreset');
+var proxySection = document.querySelector('.proxy-section');
+var proxySectionToggle = document.getElementById('proxySectionToggle');
+var proxyBaseInput = document.getElementById('proxyBaseInput');
+var proxyTokenInput = document.getElementById('proxyTokenInput');
+var proxySaveBtn = document.getElementById('proxySaveBtn');
+var proxyStatus = document.getElementById('proxyStatus');
 
 // API 地址预设：选择预设自动填入下方输入框
 openaiBasePreset.addEventListener('change', function(e) {
@@ -8928,11 +16414,38 @@ openaiBaseInput.addEventListener('input', function(e) {
   openaiBasePreset.value = opts.indexOf(e.target.value) >= 0 ? e.target.value : '';
 });
 
+function setProxyStatus(text, kind) {
+  if (!proxyStatus) return;
+  proxyStatus.textContent = text;
+  proxyStatus.className = 'ai-settings-status ' + (kind || 'ok');
+}
+
+if (proxySaveBtn) proxySaveBtn.addEventListener('click', function() {
+  var base = (proxyBaseInput && proxyBaseInput.value || '').trim().replace(/\/+$/, '');
+  var token = (proxyTokenInput && proxyTokenInput.value || '').trim();
+  if (!base) {
+    localStorage.removeItem(PROXY_BASE_STORAGE);
+    localStorage.removeItem(PROXY_TOKEN_STORAGE);
+    if (window.FlowCraft && window.FlowCraft.proxy && typeof window.FlowCraft.proxy.configure === 'function') {
+      window.FlowCraft.proxy.configure({ base: '', token: '' });
+    }
+    if (window.FlowCraft) window.FlowCraft.__userToken = '';
+    setProxyStatus('代理已关闭（将回退直连）。', 'warn');
+    return;
+  }
+  localStorage.setItem(PROXY_BASE_STORAGE, base);
+  if (token) localStorage.setItem(PROXY_TOKEN_STORAGE, token);
+  else localStorage.removeItem(PROXY_TOKEN_STORAGE);
+  syncProxyConfigToRuntime();
+  setProxyStatus('代理已保存并启用：' + base, 'ok');
+  aiSettingsPanel.classList.remove('open');
+});
+
 // 打开设置面板时同步预设下拉与当前地址
 function syncOpenAIBasePreset() {
-  var cur = localStorage.getItem(OPENAI_BASE_STORAGE) || '';
+  var cur = localStorage.getItem(OPENAI_BASE_STORAGE) || OPENAI_DEFAULT_BASE;
   var opts = Array.from(openaiBasePreset.options).map(o => o.value).filter(Boolean);
-  openaiBasePreset.value = opts.indexOf(cur) >= 0 ? cur : '';
+  openaiBasePreset.value = opts.indexOf(cur) >= 0 ? cur : OPENAI_DEFAULT_BASE;
 }
 
 openaiKeySave.addEventListener('click', function() {
@@ -8940,12 +16453,14 @@ openaiKeySave.addEventListener('click', function() {
   if (!val) localStorage.removeItem(OPENAI_KEY_STORAGE);
   else localStorage.setItem(OPENAI_KEY_STORAGE, val);
   var base = openaiBaseInput.value.trim().replace(/\/+$/, '');
-  if (!base) localStorage.removeItem(OPENAI_BASE_STORAGE);
-  else localStorage.setItem(OPENAI_BASE_STORAGE, base);
+  if (!base) base = OPENAI_DEFAULT_BASE;
+  localStorage.setItem(OPENAI_BASE_STORAGE, base);
   openaiKeyStatus.textContent = val ? '已保存到本机浏览器。' : '已清除本地 Key。';
   openaiKeyStatus.className = 'ai-settings-status ok';
   aiSettingsPanel.classList.remove('open');
 });
+
+syncProxyConfigToRuntime();
 
 deepseekKeySave.addEventListener('click', function() {
   var val = deepseekKeyInput.value.trim();
@@ -8973,6 +16488,644 @@ deepseekKeySave.addEventListener('click', function() {
   }
 })();
 
+// ===== 模型提供方 UI 接线 =====
+var providerSelect = document.getElementById('providerSelect');
+var provNameInput = document.getElementById('provNameInput');
+var provBaseInput = document.getElementById('provBaseInput');
+var provKeyInput = document.getElementById('provKeyInput');
+var provModelInput = document.getElementById('provModelInput');
+var provAddBtn = document.getElementById('provAddBtn');
+var providerList = document.getElementById('providerList');
+var providerStatus = document.getElementById('providerStatus');
+var providerSection = document.querySelector('.provider-section');
+var providerSectionToggle = document.getElementById('providerSectionToggle');
+var provFetchModelsBtn = document.getElementById('provFetchModelsBtn');
+var provModelsBox = document.getElementById('provModelsBox');
+var provModelsList = document.getElementById('provModelsList');
+var provModelsStatus = document.getElementById('provModelsStatus');
+var provModelsSelectAll = document.getElementById('provModelsSelectAll');
+var provModelsClear = document.getElementById('provModelsClear');
+var provDiagBox = document.getElementById('provDiagBox');       // #12 失败诊断面板
+var provCheckAllBtn = document.getElementById('provCheckAllBtn'); // #12 全部校验
+
+if (providerSectionToggle) providerSectionToggle.addEventListener('click', function() {
+  setProviderSectionCollapsed(!providerSection.classList.contains('collapsed'));
+});
+
+if (proxySectionToggle) proxySectionToggle.addEventListener('click', function() {
+  setProxySectionCollapsed(!proxySection.classList.contains('collapsed'));
+});
+
+restoreProviderSectionCollapsed();
+restoreProxySectionCollapsed();
+
+function renderProviderSelect() {
+  if (!providerSelect) return;
+  var list = getProviders() || [];
+  var active = getActiveProviderId();
+  providerSelect.innerHTML = '';
+  var optNone = document.createElement('option');
+  optNone.value = ''; optNone.textContent = '(使用下方 OpenAI / 自定义设置)';
+  providerSelect.appendChild(optNone);
+  list.forEach(function(p) {
+    var o = document.createElement('option');
+    o.value = p.id; o.textContent = p.name + ' [' + (p.vendor || 'openai') + ']' + (p.model ? ' · ' + p.model : '');
+    providerSelect.appendChild(o);
+  });
+  providerSelect.value = active;
+}
+
+function renderProviderList() {
+  if (!providerList) return;
+  var list = getProviders() || [];
+  providerList.innerHTML = '';
+  if (!list.length) {
+    providerList.innerHTML = '<div class="provider-empty">还没有提供方，用下方表单添加一个。</div>';
+    return;
+  }
+  list.forEach(function(p) {
+    var item = document.createElement('div');
+    item.className = 'provider-item';
+    var masked = p.key ? (p.key.slice(0, 5) + '…' + p.key.slice(-4)) : '(无 Key)';
+    var head = document.createElement('div');
+    head.className = 'provider-item-head';
+    var nm = document.createElement('span'); nm.className = 'provider-item-name'; nm.textContent = p.name;
+    var bs = document.createElement('span'); bs.className = 'provider-item-base'; bs.textContent = p.base || '';
+    head.appendChild(nm); head.appendChild(bs);
+    var meta = document.createElement('div');
+    meta.className = 'provider-item-meta';
+    var modelsInfo = (p.models && p.models.length) ? (' · 已记录 ' + p.models.length + ' 个模型') : '';
+    meta.textContent = '协议 ' + (p.vendor || 'openai') + ' · 默认模型 ' + (p.model || '—') + ' · Key ' + masked + modelsInfo;
+    // #12：校验状态徽标（上次结果，免重复请求）
+    var chk = getProviderCheck(p.id);
+    if (chk) {
+      var badge = document.createElement('span');
+      badge.className = 'provider-check-badge ' + chk.status;
+      badge.title = chk.msg + '（' + fmtAgo(chk.ts) + '）';
+      badge.textContent = chk.status === 'ok' ? '✓ 连通 ' + chk.models.length + ' 模型' : (chk.status === 'cors' ? '⚠ 疑似CORS' : '✗ 失败');
+      meta.appendChild(badge);
+    }
+    var actions = document.createElement('div');
+    actions.className = 'provider-item-actions';
+    var setBtn = document.createElement('button');
+    setBtn.className = 'ai-btn tiny'; setBtn.textContent = '设为当前';
+    setBtn.onclick = function() { applyProvider(p.id); };
+    var checkBtn = document.createElement('button');
+    checkBtn.className = 'ai-btn tiny'; checkBtn.textContent = '校验';
+    checkBtn.onclick = function() {
+      checkBtn.disabled = true; checkBtn.textContent = '校验中…';
+      checkProviderConnectivity(p).then(function(r) {
+        checkBtn.disabled = false; checkBtn.textContent = '校验';
+        renderProviderList();
+        if (providerStatus) {
+          providerStatus.textContent = p.name + '：' + (r.status === 'ok' ? ('✓ ' + r.msg) : (r.status === 'cors' ? '⚠ ' + r.msg + '（可能是 CORS 阻止，可启用代理模式或换 CORS 端点）' : '✗ ' + r.msg));
+          providerStatus.className = 'ai-settings-status ' + (r.status === 'ok' ? 'ok' : 'warn');
+        }
+      });
+    };
+    var editBtn = document.createElement('button');
+    editBtn.className = 'ai-btn tiny'; editBtn.textContent = '编辑';
+    editBtn.onclick = function() { editProvider(p.id); };
+    var addModelBtn = document.createElement('button');
+    addModelBtn.type = 'button';
+    addModelBtn.className = 'ai-btn tiny provider-model-add-btn';
+    addModelBtn.textContent = '+ 模型';
+    addModelBtn.title = '给这个提供方新增一个模型';
+    addModelBtn.onclick = function(e) { openProviderModelPanel(p.id, addModelBtn, e); };
+    var delBtn = document.createElement('button');
+    delBtn.className = 'ai-btn tiny danger'; delBtn.textContent = '删除';
+    delBtn.onclick = function() { deleteProvider(p.id); };
+    actions.appendChild(setBtn); actions.appendChild(checkBtn); actions.appendChild(editBtn); actions.appendChild(addModelBtn); actions.appendChild(delBtn);
+    item.appendChild(head); item.appendChild(meta); item.appendChild(actions);
+    providerList.appendChild(item);
+  });
+}
+
+function applyProvider(id) {
+  try { localStorage.setItem(ACTIVE_PROVIDER_STORAGE, id || ''); } catch (_) {}
+  syncActiveProviderToLegacy();
+  syncProviderModelsToAiSelects();
+  renderProviderSelect();
+  renderProviderList();
+  try { if (typeof agentFillProviders === 'function') agentFillProviders(); } catch (_) {}
+  if (providerStatus) {
+    providerStatus.textContent = id ? '已切换到该提供方（已写入当前 API Key / 地址）。' : '已停用提供方，改用下方 OpenAI / 自定义设置。';
+    providerStatus.className = 'ai-settings-status ok';
+  }
+}
+
+function addProvider() {
+  var name = (provNameInput.value || '').trim();
+  var base = (provBaseInput.value || '').trim().replace(/\/+$/, '');
+  var key = (provKeyInput.value || '').trim();
+  var manualRaw = (provModelInput.value || '').trim();
+  if (!base) { if (providerStatus) { providerStatus.textContent = '请填写地址（API 端点）。'; providerStatus.className = 'ai-settings-status warn'; } return; }
+  var list = getProviders() || [];
+  var selected = getSelectedProviderModels();
+  // 手动模型支持批量：换行 / 逗号 / 空格 分隔
+  var manualIds = manualRaw ? manualRaw.split(/[\s,]+/).map(function(s) { return s.trim(); }).filter(function(s) { return !!s; }) : [];
+  // 合并勾选 + 手动，按出现顺序去重
+  var seen = {};
+  var models = [];
+  selected.concat(manualIds).forEach(function(id) { if (id && !seen[id]) { seen[id] = 1; models.push(id); } });
+  var model = manualIds[0] || (selected.length ? selected[0] : '') || (models.length ? models[0] : '');
+  // 旧版页面没有单独的 vendor 选择控件：这里按名称 / 地址 / 模型自动推断，避免因未定义变量导致添加中断
+  var vendor = resolveProviderVendor({ name: name, base: base, model: model }, model) || 'openai';
+  var p = { id: 'prov-' + Date.now(), name: name || base, base: base, vendor: vendor, key: key, model: model, models: models };
+  list.push(p);
+  setProviders(list);
+  syncProviderModelsToAiSelects();
+  try { localStorage.setItem(ACTIVE_PROVIDER_STORAGE, p.id); } catch (_) {}
+  syncActiveProviderToLegacy();
+  provNameInput.value = ''; provBaseInput.value = ''; provKeyInput.value = ''; provModelInput.value = '';
+  if (provModelsList) provModelsList.innerHTML = '';
+  showModelsBox(false);
+  if (provModelsStatus) provModelsStatus.textContent = '';
+  renderProviderSelect(); renderProviderList();
+  try { if (typeof agentFillProviders === 'function') agentFillProviders(); } catch (_) {}
+  if (providerStatus) {
+    providerStatus.textContent = '已添加并设为当前提供方' + (models.length ? ('（已记录 ' + models.length + ' 个模型）') : '') + '。';
+    providerStatus.className = 'ai-settings-status ok';
+  }
+}
+
+var _providerModelPanel = null;
+var _providerModelPanelProviderId = '';
+var _providerModelPanelAnchor = null;
+
+function ensureProviderModelPanel() {
+  if (_providerModelPanel) return _providerModelPanel;
+  var panel = document.createElement('div');
+  panel.id = 'providerModelPanel';
+  panel.className = 'provider-model-panel';
+  panel.innerHTML =
+    '<div class="provider-model-panel-head">' +
+      '<div class="provider-model-panel-title">新增模型</div>' +
+      '<button type="button" class="provider-model-panel-close" id="pmClose">✕</button>' +
+    '</div>' +
+    '<div class="provider-model-panel-sub" id="pmSub">为当前提供方补充模型 ID</div>' +
+    '<label class="provider-model-panel-label">模型 ID</label>' +
+    '<textarea class="provider-model-panel-input" id="pmModel" placeholder="可输入一个或多个模型 ID，支持逗号 / 空格 / 换行分隔"></textarea>' +
+    '<label class="provider-model-panel-check"><input type="checkbox" id="pmDefault" checked> 设为默认模型</label>' +
+    '<div class="provider-model-panel-actions">' +
+      '<button type="button" class="ai-btn tiny" id="pmCancel">取消</button>' +
+      '<button type="button" class="ai-btn tiny primary" id="pmSave">保存</button>' +
+    '</div>';
+  document.body.appendChild(panel);
+  panel.querySelector('#pmClose').onclick = closeProviderModelPanel;
+  panel.querySelector('#pmCancel').onclick = closeProviderModelPanel;
+  panel.querySelector('#pmSave').onclick = saveProviderModelPanel;
+  panel.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+  document.addEventListener('mousedown', function(e) {
+    if (!panel.classList.contains('show')) return;
+    if (panel.contains(e.target)) return;
+    if (e.target && e.target.closest && e.target.closest('.provider-item-actions .provider-model-add-btn')) return;
+    closeProviderModelPanel();
+  }, true);
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && panel.classList.contains('show')) closeProviderModelPanel();
+  });
+  _providerModelPanel = panel;
+  return panel;
+}
+
+function positionProviderModelPanel(panel, anchor) {
+  if (!panel || !anchor) return;
+  var rect = anchor.getBoundingClientRect();
+  var pr = panel.getBoundingClientRect();
+  var pad = 12;
+  var left = rect.left;
+  var top = rect.bottom + 8;
+  if (left + pr.width > window.innerWidth - pad) left = window.innerWidth - pr.width - pad;
+  if (left < pad) left = pad;
+  if (top + pr.height > window.innerHeight - pad) top = rect.top - pr.height - 8;
+  if (top < pad) top = pad;
+  panel.style.left = Math.round(left) + 'px';
+  panel.style.top = Math.round(top) + 'px';
+}
+
+function openProviderModelPanel(id, anchor) {
+  var p = getProviderById(id);
+  if (!p) return;
+  var panel = ensureProviderModelPanel();
+  _providerModelPanelProviderId = id;
+  _providerModelPanelAnchor = anchor || null;
+  panel.querySelector('#pmSub').textContent = (p.name || p.base || '该提供方') + ' · 一次输入一个或多个模型 ID';
+  panel.querySelector('#pmModel').value = '';
+  panel.querySelector('#pmDefault').checked = !p.model;
+  panel.classList.add('show');
+  panel.style.visibility = 'hidden';
+  panel.style.display = 'block';
+  requestAnimationFrame(function() {
+    positionProviderModelPanel(panel, anchor || panel);
+    panel.style.visibility = 'visible';
+    panel.querySelector('#pmModel').focus();
+  });
+}
+
+function closeProviderModelPanel() {
+  var panel = _providerModelPanel;
+  if (!panel) return;
+  panel.classList.remove('show');
+  panel.style.display = 'none';
+  _providerModelPanelProviderId = '';
+  _providerModelPanelAnchor = null;
+}
+
+function saveProviderModelPanel() {
+  var panel = _providerModelPanel;
+  if (!panel) return;
+  var p = getProviderById(_providerModelPanelProviderId);
+  if (!p) { closeProviderModelPanel(); return; }
+  var raw = (panel.querySelector('#pmModel').value || '').trim();
+  if (!raw) {
+    if (providerStatus) {
+      providerStatus.textContent = '请至少填写一个模型 ID。';
+      providerStatus.className = 'ai-settings-status warn';
+    }
+    return;
+  }
+  var ids = raw.split(/[\s,]+/).map(function(s) { return s.trim(); }).filter(function(s) { return !!s; });
+  if (!ids.length) return;
+  var list = getProviders() || [];
+  var target = null;
+  for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === p.id) { target = list[i]; break; }
+  if (!target) { closeProviderModelPanel(); return; }
+  if (!Array.isArray(target.models)) target.models = [];
+  var added = [];
+  ids.forEach(function(id) {
+    if (target.models.indexOf(id) === -1) { target.models.push(id); added.push(id); }
+  });
+  if (panel.querySelector('#pmDefault').checked || !target.model) target.model = ids[0];
+  if (added.length || target.model) saveProvidersAndRefresh(list);
+  syncProviderModelsToAiSelects();
+  try { if (typeof agentFillProviders === 'function') agentFillProviders(); } catch (_) {}
+  if (providerStatus) {
+    providerStatus.textContent = '已为「' + (target.name || target.base || target.id) + '」新增模型：' + ids.join('、') + '。';
+    providerStatus.className = 'ai-settings-status ok';
+  }
+  closeProviderModelPanel();
+}
+
+function editProvider(id) {
+  var list = getProviders() || [];
+  var p = null;
+  for (var i = 0; i < list.length; i++) if (list[i].id === id) { p = list[i]; break; }
+  if (!p) return;
+  var name = prompt('提供方名称', p.name || ''); if (name === null) return;
+  var base = prompt('API 地址（base URL）', p.base || ''); if (base === null) return;
+  var vendor = prompt('协议类型（openai / deepseek / anthropic / google / xai）', p.vendor || 'openai');
+  if (vendor === null) return;
+  var key = prompt('API Key（留空则保持不变）', '');
+  var model = prompt('默认模型 id', p.model || '');
+  p.name = name.trim() || p.base;
+  p.base = base.trim().replace(/\/+$/, '');
+  p.vendor = (vendor.trim() || 'openai').toLowerCase();
+  if (key && key.trim()) p.key = key.trim();
+  if (model !== null) p.model = model.trim();
+  setProviders(list);
+  if (getActiveProviderId() === id) syncActiveProviderToLegacy();
+  syncProviderModelsToAiSelects();
+  renderProviderSelect(); renderProviderList();
+  try { if (typeof agentFillProviders === 'function') agentFillProviders(); } catch (_) {}
+}
+
+function deleteProvider(id) {
+  if (!confirm('删除该提供方？')) return;
+  var list = getProviders() || [];
+  var next = list.filter(function(x) { return x.id !== id; });
+  setProviders(next);
+  removeProviderCheck(id); // #12：清理该校验记录
+  if (getActiveProviderId() === id) { try { localStorage.setItem(ACTIVE_PROVIDER_STORAGE, ''); } catch (_) {} }
+  syncProviderModelsToAiSelects();
+  renderProviderSelect(); renderProviderList();
+  try { if (typeof agentFillProviders === 'function') agentFillProviders(); } catch (_) {}
+}
+
+// ===== 识别当前供方的模型：拉取 /models 并解析为可选模型列表 =====
+// 兼容常见返回：{ object:'list', data:[{id}] } / { data:[...] } / { models:[...] } / { list:[...] } / 裸数组 等。
+function parseModelsPayload(json) {
+  var models = [];
+  function pushId(id) {
+    if (id && typeof id === 'string' && models.indexOf(id) === -1) models.push(id);
+  }
+  function collect(arr) {
+    if (!Array.isArray(arr)) return;
+    arr.forEach(function(m) {
+      if (!m) return;
+      if (typeof m === 'string') { pushId(m); return; }
+      pushId(m.id || m.model || m.name || m.object);
+      if (m.owned_models && Array.isArray(m.owned_models)) m.owned_models.forEach(function(x) { pushId((x && x.id) ? x.id : x); });
+    });
+  }
+  if (!json) return models;
+  if (Array.isArray(json)) { collect(json); return models; }
+  collect(json.data);
+  collect(json.models);
+  collect(json.list);
+  collect(json.result);
+  collect(json.results);
+  if (json.success && json.data) collect(json.data);
+  // 个别服务把模型藏在 choices[].models
+  if (json.choices && Array.isArray(json.choices)) json.choices.forEach(function(c) { if (c && c.models) collect(c.models); });
+  return models;
+}
+
+// 根据 base 生成候选 /models 路径（自动兼容 /models 与 /v1/models）
+function candidateModelUrls(base) {
+  var b = base.replace(/\/+$/, '');
+  var urls = [];
+  if (/\/v1$/.test(b)) {
+    // base 形如 .../v1：候选为 .../v1/models 与 .../models
+    urls.push(b + '/models');
+    urls.push(b.replace(/\/v1$/, '') + '/models');
+  } else {
+    // base 形如 .../x：候选为 .../models 与 .../v1/models
+    urls.push(b + '/models');
+    urls.push(b + '/v1/models');
+  }
+  // 去重，保序
+  var seen = {};
+  return urls.filter(function(u) { if (seen[u]) return false; seen[u] = 1; return true; });
+}
+
+// 向提供方 base 拉取模型列表：依次探测多个候选路径，返回 { models, url, tried }
+// tried 记录每个候选路径的探测结果（供失败诊断可视化）：{ url, ok, code|error, corsLike }
+function fetchProviderModels(base, key) {
+  return new Promise(function(resolve, reject) {
+    var urls = candidateModelUrls(base);
+    var lastErr = null;
+    var tried = [];
+    function tryOne(idx) {
+      if (idx >= urls.length) {
+        var err = lastErr || new Error('所有候选路径均未返回模型列表（可能该服务不支持标准 /models）');
+        err.tried = tried;
+        reject(err);
+        return;
+      }
+      var url = urls[idx];
+      var headers = { 'Accept': 'application/json' };
+      if (key) headers['Authorization'] = 'Bearer ' + key;
+      fetch(url, { method: 'GET', headers: headers })
+        .then(function(resp) {
+          if (!resp.ok) {
+            tried.push({ url: url, ok: false, code: resp.status });
+            var e = new Error('HTTP ' + resp.status);
+            e.status = resp.status;
+            lastErr = e; // 记录最后一次错误，继续试下一个路径
+            tryOne(idx + 1);
+            return;
+          }
+          return resp.json().then(function(json) {
+            tried.push({ url: url, ok: true, code: 200 });
+            var ms = parseModelsPayload(json);
+            if (ms.length) resolve({ models: ms, url: url, tried: tried });
+            else tryOne(idx + 1); // 该路径可达但无模型数据，试下一个
+          });
+        })
+        .catch(function(err) {
+          var msg = (err && err.message) ? String(err.message) : String(err);
+          tried.push({ url: url, ok: false, error: msg, corsLike: /Failed to fetch|NetworkError|TypeError|Load failed/i.test(msg) });
+          lastErr = err;
+          tryOne(idx + 1);
+        });
+    }
+    tryOne(0);
+  });
+}
+
+// ===== #12 provider 增强：模型缓存 / 一键校验 / 失败诊断可视化 =====
+var PROVIDER_MODELS_CACHE_KEY = 'flowcraft:providerModelsCache:v1'; // { base: { models, url, ts } }
+var PROVIDER_CHECKS_KEY = 'flowcraft:providerChecks:v1';             // { id: { status, ts, msg, models } }
+var PROVIDER_CACHE_TTL = 6 * 60 * 60 * 1000;                         // 缓存有效期 6 小时
+var _providerForceRefresh = false;                                   // 命中缓存后再次点击 → 强制联网刷新
+
+function getProviderModelsCache(base) {
+  try {
+    var o = JSON.parse(localStorage.getItem(PROVIDER_MODELS_CACHE_KEY));
+    return (o && o[base]) || null;
+  } catch (_) { return null; }
+}
+function setProviderModelsCache(base, models, url) {
+  try {
+    var o = {};
+    try { o = JSON.parse(localStorage.getItem(PROVIDER_MODELS_CACHE_KEY)) || {}; } catch (_) {}
+    o[base] = { models: models, url: url, ts: Date.now() };
+    localStorage.setItem(PROVIDER_MODELS_CACHE_KEY, JSON.stringify(o));
+  } catch (_) {}
+}
+function getProviderCheck(id) {
+  try {
+    var o = JSON.parse(localStorage.getItem(PROVIDER_CHECKS_KEY));
+    return (o && o[id]) || null;
+  } catch (_) { return null; }
+}
+function setProviderCheck(id, status, msg, models) {
+  try {
+    var o = {};
+    try { o = JSON.parse(localStorage.getItem(PROVIDER_CHECKS_KEY)) || {}; } catch (_) {}
+    o[id] = { status: status, ts: Date.now(), msg: msg || '', models: models || [] };
+    localStorage.setItem(PROVIDER_CHECKS_KEY, JSON.stringify(o));
+  } catch (_) {}
+}
+function removeProviderCheck(id) {
+  try {
+    var o = JSON.parse(localStorage.getItem(PROVIDER_CHECKS_KEY)) || {};
+    if (o[id]) { delete o[id]; localStorage.setItem(PROVIDER_CHECKS_KEY, JSON.stringify(o)); }
+  } catch (_) {}
+}
+function fmtAgo(ts) {
+  if (!ts) return '';
+  var s = Math.max(1, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return s + ' 秒前';
+  if (s < 3600) return Math.round(s / 60) + ' 分钟前';
+  return Math.round(s / 3600) + ' 小时前';
+}
+// 渲染失败诊断面板：每个候选路径的结果 + 常见解决方案
+function renderProviderDiagnostics(tried) {
+  if (!provDiagBox) return;
+  provDiagBox.hidden = false;
+  provDiagBox.innerHTML = '';
+  if (tried && tried.length) {
+    var head = document.createElement('div');
+    head.className = 'pd-head';
+    head.textContent = '已探测路径诊断：';
+    provDiagBox.appendChild(head);
+    tried.forEach(function(t) {
+      var row = document.createElement('div');
+      row.className = 'pd-row';
+      var dot = document.createElement('span');
+      dot.className = 'pd-dot ' + (t.ok ? 'ok' : (t.corsLike ? 'warn' : 'err'));
+      dot.textContent = t.ok ? '✓' : (t.corsLike ? '⚠' : '✗');
+      var txt = document.createElement('span');
+      txt.className = 'pd-txt';
+      txt.textContent = t.url + ' → ' + (t.ok ? '可达' : (t.code ? 'HTTP ' + t.code : (t.error || '失败')));
+      row.appendChild(dot); row.appendChild(txt);
+      provDiagBox.appendChild(row);
+    });
+  }
+  var sol = document.createElement('div');
+  sol.className = 'pd-solutions';
+  sol.innerHTML = '常见解法：① 服务端开启 CORS（或改用中转/代理端点）② 启用 FlowCraft 代理模式 ③ 手动填写模型 id 绕过 /models';
+  provDiagBox.appendChild(sol);
+}
+
+function showModelsBox(show) {
+  if (provModelsBox) provModelsBox.hidden = !show;
+}
+
+function renderModelsChecklist(models) {
+  if (!provModelsList) return;
+  provModelsList.innerHTML = '';
+  models.forEach(function(id) {
+    var label = document.createElement('label');
+    label.className = 'provider-model-check';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = id;
+    cb.checked = true; // 默认全选，用户可取消勾选
+    cb.setAttribute('data-model', id);
+    var span = document.createElement('span');
+    span.textContent = id;
+    label.appendChild(cb); label.appendChild(span);
+    provModelsList.appendChild(label);
+  });
+}
+
+// 收集当前勾选的模型 id（去重）
+function getSelectedProviderModels() {
+  if (!provModelsList) return [];
+  var out = [];
+  provModelsList.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
+    var v = cb.getAttribute('data-model');
+    if (cb.checked && v && out.indexOf(v) === -1) out.push(v);
+  });
+  return out;
+}
+
+function setProviderStatus(msg, type) {
+  if (!providerStatus) return;
+  providerStatus.textContent = msg || '';
+  providerStatus.className = 'ai-settings-status' + (type ? ' ' + type : '');
+}
+
+// 点击「获取模型」：识别当前供方的可用模型并渲染勾选列表
+// 缓存策略：6 小时内命中本地缓存直接展示（状态栏注明"缓存"），再次点击强制联网刷新；
+//           联网失败但有历史缓存时回退缓存并告警；失败渲染结构化诊断面板。
+function onFetchModels() {
+  var base = (provBaseInput.value || '').trim().replace(/\/+$/, '');
+  if (!base) { setProviderStatus('请先填写地址（API 端点）再获取模型。', 'warn'); return; }
+  var key = (provKeyInput.value || '').trim();
+  var cache = getProviderModelsCache(base);
+
+  // 命中新鲜缓存 → 先用缓存展示，并提示再次点击强制刷新
+  if (cache && cache.models && cache.models.length && !_providerForceRefresh) {
+    renderModelsChecklist(cache.models);
+    showModelsBox(true);
+    if (provModelsStatus) provModelsStatus.textContent = '已用本地缓存（' + fmtAgo(cache.ts) + '，来自 ' + (cache.url || '') + '）。再次点击「获取模型」强制联网刷新。';
+    setProviderStatus('已载入缓存模型 ' + cache.models.length + ' 个（' + fmtAgo(cache.ts) + '）。', 'ok');
+    _providerForceRefresh = true; // 下次点击强制联网
+    return;
+  }
+  _providerForceRefresh = false;
+
+  var proxyOn = !!_fcProxy();
+  setProviderStatus('正在获取模型列表…', '');
+  if (provModelsStatus) provModelsStatus.textContent = '请求中…';
+  showModelsBox(true);
+  if (provDiagBox) provDiagBox.hidden = true;
+  fetchProviderModels(base, key).then(function(res) {
+    var models = res.models, url = res.url;
+    setProviderModelsCache(base, models, url); // 成功后写缓存
+    if (!models.length) {
+      if (provModelsStatus) provModelsStatus.textContent = '该端点未返回模型列表（可能不是标准 OpenAI 兼容 /models）。可手动填写模型 id。';
+      setProviderStatus('未识别到模型，请手动填写模型 id。', 'warn');
+      return;
+    }
+    renderModelsChecklist(models);
+    if (provModelsStatus) provModelsStatus.textContent = '共 ' + models.length + ' 个模型（取自 ' + url + '，已缓存 6 小时），勾选要添加的，然后点「添加」。';
+    setProviderStatus('已识别 ' + models.length + ' 个模型（取自 ' + url + '），请勾选要添加的。', 'ok');
+  }).catch(function(err) {
+    var msg = (err && err.message) ? err.message : String(err);
+    var tried = (err && err.tried) || [];
+    var triedStr = (tried.length ? tried.map(function(t) { return t.url; }).join('、') : candidateModelUrls(base).join('、'));
+    var isCorsOrNet = /Failed to fetch|NetworkError|TypeError|Load failed/i.test(msg);
+    var specific = isCorsOrNet
+      ? '（很可能是浏览器 CORS 阻止：服务端未给 /models 配置跨域头，前端无法绕过。）'
+      : (proxyOn ? '（当前为代理模式：浏览器不持有 Key，代理可能未开放 /models 列表接口。）' : '');
+    var manualHint = '建议：手动填写模型 id 到上方『模型』框（换行/逗号/空格分隔，可批量添加）。';
+    // 联网失败但有缓存 → 回退缓存
+    var fallback = cache && cache.models && cache.models.length;
+    if (fallback) {
+      renderModelsChecklist(cache.models);
+      if (provModelsStatus) provModelsStatus.textContent = '联网获取失败，已回退本地缓存（' + fmtAgo(cache.ts) + '）。';
+      setProviderStatus('联网获取失败（' + msg + '），已回退本地缓存 ' + cache.models.length + ' 个模型。', 'warn');
+    } else {
+      if (provModelsStatus) provModelsStatus.textContent = '获取失败：' + msg + '｜已尝试：' + triedStr;
+      setProviderStatus('获取模型失败：' + msg + '。已尝试路径：' + triedStr + specific + manualHint, 'warn');
+      renderProviderDiagnostics(tried);
+    }
+  });
+}
+
+// 校验单个提供方连通性：探测 /models，分类 ok / cors / fail，结果持久化到 providerChecks
+function checkProviderConnectivity(p) {
+  if (!p || !p.base) return Promise.resolve({ status: 'fail', msg: '缺少地址' });
+  return fetchProviderModels(p.base, p.key).then(function(res) {
+    setProviderCheck(p.id, 'ok', '连通，' + res.models.length + ' 个模型（' + res.url + '）', res.models);
+    return { status: 'ok', models: res.models.length, msg: '连通，' + res.models.length + ' 个模型', url: res.url };
+  }).catch(function(err) {
+    var msg = (err && err.message) ? String(err.message) : String(err);
+    var corsLike = /Failed to fetch|NetworkError|TypeError|Load failed/i.test(msg);
+    var status = corsLike ? 'cors' : 'fail';
+    setProviderCheck(p.id, status, msg + (corsLike ? '（疑似 CORS 阻止）' : ''), []);
+    return { status: status, msg: msg };
+  });
+}
+// 全部校验：逐个提供方测连通，边测边刷新列表与状态
+function checkAllProviders() {
+  var list = getProviders() || [];
+  if (!list.length) { if (providerStatus) { providerStatus.textContent = '还没有提供方可校验。'; providerStatus.className = 'ai-settings-status warn'; } return; }
+  if (providerStatus) { providerStatus.textContent = '正在逐个校验 ' + list.length + ' 个提供方…'; providerStatus.className = 'ai-settings-status'; }
+  var chain = Promise.resolve();
+  var seq = [];
+  list.forEach(function(p) { seq.push(function() { return checkProviderConnectivity(p).then(function() { renderProviderList(); }); }); });
+  seq.reduce(function(prev, cur) { return prev.then(cur); }, chain).then(function() {
+    renderProviderList();
+    if (providerStatus) { providerStatus.textContent = '全部校验完成，见各提供方状态徽标。'; providerStatus.className = 'ai-settings-status ok'; }
+  }).catch(function(e) {
+    if (providerStatus) { providerStatus.textContent = '校验中断：' + e.message; providerStatus.className = 'ai-settings-status warn'; }
+  });
+}
+
+if (providerSelect) providerSelect.addEventListener('change', function(e) { applyProvider(e.target.value); });
+if (provAddBtn) provAddBtn.addEventListener('click', addProvider);
+if (provFetchModelsBtn) provFetchModelsBtn.addEventListener('click', onFetchModels);
+if (provCheckAllBtn) provCheckAllBtn.addEventListener('click', checkAllProviders);
+if (provModelsSelectAll) provModelsSelectAll.addEventListener('click', function() {
+  if (provModelsList) provModelsList.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = true; });
+});
+if (provModelsClear) provModelsClear.addEventListener('click', function() {
+  if (provModelsList) provModelsList.querySelectorAll('input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
+});
+
+// 打开设置面板时刷新提供方列表，并收起模型勾选框
+aiSettingsBtn.addEventListener('click', function() {
+  renderProviderSelect();
+  renderProviderList();
+  showModelsBox(false);
+  if (provModelsList) provModelsList.innerHTML = '';
+  if (provModelsStatus) provModelsStatus.textContent = '';
+});
+
+// 首次启动：种子默认提供方 + 自动激活（仅首次，不会覆盖你已有的手动设置）
+seedProvidersIfNeeded();
+syncActiveProviderToLegacy();
+syncProviderModelsToAiSelects();
+renderProviderSelect();
+renderProviderList();
+restoreAIChatHistory();
+
 // --- 9. 清空对话 ---
 aiClearBtn.addEventListener('click', function() {
   // 仅统计消息条数（排除 welcome）
@@ -8994,6 +17147,7 @@ aiClearBtn.addEventListener('click', function() {
   aiToggleBtn.classList.remove('has-messages');
   // 清空对话时同步重置 Deepseek 上下文
   aiConversation = [];
+  try { localStorage.removeItem(AI_CHAT_HISTORY_STORAGE); } catch (_) {}
 });
 
 init();

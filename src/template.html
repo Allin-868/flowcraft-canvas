@@ -40,6 +40,12 @@
     <canvas id="edgeCanvas"></canvas>
     <div class="node-layer" id="nodeLayer"></div>
 
+    <!-- 节点下方 Composer（Details on Demand）：选中生成节点时浮现，随节点/画布移动 -->
+    <div class="node-composer" id="nodeComposer" hidden></div>
+
+    <!-- B 点击连线删除：选中连线时在中点浮现的删除按钮 -->
+    <div class="edge-delete-btn" id="edgeDeleteBtn" hidden title="删除此连线">✕</div>
+
     <!-- 右侧 AI 助手面板（默认隐藏，由 localStorage 记忆开关状态） -->
     <div class="ai-panel collapsed" id="aiPanel">
       <div class="ai-panel-resizer" id="aiPanelResizer"></div>
@@ -48,55 +54,16 @@
           <optgroup label="GPT">
             <option value="gpt-5.4">GPT-5.4</option>
             <option value="gpt-5.4-mini">GPT-5.4 Mini</option>
-            <option value="gpt-5.5">GPT-5.5</option>
-            <option value="gpt-5.5-openai-compact">GPT-5.5 Compact</option>
-            <option value="gpt-5.6-luna">GPT-5.6 Luna</option>
-            <option value="gpt-5.6-sol">GPT-5.6 Sol</option>
-            <option value="gpt-5.6-terra">GPT-5.6 Terra</option>
           </optgroup>
           <optgroup label="Claude">
             <option value="claude-sonnet-4-6">Sonnet 4.6</option>
-            <option value="claude-sonnet-4-6-thinking">Sonnet 4.6 Thinking</option>
-            <option value="claude-sonnet-5">Sonnet 5</option>
-            <option value="claude-opus-4-6">Opus 4.6</option>
-            <option value="claude-opus-4-6-thinking">Opus 4.6 Thinking</option>
-            <option value="claude-opus-4-7">Opus 4.7</option>
-            <option value="claude-opus-4-8">Opus 4.8</option>
-            <option value="claude-opus-5">Opus 5</option>
-            <option value="claude-haiku-4-5">Haiku 4.5</option>
-            <option value="claude-fable-5">Fable 5</option>
-            <option value="claude-ccmax">CCMax</option>
           </optgroup>
           <optgroup label="Gemini">
             <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
-            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
-            <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image</option>
-            <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image</option>
-            <option value="gemini-anti">Gemini Anti</option>
-            <option value="gemini-anti-0.25">Gemini Anti 0.25</option>
-          </optgroup>
-          <optgroup label="Grok">
-            <option value="grok-4">Grok 4</option>
-            <option value="grok-4-deepsearch">Grok 4 DeepSearch</option>
-            <option value="grok-4.3">Grok 4.3</option>
-            <option value="grok-4.3-fast">Grok 4.3 Fast</option>
-            <option value="grok-4.5">Grok 4.5</option>
-            <option value="grok-4.5-fast">Grok 4.5 Fast</option>
-            <option value="grok-420-fast">Grok 420 Fast</option>
-            <option value="grok-420-thinking">Grok 420 Thinking</option>
-            <option value="grok-auto">Grok Auto</option>
-          </optgroup>
-          <optgroup label="其他">
-            <option value="codex">Codex</option>
-            <option value="codex-auto-review">Codex Auto Review</option>
-            <option value="kiro">Kiro</option>
-            <option value="vertex">Vertex</option>
-            <option value="default">Default</option>
-            <option value="test">Test</option>
           </optgroup>
           <optgroup label="特殊">
             <option value="gpt-image-2">GPT Image 2（生图）</option>
-            <option value="deepseek">DeepSeek V3（自有 Key）</option>
+            <option value="deepseek-v4-flash">DeepSeek V4 Flash（自有 Key）</option>
           </optgroup>
         </select>
         <div class="ai-title" id="aiSessionTitle">AI 设计助手</div>
@@ -128,11 +95,80 @@
           <select id="openaiBasePreset" class="ai-base-preset" title="常用 API 中转地址">
             <option value="">自定义</option>
             <option value="https://www.zeoapi.com/v1">zeoapi.com</option>
+            <option value="https://infistar.cc/v1">无限星河</option>
             <option value="https://api.openai.com/v1">OpenAI 官方</option>
           </select>
-          <input type="text" id="openaiBaseInput" placeholder="API 地址（留空默认 https://api.openai.com/v1）" autocomplete="off" spellcheck="false" />
+          <input type="text" id="openaiBaseInput" placeholder="API 地址（留空默认 https://infistar.cc/v1）" autocomplete="off" spellcheck="false" />
         </div>
-        <div class="ai-settings-hint">Key 仅保存在本机浏览器（localStorage），不会上传到任何第三方服务器。</div>
+        <div class="proxy-section">
+          <div class="proxy-section-head">
+            <div class="proxy-section-title">代理配置（用于绕过浏览器 CORS）</div>
+            <button class="ai-btn small proxy-section-toggle" id="proxySectionToggle" type="button" aria-expanded="true">收起</button>
+          </div>
+          <div class="proxy-section-body" id="proxySectionBody">
+            <div class="ai-settings-row">
+              <span class="ai-settings-label">代理</span>
+              <input type="text" id="proxyBaseInput" placeholder="https://your-proxy.com" autocomplete="off" spellcheck="false" />
+            </div>
+            <div class="ai-settings-row">
+              <span class="ai-settings-label">令牌</span>
+              <input type="password" id="proxyTokenInput" placeholder="短期代理令牌" autocomplete="off" spellcheck="false" />
+              <button class="ai-btn small" id="proxySaveBtn" type="button">保存/启用</button>
+            </div>
+            <div class="ai-settings-status" id="proxyStatus"></div>
+          </div>
+        </div>
+        <div class="provider-section">
+          <div class="provider-section-head">
+            <div class="provider-section-title">模型提供方（可添加多个 API 端点）</div>
+            <button class="ai-btn small provider-section-toggle" id="providerSectionToggle" type="button" aria-expanded="true">收起</button>
+          </div>
+          <div class="provider-section-body" id="providerSectionBody">
+            <div class="ai-settings-row">
+              <span class="ai-settings-label">当前</span>
+              <select id="providerSelect" class="ai-base-preset"></select>
+              <button class="ai-btn small" id="provCheckAllBtn" type="button" title="逐个校验已添加提供方的连通性">全部校验</button>
+            </div>
+            <div class="ai-settings-row">
+              <span class="ai-settings-label">名称</span>
+              <input type="text" id="provNameInput" placeholder="如 Codex" autocomplete="off" spellcheck="false" />
+            </div>
+            <div class="ai-settings-row">
+              <span class="ai-settings-label">地址</span>
+              <input type="text" id="provBaseInput" placeholder="https://your-endpoint.com" autocomplete="off" spellcheck="false" />
+            </div>
+            <div class="ai-settings-row">
+              <span class="ai-settings-label">Key</span>
+              <input type="password" id="provKeyInput" placeholder="sk-..." autocomplete="off" spellcheck="false" />
+            </div>
+            <div class="ai-settings-row">
+              <span class="ai-settings-label">模型</span>
+              <input type="text" id="provModelInput" placeholder="如 gpt-4o-mini；多 id 用换行/逗号/空格分隔（可留空点获取）" autocomplete="off" spellcheck="false" />
+              <button class="ai-btn small" id="provFetchModelsBtn" type="button">获取模型</button>
+              <button class="ai-btn small" id="provAddBtn" type="button">添加</button>
+            </div>
+            <div class="provider-models-box" id="provModelsBox" hidden>
+              <div class="provider-models-head">
+                <span class="provider-models-title" id="provModelsTitle">可添加的模型（勾选要添加的）</span>
+                <span class="provider-models-tools">
+                  <button class="ai-btn tiny" id="provModelsSelectAll" type="button">全选</button>
+                  <button class="ai-btn tiny" id="provModelsClear" type="button">清空</button>
+                </span>
+              </div>
+              <div class="provider-models-list" id="provModelsList"></div>
+              <div class="provider-models-status" id="provModelsStatus"></div>
+            </div>
+            <div class="provider-diag" id="provDiagBox" hidden></div>
+            <div class="provider-list" id="providerList"></div>
+            <div class="ai-settings-status" id="providerStatus"></div>
+          </div>
+        </div>
+        <div class="ai-settings-row">
+          <span class="ai-settings-label">工具确认</span>
+          <button type="button" class="ai-toggle-switch" id="toolConfirmToggle" role="switch" aria-checked="true">开</button>
+          <span class="ai-settings-hint" id="toolConfirmHint">Agent 执行工具操作前弹确认（安全闸门）</span>
+        </div>
+        <div class="ai-settings-hint">Key 仅保存在本机浏览器（localStorage），不会上传到任何第三方服务器。项目不会预置或内置任何 API Key，请在本机设置中自行填写。</div>
         <div class="ai-settings-status" id="deepseekKeyStatus"></div>
         <div class="ai-settings-status" id="openaiKeyStatus"></div>
       </div>
@@ -171,6 +207,110 @@
       <span class="ai-toggle-badge"></span>
     </button>
 
+    <!-- #1 Agent 全站助手：抽屉开关按钮 -->
+    <button class="agent-toggle-btn" id="agentToggleBtn" title="Agent 全站助手">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2.5" y="4" width="11" height="8" rx="2"/>
+        <path d="M5.5 7v2M8 6.5v3M10.5 7v2"/>
+        <path d="M2.5 6h11"/>
+      </svg>
+      <span class="agent-toggle-badge" id="agentToggleBadge" hidden></span>
+    </button>
+
+    <!-- #1 Agent 全站助手抽屉（连接 / 对话 / 历史 / 日志） -->
+    <aside class="agent-drawer" id="agentDrawer" hidden>
+      <div class="agent-drawer-head">
+        <span class="agent-drawer-title">🤖 Agent</span>
+        <span class="agent-drawer-sub" id="agentConnDotWrap"><span class="agent-dot" id="agentConnDot"></span><span id="agentConnText">未连接</span></span>
+        <button type="button" class="agent-drawer-new" id="agentNewBtn" title="新对话">＋ 新对话</button>
+        <button type="button" class="agent-drawer-close" id="agentCloseBtn" title="收起">✕</button>
+      </div>
+      <div class="agent-tabs">
+        <button type="button" class="agent-tab active" data-agent-tab="conn">连接</button>
+        <button type="button" class="agent-tab" data-agent-tab="chat">对话</button>
+        <button type="button" class="agent-tab" data-agent-tab="hist">历史</button>
+        <button type="button" class="agent-tab" data-agent-tab="log">日志</button>
+      </div>
+
+      <!-- 连接 -->
+      <div class="agent-tab-pane" data-agent-pane="conn">
+        <div class="agent-section-title">连接本地 Agent</div>
+        <div class="agent-section-desc">按使用场景选择一种连接方式。Key 仅保存在本机浏览器，请求直连已配置端点。</div>
+
+        <div class="agent-method">
+          <div class="agent-method-title">方式一：使用已配置的模型提供方</div>
+          <div class="agent-method-desc">从设置中添加的提供方中选择，自动带上端点与 Key。</div>
+          <div class="agent-row">
+            <span class="agent-label">提供方</span>
+            <select id="agentProviderSelect" class="agent-select"></select>
+          </div>
+          <div class="agent-row">
+            <span class="agent-label">模型</span>
+            <select id="agentModelSelect" class="agent-select"></select>
+          </div>
+          <button type="button" class="agent-btn primary" id="agentConnectBtn">连接</button>
+        </div>
+
+        <div class="agent-method">
+          <div class="agent-method-title">方式二：手动指定临时端点</div>
+          <div class="agent-method-desc">不保存到提供方列表，仅本次连接使用（适合快速测试）。</div>
+          <div class="agent-row">
+            <span class="agent-label">地址</span>
+            <input type="text" id="agentTempBase" placeholder="https://xxx/v1" class="agent-input" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="agent-row">
+            <span class="agent-label">Key</span>
+            <input type="password" id="agentTempKey" placeholder="sk-…" class="agent-input" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="agent-row">
+            <span class="agent-label">模型</span>
+            <input type="text" id="agentTempModel" placeholder="如 gpt-5.6-sol" class="agent-input" autocomplete="off" spellcheck="false" />
+          </div>
+          <button type="button" class="agent-btn" id="agentTempTestBtn">测试连接</button>
+        </div>
+
+        <div class="agent-row" style="margin-top:6px">
+          <span class="agent-label">工具确认</span>
+          <button type="button" class="ai-toggle-switch" id="agentToolConfirmToggle" role="switch" aria-checked="true">开</button>
+          <span class="agent-hint" id="agentToolConfirmHint">Agent 执行工具前弹确认</span>
+        </div>
+        <div class="agent-conn-msg" id="agentConnMsg"></div>
+      </div>
+
+      <!-- 对话 -->
+      <div class="agent-tab-pane" data-agent-pane="chat" hidden>
+        <div class="agent-chat-list" id="agentChatList"></div>
+        <div class="agent-chat-empty" id="agentChatEmpty">👋 描述需求或让 Agent 分析当前画布（节点/连线/状态）。</div>
+        <div class="agent-chat-input-row">
+          <textarea id="agentChatInput" class="agent-chat-input" placeholder="输入消息…（Enter 发送，Shift+Enter 换行）" rows="1"></textarea>
+          <button type="button" class="agent-chat-send" id="agentChatSend" title="发送">↑</button>
+        </div>
+      </div>
+
+      <!-- 历史 -->
+      <div class="agent-tab-pane" data-agent-pane="hist" hidden>
+        <div class="agent-hist-tools">
+          <button type="button" class="agent-btn tiny danger" id="agentHistClear">清空历史</button>
+        </div>
+        <div class="agent-hist-list" id="agentHistList">
+          <div class="agent-chat-empty">暂无历史会话。</div>
+        </div>
+      </div>
+
+      <!-- 日志 -->
+      <div class="agent-tab-pane" data-agent-pane="log" hidden>
+        <div class="agent-hist-tools">
+          <button type="button" class="agent-btn tiny danger" id="agentLogClear">清空日志</button>
+        </div>
+        <div class="agent-log-list" id="agentLogList">
+          <div class="agent-chat-empty">暂无 Agent 日志。</div>
+        </div>
+      </div>
+
+      <!-- 右下角缩放把手（与 AI 助手一致） -->
+      <div class="ai-panel-resizer" id="agentResizer"></div>
+    </aside>
+
     <!-- 顶部工具栏 -->
     <div class="canvas-toolbar" id="canvasToolbar">
       <button class="tb-btn" id="btnUndo" title="撤销 (Ctrl+Z)" disabled>
@@ -186,6 +326,9 @@
       </button>
       <button class="tb-btn" id="btnWorkflow" title="工作流管理（保存 / 加载 / 导出）">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4a2 2 0 012-2h3l2 2h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V4z"/></svg>
+      </button>
+      <button class="tb-btn" id="btnWorkbench" title="工作台（多画布独立切换）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><path d="M2 6h12M2 10h12M6 6v8"/></svg>
       </button>
       <button class="tb-btn" id="btnAssets" title="素材库（图片资产管理）">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>
@@ -210,6 +353,9 @@
       <button class="tb-btn" id="btnExport" title="导出 JSON">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3 14h10"/></svg>
       </button>
+      <button class="tb-btn" id="btnExportPng" title="导出整画布 PNG（含背景与连线）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><circle cx="5.5" cy="5.5" r="1.5"/><path d="M2 11l3.5-3.5L8 10l2.5-2.5L14 12"/></svg>
+      </button>
       <button class="tb-btn" id="btnDelivery" title="导出交付包（场景表 + 每镜提示词 + 资产清单 + 工作流）">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10v9H3zM3 7h10M6 4v3"/><path d="M11 11l2 2M13 11l-2 2"/></svg>
       </button>
@@ -226,6 +372,10 @@
       </button>
       <button class="tb-btn" id="btnTheme" title="切换主题（黑底 / 白底 / 护眼）">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M3.5 12.5l1.4-1.4M11.1 4.9l1.4-1.4"/></svg>
+      </button>
+      <button class="tb-btn tb-bgmode" id="btnBgMode" title="背景模式：点阵（点击切换）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><path d="M6 2v12M10 2v12M2 6h12M2 10h12"/></svg>
+        <span class="tb-bgmode-label">点阵</span>
       </button>
       <button class="tb-btn tb-arrange" id="btnArrange" title="自动整理布局（按连线分层排列）">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="5" height="4" rx="1"/><rect x="9" y="9" width="5" height="4" rx="1"/><path d="M7 5h2a2 2 0 012 2v2"/></svg>
@@ -361,6 +511,33 @@
     <div class="recycle-empty">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4a2 2 0 012-2h3l2 2h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V4z"/></svg>
       <div class="empty-text">暂无保存的工作流<br>点击「保存当前为…」创建</div>
+    </div>
+  </div>
+</div>
+
+<!-- #13 工作台面板（多画布独立切换 / 自动保存） -->
+<div class="recycle-overlay" id="workbenchOverlay"></div>
+<div class="recycle-panel" id="workbenchPanel">
+  <div class="recycle-header">
+    <div class="recycle-icon">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><path d="M2 6h12M2 10h12M6 6v8"/></svg>
+    </div>
+    <div class="recycle-title">工作台（多画布）</div>
+    <div class="recycle-count" id="workbenchCount">0</div>
+    <button class="recycle-close" id="workbenchClose" title="关闭">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  </div>
+  <div class="recycle-actions">
+    <button class="ra-btn" id="btnWorkbenchNew">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><path d="M8 6v4M6 8h4"/></svg>
+      新建工作台
+    </button>
+    <span class="recycle-hint" id="workbenchCurrentName">—</span>
+  </div>
+  <div class="recycle-list" id="workbenchList">
+    <div class="recycle-empty">
+      <div class="empty-text">暂无工作台<br>点「新建工作台」创建</div>
     </div>
   </div>
 </div>

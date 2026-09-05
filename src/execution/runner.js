@@ -28,8 +28,16 @@ class Semaphore {
   }
 }
 
-// 安全地引用 legacy 全局（经典脚本顶层 let/function 在全局词法环境，按裸名解析）
-function legacy(name) { return (typeof window !== 'undefined') ? window[name] : undefined; }
+// 安全地引用 legacy API。
+// 经典脚本的顶层 let / function 属于全局词法环境，并不会自动成为 window 属性；
+// 因此优先读显式 window 覆盖（测试和扩展可替换），再读兼容层挂载的 _legacy 引用。
+function legacy(name) {
+  if (typeof window === 'undefined') return undefined;
+  if (window[name] !== undefined) return window[name];
+  return window.FlowCraft && window.FlowCraft._legacy
+    ? window.FlowCraft._legacy[name]
+    : undefined;
+}
 
 let _seq = 0;
 const _sem = new Semaphore(8);
@@ -46,6 +54,7 @@ function nodeTimeout(node) {
   if (node && typeof node._timeoutOverride === 'number' && node._timeoutOverride > 0) return node._timeoutOverride; // 测试钩子
   if (type === 'aiVideo') return 120000;
   if (type === 'aiImage') return 90000;
+  if (type === 'imageEdit') return 90000;
   if (type === 'comfyui') return 300000;
   return 60000;
 }
@@ -66,6 +75,9 @@ function computeInputHash(node) {
 
 function classify(node) {
   if (node.status === 'failure') return { category: 'param', maxRetry: 0 };      // 参数/契约拦截，不重试
+  // aiImage 生图失败不自动重试（单张 20~45s，静默重试会让节点长时间无结果）：立即失败，由用户手动重试
+  if (node && node.type === 'aiImage') return { category: 'transient', maxRetry: 0 };
+  if (node && node.type === 'imageEdit') return { category: 'transient', maxRetry: 0 };
   if (node.status === 'error') return { category: 'transient', maxRetry: 2 };    // 接口/网络抖动，重试
   return { category: 'system', maxRetry: 1 };                                      // 未知系统错误，限重试
 }
@@ -100,6 +112,11 @@ async function safeExec(node, delay) {
 async function engineRunNode(node, delay, attempt) {
   attempt = attempt || 0;
   if (!node) return;
+  // 新一轮运行必须清除上一轮取消/超时残留；运行中由 cancel() 或超时重新置位。
+  if (attempt === 0 && !_cancel.has(node.id)) {
+    node._abort = false;
+    node._timedOut = false;
+  }
   // 取消（pending 阶段）
   if (_cancel.has(node.id)) {
     await putTask({ id: mkTaskId(node, attempt), nodeId: node.id, type: node.type, state: 'cancelled', attempt, inputHash: computeInputHash(node), startedAt: Date.now() });
@@ -124,6 +141,8 @@ async function engineRunNode(node, delay, attempt) {
   const task = { id: taskId, nodeId: node.id, type: node.type, state: 'running', attempt, inputHash, startedAt: Date.now() };
   await putTask(task);
   node._taskState = 'running';
+  const previousOutputs = node.outputsData;
+  const previousThumb = node.thumb;
 
   let timedOut = false;
   const timer = new Promise((res) => {
@@ -154,11 +173,22 @@ async function engineRunNode(node, delay, attempt) {
     return releaseAnd(undefined);
   }
 
+  // cancel() 会先把内存镜像中的 task 标为 cancelled；这里必须重新读取镜像，
+  // 不能继续使用仍被 engineRunNode 持有的旧 task 对象，否则晚到结果会写成 success。
+  const currentTask = _tasks.get(task.id) || task;
   const outcome = node.status; // 'done' | 'error' | 'failure' | 'running'(被拦截)
-  if (node._abort && outcome !== 'done') {
-    task.state = 'cancelled';
-    task.endedAt = Date.now();
-    await putTask(task);
+  if (node._abort || currentTask.state === 'cancelled' || _cancel.has(node.id)) {
+    // 取消具有终态优先级：即便遗留异步请求最终返回成功，也不能覆盖用户的取消决定。
+    node.status = 'cancelled';
+    node.outputsData = previousOutputs;
+    node.thumb = previousThumb;
+    node.failureReason = '';
+    node._lastError = '';
+    const u = legacy('updateNodeStatus');
+    if (typeof u === 'function' && node.el) { try { u(node); } catch (e) {} }
+    currentTask.state = 'cancelled';
+    currentTask.endedAt = Date.now();
+    await putTask(currentTask);
     return releaseAnd(undefined);
   }
   if (outcome === 'done') {
@@ -244,6 +274,7 @@ export const Runner = {
     if (wf && wf.nodes && wf.nodes.has(nodeId)) {
       const node = wf.nodes.get(nodeId);
       node._abort = true;
+      node._timedOut = false;
       const t = legacy('updateNodeStatus');
       if (typeof t === 'function' && node.el) { try { t(node); } catch (e) {} }
     }

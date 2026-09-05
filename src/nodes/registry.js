@@ -24,7 +24,7 @@ export const NodeContract = {
 
   // —— T2-2：全部节点元数据契约 ——
   // tier: 'input'（输入类，不运行）| 'production'（真实接入）| 'demo'（演示/模拟）| 'stub'（未实现）
-  // runnable: 是否真正执行（输入节点=false；aiVideo stub=false）
+  // runnable: 是否真正执行（输入节点=false；其余可运行节点=true）
   CONTRACT: {
     image: {
       label: '图片输入', tier: 'input', runnable: false,
@@ -41,6 +41,11 @@ export const NodeContract = {
       note: '输入提示词/文本，提供 text 数据',
       inputs: [], outputs: [{ type: 'text', label: '文本' }],
     },
+    stateList: {
+      label: '状态列表', tier: 'input', runnable: false,
+      note: '角色 + 自定义状态列表，一键生成多个状态 AI 绘图节点',
+      inputs: [], outputs: [{ type: 'text', label: '文本' }],
+    },
     aiImage: {
       label: 'AI 绘图', tier: 'production', runnable: true,
       note: 'GPT Image 2 真实接入（文生图/图生图）',
@@ -50,9 +55,18 @@ export const NodeContract = {
       ],
       outputs: [{ type: 'image', label: '图片' }],
     },
+    imageEdit: {
+      label: '图片修正', tier: 'production', runnable: true,
+      note: 'GPT Image Edit 真实接入（输入图片 + 修正说明）',
+      inputs: [
+        { type: 'image', label: '图片', required: true },
+        { type: 'text', label: '修正说明', required: false },
+      ],
+      outputs: [{ type: 'image', label: '图片' }],
+    },
     aiVideo: {
-      label: 'AI 视频', tier: 'stub', runnable: false,
-      note: '图生视频/文生视频，当前未接入真实视频 API（演示态）',
+      label: 'AI 视频', tier: 'demo', runnable: true,
+      note: '图生视频/文生视频，支持代理真实接入；未启用代理时回退演示态',
       inputs: [
         { type: 'image', label: '图片', required: false },
         { type: 'text', label: '提示词', required: false },
@@ -82,6 +96,12 @@ export const NodeContract = {
         { type: 'image', label: '关键帧' },
         { type: 'video', label: '片段' },
       ],
+    },
+    reversePrompt: {
+      label: '反推提示词', tier: 'demo', runnable: true,
+      note: '视频反推中文电影级提示词（前端抽帧 + AI 扩写）',
+      inputs: [],
+      outputs: [{ type: 'text', label: '提示词' }],
     },
     save: {
       label: '保存', tier: 'demo', runnable: true,

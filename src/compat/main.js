@@ -5,7 +5,7 @@
 import { StorageAdapter } from '../storage/storage.js';
 import { Runner } from '../execution/runner.js';
 import { NodeContract } from '../nodes/registry.js';
-import { ProxyClient } from '../providers/proxy-client.js';
+import { ProxyClient, ProxyError } from '../providers/proxy-client.js';
 import { FeeModel } from '../providers/fee-model.js';
 import { ModelRegistry, ModelRouter, ModelHealth } from '../providers/model-router.js';
 import { COMFY_TEMPLATES, listTemplates, getTemplate, parseWorkflow, applyFormValues, importWorkflow, exportWorkflow } from '../providers/comfyui-workflow.js';
@@ -15,17 +15,54 @@ window.FlowCraft.storage = StorageAdapter;
 window.FlowCraft.runner = Runner;
 window.FlowCraft.nodes = NodeContract;
 window.FlowCraft.proxy = ProxyClient;
+window.ProxyError = ProxyError;
 window.FlowCraft.fee = FeeModel;
 window.FlowCraft.models = ModelRegistry.init();
 window.FlowCraft.router = ModelRouter.init();
 window.FlowCraft.health = ModelHealth.init();
 window.FlowCraft.version = '3.11-comfyui';
 
+/**
+ * 在左侧 sidebar 底部创建一个可折叠的「高级设置」分组，并返回其 body 容器。
+ * 两个高级功能入口（模型路由 / ComfyUI 工作流）作为条目追加到该 body 中，
+ * 从而不再以固定定位悬浮在左下角、遮挡主节点列表；sidebar 折叠时仍以图标模式可见。
+ * 幂等：已存在则直接返回现有 body。
+ */
+function ensureFcAdvancedFooter() {
+  const existing = document.getElementById('fcAdvancedBody');
+  if (existing) return existing;
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return null;
+  const group = document.createElement('div');
+  group.id = 'fcAdvanced';
+  group.className = 'fc-advanced';
+  group.innerHTML =
+    '<button type="button" id="fcAdvancedToggle" title="高级设置">' +
+    '<span class="fc-adv-ico">⚙</span>' +
+    '<span class="fc-adv-label">高级设置</span>' +
+    '<span class="fc-adv-caret">▾</span></button>' +
+    '<div class="fc-advanced-body" id="fcAdvancedBody"></div>';
+  sidebar.appendChild(group);
+  const header = group.querySelector('#fcAdvancedToggle');
+  header.addEventListener('click', () => {
+    const collapsed = group.classList.toggle('collapsed');
+    const body = group.querySelector('#fcAdvancedBody');
+    if (body) body.hidden = collapsed;
+  });
+  return group.querySelector('#fcAdvancedBody');
+}
+
 // 阶段 4：代理启用（opt-in）。默认不启用 → legacy 回退直连（本地开发兼容）。
 // 部署时由启动脚本注入 window.__FC_PROXY_BASE__ / window.__FC_PROXY_TOKEN__（短期用户令牌，非生产 Key）。
 (function configureProxy() {
   var base = (typeof window !== 'undefined') && (window.__FC_PROXY_BASE__ || '');
   var token = (typeof window !== 'undefined') && (window.__FC_PROXY_TOKEN__ || '');
+  if (!base && typeof localStorage !== 'undefined') {
+    try {
+      base = localStorage.getItem('flowcraft-proxy-base') || '';
+      token = token || localStorage.getItem('flowcraft-proxy-token') || '';
+    } catch (_) {}
+  }
   if (base) {
     ProxyClient.configure({ base: base, token: token });
     window.FlowCraft.__userToken = token;
@@ -53,6 +90,75 @@ function downloadBlob(blob, filename) {
   } catch (e) { /* ignore */ }
 }
 
+function setStorageSaveStatus(text, kind, detail) {
+  const el = typeof document !== 'undefined' && document.getElementById('statSave');
+  if (!el) return;
+  el.textContent = text;
+  el.title = detail || text;
+  el.dataset.saveKind = kind || '';
+  el.style.color = kind === 'err' ? 'var(--color-danger)' : kind === 'warn' ? 'var(--color-warn)' : kind === 'pending' ? 'var(--accent, #8B5CF6)' : 'var(--text-2)';
+}
+
+function installSaveBackupButton() {
+  if (typeof document === 'undefined' || document.getElementById('fcSaveBackup')) return;
+  const status = document.getElementById('statSave');
+  if (!status || !status.parentNode) return;
+  const btn = document.createElement('button');
+  btn.id = 'fcSaveBackup';
+  btn.type = 'button';
+  btn.textContent = '导出备份';
+  btn.title = '导出当前画布 .flowcraft 备份';
+  btn.hidden = true;
+  btn.className = 'wf-btn';
+  btn.style.marginLeft = '6px';
+  btn.onclick = () => {
+    btn.disabled = true;
+    StorageAdapter.exportProject({ projectName: 'FlowCraft-自动备份' })
+      .then((blob) => {
+        if (!blob) throw new Error('当前画布没有可导出的内容');
+        downloadBlob(blob, 'FlowCraft-自动备份.flowcraft');
+        window.showToast && window.showToast('已导出当前画布备份', 'success');
+      })
+      .catch((e) => window.showToast && window.showToast('备份导出失败：' + (e.message || e), 'danger'))
+      .finally(() => { btn.disabled = false; });
+  };
+  status.parentNode.appendChild(btn);
+  const retry = document.createElement('button');
+  retry.id = 'fcSaveRetry';
+  retry.type = 'button';
+  retry.textContent = '重试保存';
+  retry.title = '重新写入本地项目库';
+  retry.hidden = true;
+  retry.className = 'wf-btn';
+  retry.style.marginLeft = '4px';
+  retry.onclick = () => {
+    retry.disabled = true;
+    setStorageSaveStatus('保存中', 'pending');
+    StorageAdapter.autosaveToIDB()
+      .then((result) => applyStorageSaveResult(result, { liteSaved: true, stripped: false }))
+      .finally(() => { retry.disabled = false; });
+  };
+  status.parentNode.appendChild(retry);
+}
+
+function applyStorageSaveResult(result, legacyResult) {
+  const lite = !!(legacyResult && legacyResult.liteSaved);
+  if (result && result.ok) {
+    const suffix = result.mode === 'indexeddb' && legacyResult && legacyResult.stripped ? '（大图已入本地库）' : '';
+    const liteWarning = legacyResult && legacyResult.liteSaved === false;
+    const warning = liteWarning ? '（本地轻量兜底失败）' : suffix;
+    setStorageSaveStatus('已保存' + warning, (warning ? 'warn' : 'ok'), '完整版已写入 IndexedDB：' + result.savedAt + (liteWarning ? '；localStorage 兜底不可用' : ''));
+    const backup = document.getElementById('fcSaveBackup'); if (backup) backup.hidden = !liteWarning;
+    const retry = document.getElementById('fcSaveRetry'); if (retry) retry.hidden = !liteWarning;
+    return;
+  }
+  const message = (result && result.errorMessage) || '本地存储不可用';
+  setStorageSaveStatus(lite ? '轻量备份已保存 · 完整版失败' : '保存失败', lite ? 'warn' : 'err', message);
+  const backup = document.getElementById('fcSaveBackup'); if (backup) backup.hidden = false;
+  const retry = document.getElementById('fcSaveRetry'); if (retry) retry.hidden = false;
+  if (window.showToast) window.showToast((lite ? '完整项目保存失败：' : '自动保存失败：') + message + '。可导出备份或重试。', lite ? 'warn' : 'danger', 6000);
+}
+
 // —— 阶段 1：重绑全局存储函数 + 容量 UI + 启动迁移 + 多项目/恢复点 UI ——
 (function bootstrapStorage() {
   const S = StorageAdapter;
@@ -66,6 +172,7 @@ function downloadBlob(blob, filename) {
   S.requestPersist().catch(() => {});
 
   _installCapacityUI();
+  installSaveBackupButton();
   _updateCapacityUI();
 
   // 捕获原函数（保留其全部副作用）
@@ -79,8 +186,12 @@ function downloadBlob(blob, filename) {
 
   if (typeof _legacyDoAutosave === 'function') {
     window.doAutosave = function () {
-      try { _legacyDoAutosave(); } catch (e) { /* ignore */ }
-      S.autosaveToIDB().catch(() => {});
+      setStorageSaveStatus('保存中', 'pending');
+      let legacyResult = null;
+      try { legacyResult = _legacyDoAutosave && _legacyDoAutosave(); } catch (e) { legacyResult = { liteSaved: false, error: e }; }
+      S.autosaveToIDB()
+        .then((result) => applyStorageSaveResult(result, legacyResult))
+        .catch((e) => applyStorageSaveResult({ ok: false, errorCode: 'STORAGE_FAILED', errorMessage: e.message || String(e) }, legacyResult));
       _updateCapacityUI();
     };
   }
@@ -402,9 +513,37 @@ function downloadBlob(blob, filename) {
 
   const style = document.createElement('style');
   style.textContent =
-    '#fcMrToggle{position:fixed;left:14px;bottom:14px;z-index:60;background:var(--accent,#4f8cff);color:#fff;' +
-    'border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35)}' +
-    '#fcMrPanel{position:fixed;left:14px;bottom:54px;z-index:61;width:320px;max-height:72vh;overflow:auto;' +
+    /* 高级设置分组：置于左侧 sidebar 底部、可折叠，不遮挡主节点列表 */
+    '#fcAdvanced{position:relative;flex-shrink:0;display:flex;flex-direction:column;' +
+    'border-top:1px solid var(--border-default,#2a2f3a);background:var(--bg-panel,#1b1f27);' +
+    'padding:6px 8px;gap:4px;z-index:6}' +
+    '#fcAdvancedToggle{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;' +
+    'background:transparent;border:none;color:var(--text-2,#9aa3b2);cursor:pointer;' +
+    'font-size:12px;padding:6px;border-radius:8px;text-align:left}' +
+    '#fcAdvancedToggle:hover{background:var(--bg-button,#23272f);color:var(--text-1,#e8ebf0)}' +
+    '#fcAdvancedToggle .fc-adv-ico{font-size:14px;line-height:1}' +
+    '#fcAdvancedToggle .fc-adv-label{flex:1;font-weight:600;letter-spacing:.3px}' +
+    '#fcAdvancedToggle .fc-adv-caret{transition:transform .2s ease}' +
+    '#fcAdvanced.collapsed .fc-adv-caret{transform:rotate(-90deg)}' +
+    '#fcAdvancedBody{display:flex;flex-direction:column;gap:4px}' +
+    '#fcAdvancedBody[hidden]{display:none}' +
+    /* 两个高级入口：作为 sidebar 底部条目（替代原先固定在左下角的浮动按钮）*/
+    '#fcMrToggle,#fcCwToggle{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;' +
+    'border:none;border-radius:8px;padding:7px 10px;font-size:12px;cursor:pointer;text-align:left;' +
+    'color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}' +
+    '#fcMrToggle{background:var(--color-primary,#4f8cff)}' +
+    '#fcMrToggle:hover{filter:brightness(1.08)}' +
+    '#fcCwToggle{background:var(--accent,#8B5CF6)}' +
+    '#fcCwToggle:hover{filter:brightness(1.08)}' +
+    '.sidebar.collapsed #fcAdvancedToggle .fc-adv-label,' +
+    '.sidebar.collapsed #fcAdvancedToggle .fc-adv-caret{display:none}' +
+    '.sidebar.collapsed #fcAdvancedToggle{justify-content:center;padding:6px}' +
+    '.sidebar.collapsed #fcMrToggle .fc-label,' +
+    '.sidebar.collapsed #fcCwToggle .fc-label{display:none}' +
+    '.sidebar.collapsed #fcMrToggle,' +
+    '.sidebar.collapsed #fcCwToggle{justify-content:center;padding:7px 0}' +
+    /* 面板：弹出在 sidebar 右侧、状态栏上方，不再遮挡左侧列表 */
+    '#fcMrPanel{position:fixed;left:232px;bottom:36px;z-index:61;width:320px;max-height:72vh;overflow:auto;' +
     'background:var(--panel,#1b1f27);color:var(--text,#e8ebf0);border:1px solid var(--border,#2a2f3a);border-radius:12px;' +
     'padding:14px;font-size:12px;box-shadow:0 8px 30px rgba(0,0,0,.5);display:none}' +
     '#fcMrPanel h3{margin:0 0 8px;font-size:13px;display:flex;justify-content:space-between;align-items:center}' +
@@ -422,8 +561,9 @@ function downloadBlob(blob, filename) {
 
   const toggle = document.createElement('button');
   toggle.id = 'fcMrToggle';
-  toggle.textContent = '🧭 模型路由';
-  document.body.appendChild(toggle);
+  toggle.innerHTML = '<span class="fc-ico">🧭</span><span class="fc-label">模型路由</span>';
+  const advBody = ensureFcAdvancedFooter();
+  if (advBody) advBody.appendChild(toggle);
 
   const panel = document.createElement('div');
   panel.id = 'fcMrPanel';
@@ -511,9 +651,8 @@ function downloadBlob(blob, filename) {
 
   const style = document.createElement('style');
   style.textContent =
-    '#fcCwToggle{position:fixed;left:14px;bottom:54px;z-index:60;background:#6C5CE7;color:#fff;' +
-    'border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35)}' +
-    '#fcCwPanel{position:fixed;left:14px;bottom:94px;z-index:61;width:360px;max-height:78vh;overflow:auto;' +
+    /* 面板：弹出在 sidebar 右侧、状态栏上方（入口已移入左侧 sidebar 高级分组）*/
+    '#fcCwPanel{position:fixed;left:232px;bottom:36px;z-index:61;width:360px;max-height:78vh;overflow:auto;' +
     'background:var(--panel,#1b1f27);color:var(--text,#e8ebf0);border:1px solid var(--border,#2a2f3a);border-radius:12px;' +
     'padding:14px;font-size:12px;box-shadow:0 8px 30px rgba(0,0,0,.5);display:none}' +
     '#fcCwPanel h3{margin:0 0 8px;font-size:13px;display:flex;justify-content:space-between;align-items:center}' +
@@ -530,8 +669,9 @@ function downloadBlob(blob, filename) {
 
   const toggle = document.createElement('button');
   toggle.id = 'fcCwToggle';
-  toggle.textContent = '🎛 ComfyUI 工作流';
-  document.body.appendChild(toggle);
+  toggle.innerHTML = '<span class="fc-ico">🎛</span><span class="fc-label">ComfyUI 工作流</span>';
+  const advBody = ensureFcAdvancedFooter();
+  if (advBody) advBody.appendChild(toggle);
 
   const panel = document.createElement('div');
   panel.id = 'fcCwPanel';
@@ -643,4 +783,3 @@ function downloadBlob(blob, filename) {
 
   if (typeof console !== 'undefined') console.log('[FlowCraft] ComfyUI 工作流编辑器已挂载（opt-in）');
 })();
-

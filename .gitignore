@@ -1,2 +1,19 @@
 node_modules/
 *.log
+# 本地诊断与临时验证文件
+_diag*.js
+_diag*.cjs
+_diag*.txt
+_brace.cjs
+_jsdom.cjs
+_provtest.cjs
+
+# 本地回归生成物与敏感配置
+过程笔记/测试产物/
+.env
+.env.*
+*.key
+*.pem
+
+# Local Netlify folder
+.netlify

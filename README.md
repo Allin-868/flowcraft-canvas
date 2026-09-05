@@ -9,6 +9,7 @@ FlowCraft v2.1 —— 基于无限画布的 AI 生图工作流编辑器（单文
 - 连线、右键菜单、撤销/重做、复制、回收站
 - **v2.1 新增**：框选、多选批量操作（Ctrl/Shift+点击）、整组拖拽、对齐/分布工具、缩略图导航、触控板支持、方向键微调
 - 数据：localStorage 自动保存 + JSON 导入导出
+- 规格（比例·分辨率）：在 composer/参数面板中以触发按钮呈现，点击在画布内打开浮动卡片选择（非全屏模态）；自定义比例为行内 W:H 输入
 
 ## 使用
 
@@ -17,3 +18,27 @@ FlowCraft v2.1 —— 基于无限画布的 AI 生图工作流编辑器（单文
 ## 部署
 
 静态页面，单文件，可部署到任意静态托管（GitHub Pages / Vercel / 本地服务器）。
+## 本地构建与回归（阶段三）
+
+要求：Node.js 18+、npm、当前平台的 esbuild、Playwright 和可用的 Chrome/Chromium。部署仓库的 `node_modules` 如果来自其他操作系统，不能直接复用原生 esbuild；请设置 `ESBUILD_BINARY_PATH` 指向当前平台的 esbuild CLI。
+
+```bash
+cd /Users/allin/Workspace/项目/project-001-FlowCraft无限画布/输出成果/deploy
+npm ci
+npm run build
+npm run verify:security
+npm run verify:build
+FLOWCRAFT_NODE_MODULES=/path/to/node_modules npm run verify:regression
+```
+
+`verify:regression` 默认运行 14 个不调用真实 AI 的本地 mock/浏览器 smoke test，其中包含真实 / 演示 / 未实现语义回归与图片比例适配回归，结果写入项目 `日志/`。旧测试脚本中仍有历史 Windows 路径，暂不直接执行；迁移完成前以 `脚本/run-regression.mjs` 为准。
+
+语义回归也可以单独运行：
+
+```bash
+npm run verify:node-semantics
+```
+
+这项检查需要 Playwright 以及可由 Playwright 启动的 Chrome/Chromium。2026-09-05 起本机已安装 Playwright Chromium（无 npm 环境时用 `node node_modules/playwright/cli.js install chromium`），浏览器业务回归已通过：`verify-node-semantics` PASS、`verify:regression` 6/6。回归脚本的本地 HTTP 服务必须监听 `127.0.0.1`（不传 host 会绑定 0.0.0.0，在 macOS 权限层下以 EPERM 失败）。
+
+语义契约（P0-4）：节点类型语义 `semanticMode` 为 input/production/demo/stub；运行结果语义 `resultMode` 为 pending/real/demo/failed/unimplemented。其中 `failed` 表示「本次运行失败」（运行时异常或参数校验不通过），`unimplemented` 仅表示「能力未实现」（stub 硬拦截）。产品当前无 stub 节点，该分支由合成用例覆盖。

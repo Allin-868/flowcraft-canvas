@@ -5,7 +5,22 @@
   "type": "module",
   "description": "FlowCraft 无限画布 — 阶段 0.5 模块化构建（src/ → 单文件 index.html）",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "verify:security": "node ../../脚本/verify-security.mjs --production",
+    "verify:build": "node ../../脚本/verify-current-build.mjs",
+    "verify:stage4": "node ../../脚本/verify-stage4-character-assets.mjs",
+    "verify:provider-models": "node ../../脚本/verify-provider-models.mjs",
+    "verify:genmeta-retry": "node ../../脚本/verify-genmeta-retry.mjs",
+    "verify:ratio-fit": "node ../../脚本/verify-ratio-fit.mjs",
+    "verify:composer": "node ../../脚本/verify-composer.mjs",
+    "verify:edge-delete": "node ../../脚本/verify-edge-delete.mjs",
+    "verify:tool-confirm": "node ../../脚本/verify-tool-confirm.mjs",
+    "verify:agent-drawer": "node ../../脚本/verify-agent-drawer.mjs",
+    "verify:auto-connect": "node ../../脚本/verify-auto-connect.mjs",
+    "verify:provenance-cancel": "node ../../脚本/verify-provenance-cancel.mjs",
+    "verify:data-boundaries": "node ../../脚本/verify-data-boundaries.mjs",
+    "verify:node-semantics": "node ../../脚本/verify-node-semantics.mjs",
+    "verify:regression": "node ../../脚本/run-regression.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"
