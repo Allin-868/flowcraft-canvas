@@ -5415,9 +5415,20 @@ function buildSidebar() {
 
   // 风格预设（一键生成角色设计工作流）：tab 切换（常用/收藏） + 按 category 分组 + chip 标签
   const presetLabel = document.createElement('div');
-  presetLabel.className = 'sidebar-section-label';
+  presetLabel.className = 'sidebar-section-label preset-toggle';
   presetLabel.textContent = '🎨 风格预设';
+  presetLabel.title = '点击折叠 / 展开风格预设';
+  const presetCaret = document.createElement('span');
+  presetCaret.className = 'preset-caret';
+  presetCaret.textContent = '▾';
+  presetLabel.appendChild(presetCaret);
   list.appendChild(presetLabel);
+  // 折叠容器：包住 tabs + 分组 body；状态持久化
+  const presetWrap = document.createElement('div');
+  presetWrap.className = 'preset-section';
+  try { if (localStorage.getItem('flowcraft-preset-collapsed') === '1') presetWrap.classList.add('collapsed'); } catch (e) {}
+  if (presetWrap.classList.contains('collapsed')) presetLabel.classList.add('collapsed');
+  list.appendChild(presetWrap);
 
   // 顶部 tab：常用 / 收藏
   const presetTabs = document.createElement('div');
@@ -5432,11 +5443,17 @@ function buildSidebar() {
   tabFav.textContent = '收藏';
   presetTabs.appendChild(tabCommon);
   presetTabs.appendChild(tabFav);
-  list.appendChild(presetTabs);
+  presetWrap.appendChild(presetTabs);
 
   const presetBody = document.createElement('div');
   presetBody.className = 'preset-body';
-  list.appendChild(presetBody);
+  presetWrap.appendChild(presetBody);
+  presetLabel.onclick = (e) => {
+    e.stopPropagation();
+    const collapsed = presetWrap.classList.toggle('collapsed');
+    presetLabel.classList.toggle('collapsed', collapsed);
+    try { localStorage.setItem('flowcraft-preset-collapsed', collapsed ? '1' : '0'); } catch (err) {}
+  };
 
   // 收藏存储：localStorage 'flowcraft-preset-favs'（数组）
   function getFavs() {

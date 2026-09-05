@@ -381,6 +381,18 @@ body {
 .sidebar-list::-webkit-scrollbar { width: 4px; }
 .sidebar-list::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 2px; }
 
+/* 风格预设 · 可折叠（标题 toggle + 箭头旋转） */
+.sidebar-section-label.preset-toggle {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.preset-caret { margin-left: auto; font-size: 10px; transition: transform .15s ease; }
+.sidebar-section-label.preset-toggle.collapsed .preset-caret { transform: rotate(-90deg); }
+.preset-section.collapsed .preset-tabs,
+.preset-section.collapsed .preset-body { display: none; }
 /* 风格预设 · tab 切换 + 二级分组 + chip 标签 */
 .preset-tabs { display: flex; gap: 4px; padding: 2px 4px 6px; }
 .preset-tab {

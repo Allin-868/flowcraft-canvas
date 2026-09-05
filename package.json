@@ -38,7 +38,8 @@
     "verify:node-blank": "node ../../脚本/verify-node-blank.mjs",
     "verify:hud-size": "node ../../脚本/verify-hud-size.mjs",
     "verify:toolbar": "node ../../脚本/verify-toolbar-redesign.mjs",
-    "verify:panel-shadow": "node ../../脚本/verify-panel-shadow.mjs"
+    "verify:panel-shadow": "node ../../脚本/verify-panel-shadow.mjs",
+    "verify:preset-collapse": "node ../../脚本/verify-preset-collapse.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"
