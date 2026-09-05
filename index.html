@@ -3004,17 +3004,19 @@ body {
 .node-toolbar {
   position: absolute;
   left: 12px;
-  right: 12px;
-  top: -38px;
+  right: auto;              /* 收拢为贴合内容的胶囊，不再横贯整行与状态芯片挤在一起 */
+  top: -34px;
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  padding: 7px 10px;
+  gap: 2px;
+  padding: 4px;
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  background: rgba(16, 18, 24, 0.96);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  border-radius: 999px;
+  background: rgba(16, 18, 24, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   opacity: 0;
   pointer-events: none;
   transition: opacity .15s ease, transform .15s ease;
@@ -3024,8 +3026,8 @@ body {
 .node-toolbar:hover { opacity: 1; pointer-events: auto; }
 .node-toolbar:hover { transform: translateY(-1px); }
 .tool-btn {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border: none;
   background: transparent;
   color: var(--text-2);
@@ -6463,6 +6465,32 @@ html, body { overflow-x: hidden; }
   visibility: hidden;
   transition: opacity .12s ease;
 }
+
+/* —— 节点顶部工具条重设计（2026-09-06）：状态芯片与标题行收紧，与玻璃胶囊工具条同一视觉语言 —— */
+.node-tier-pill,
+.node-result-pill,
+.node-status-pill {
+  padding: 1px 8px;
+  font-size: 10px;
+  letter-spacing: 0.2px;
+}
+.node-header { padding: 6px 8px 4px; gap: 2px; }
+.node-header-row { gap: 6px; }
+.node-toolbar .tool-btn { border-radius: 999px; }
+.node-toolbar .tool-btn:hover { background: rgba(255, 255, 255, 0.08); }
+
+/* —— 媒体节点外置标题栏防溢出（2026-09-06）：芯片+工具按钮超宽时换行，不再溢出胶囊 —— */
+.node--image-only > .node-header .node-header-row,
+.node-type-image > .node-header .node-header-row,
+.node-type-aiImage > .node-header .node-header-row,
+.node-type-aiVideo > .node-header .node-header-row,
+.node-type-videoInput > .node-header .node-header-row {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.node--image-only > .node-header .node-tools { gap: 2px; }
+.node--image-only > .node-header .node-tool-btn { width: 22px; height: 22px; border-radius: 6px; }
+.node--image-only > .node-header .node-tool-btn svg { width: 13px; height: 13px; }
 
 </style>
 

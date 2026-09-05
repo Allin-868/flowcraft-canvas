@@ -36,7 +36,8 @@
     "verify:comfy-expand": "node ../../脚本/verify-comfy-expand.mjs",
     "verify:comfy-editor-cn": "node ../../脚本/verify-comfy-editor-cn.mjs",
     "verify:node-blank": "node ../../脚本/verify-node-blank.mjs",
-    "verify:hud-size": "node ../../脚本/verify-hud-size.mjs"
+    "verify:hud-size": "node ../../脚本/verify-hud-size.mjs",
+    "verify:toolbar": "node ../../脚本/verify-toolbar-redesign.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"
