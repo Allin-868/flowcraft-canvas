@@ -4274,12 +4274,18 @@ function fitNodeToImageRatio(node, naturalW, naturalH) {
     // hero 已由 buildNodeBody 按 node.ratio 挂 aspect-ratio；这里只按 hero 实测高度同步节点框高
     const fitHeroEl = node.el && node.el.querySelector('.node-hero');
     if (fitHeroEl) {
+      // 先清旧 minHeight 再测量：否则框被旧值撑高时 (框高-hero高) 会把空白误算进 chrome，
+      // 空白被固化进 node.height 并写回 minHeight（刷新后因无旧值而自愈）
+      node.el.style.minHeight = '';
+      // rect 为视口像素（含相机 zoom 缩放），node.width/height 为布局像素 → 除以 zoom 换算，
+      // 否则 zoom≠1 时把框算大 ×zoom（图片下方留空白），刷新后 zoom 复位才"自愈"
+      const z = (workflow.camera && workflow.camera.zoom) || 1;
       const hr = fitHeroEl.getBoundingClientRect();
       const nr = node.el.getBoundingClientRect();
       if (hr.width > 40) {
-        // 高度按 hero 实测宽 / 比例推算（容器偏高时 flex 拉伸后的实测高不可信）
-        const wantH = Math.round(hr.width / contentAspect);
-        node.height = Math.max(96, wantH + Math.round(nr.height - hr.height));
+        // 高度按 hero 实测宽(布局) / 比例推算（容器偏高时 flex 拉伸后的实测高不可信）
+        const wantH = Math.round((hr.width / z) / contentAspect);
+        node.height = Math.max(96, wantH + Math.round((nr.height - hr.height) / z));
         node.el.style.minHeight = node.height + 'px';
         buildNodeBody(node.el, node);
       }
@@ -4314,11 +4320,13 @@ function applySpecSizeToAiImageNode(node) {
     // 规格框同样按 hero 实测高度同步节点框高
     const specHero = node.el.querySelector('.node-hero');
     if (specHero) {
+      node.el.style.minHeight = ''; // 同 fitNodeToImageRatio：清除旧撑高再测量
+      const z2 = (workflow.camera && workflow.camera.zoom) || 1;
       const shr = specHero.getBoundingClientRect();
       const snr = node.el.getBoundingClientRect();
       if (shr.width > 40) {
-        const wantH = Math.round(shr.width / ratio);
-        node.height = Math.max(96, wantH + Math.round(snr.height - shr.height));
+        const wantH = Math.round((shr.width / z2) / ratio);
+        node.height = Math.max(96, wantH + Math.round((snr.height - shr.height) / z2));
         node.el.style.minHeight = node.height + 'px';
         buildNodeBody(node.el, node);
       }

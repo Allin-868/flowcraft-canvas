@@ -34,7 +34,8 @@
     "reel:char-trial": "node ../../脚本/reel-char-trial.mjs",
     "verify:comfy-panel": "node ../../脚本/verify-comfy-panel.mjs",
     "verify:comfy-expand": "node ../../脚本/verify-comfy-expand.mjs",
-    "verify:comfy-editor-cn": "node ../../脚本/verify-comfy-editor-cn.mjs"
+    "verify:comfy-editor-cn": "node ../../脚本/verify-comfy-editor-cn.mjs",
+    "verify:node-blank": "node ../../脚本/verify-node-blank.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"
