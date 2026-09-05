@@ -6403,3 +6403,22 @@ html, body { overflow-x: hidden; }
 .sidebar.collapsed .node-library-item .lib-icon { width: 26px; height: 26px; }
 .sidebar.collapsed .node-library-item .lib-icon::before { width: 2px; }
 .sidebar.collapsed .node-library-item .lib-icon svg { width: 15px; height: 15px; }
+/* 折叠态图标悬停提示：body 级 fixed，不受 sidebar/list overflow 裁剪 */
+.lib-icon-tip {
+  position: fixed;
+  transform: translateY(-50%);
+  z-index: 200;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  color: var(--text-1);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+  white-space: nowrap;
+  box-shadow: var(--shadow-panel);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .12s ease;
+}

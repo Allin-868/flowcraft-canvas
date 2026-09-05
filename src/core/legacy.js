@@ -12833,6 +12833,41 @@ document.getElementById('sidebarCollapseBtn').addEventListener('click', () => {
   sync();
   window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(sync, 150); });
 })();
+// 折叠态节点图标悬停提示节点名称：body 级 fixed tooltip（sidebar/list 有 overflow 裁剪，::after 会被剪掉）
+(function mountCollapsedLibTip() {
+  const list = document.getElementById('sidebarList');
+  const sidebar = document.getElementById('sidebar');
+  if (!list || !sidebar) return;
+  let tip = document.getElementById('libIconTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'libIconTip';
+    tip.className = 'lib-icon-tip';
+    document.body.appendChild(tip);
+  }
+  const hide = () => { tip.style.opacity = '0'; tip.style.visibility = 'hidden'; };
+  list.addEventListener('mouseover', (e) => {
+    if (!sidebar.classList.contains('collapsed')) { hide(); return; }
+    const item = e.target.closest('.node-library-item');
+    if (!item) { hide(); return; }
+    const def = NODE_TYPES[item.dataset.type];
+    const label = (def && def.label) || item.dataset.type || '';
+    if (!label) { hide(); return; }
+    const r = item.getBoundingClientRect();
+    tip.textContent = label;
+    tip.style.left = (r.right + 8) + 'px';
+    tip.style.top = (r.top + r.height / 2) + 'px';
+    tip.style.visibility = 'visible';
+    tip.style.opacity = '1';
+  });
+  list.addEventListener('mouseout', (e) => {
+    const item = e.target.closest('.node-library-item');
+    if (item && !item.contains(e.relatedTarget)) hide();
+  });
+  list.addEventListener('scroll', hide);
+  const btn = document.getElementById('sidebarCollapseBtn');
+  if (btn) btn.addEventListener('click', hide);
+})();
 
 //================ 16. 拓扑执行引擎 (数据流动骨架 A2) ================
 // 数据载荷统一结构: { type:'image'|'text'|'video'|'audio', value:<内容>, ... }
