@@ -22,7 +22,8 @@
     "verify:node-semantics": "node ../../脚本/verify-node-semantics.mjs",
     "verify:regression": "node ../../脚本/run-regression.mjs",
     "verify:perf-baseline": "node ../../脚本/verify-perf-baseline.mjs",
-    "verify:responsive": "node ../../脚本/verify-responsive.mjs"
+    "verify:responsive": "node ../../脚本/verify-responsive.mjs",
+    "verify:sidebar-icons": "node ../../脚本/verify-sidebar-icons.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"

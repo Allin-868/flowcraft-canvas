@@ -6385,3 +6385,21 @@ html, body { overflow-x: hidden; }
   /* AI 面板适配窄屏宽度 */
   .ai-panel { left: 8px !important; right: 8px !important; width: auto !important; max-width: calc(100vw - 16px); }
 }
+/* ===== 节点库折叠态：显示竖直图标条（可拖拽添加），而非空白细栏 ===== */
+.sidebar.collapsed .sidebar-list { opacity: 1; pointer-events: auto; padding: 44px 4px 8px; }
+.sidebar.collapsed .sidebar-header,
+.sidebar.collapsed .sidebar-section-label,
+.sidebar.collapsed .sidebar-section-sub,
+.sidebar.collapsed .preset-tabs,
+.sidebar.collapsed .preset-body,
+.sidebar.collapsed .node-library-item .lib-text,
+.sidebar.collapsed .fc-advanced { display: none; }
+.sidebar.collapsed .node-library-item {
+  justify-content: center; gap: 0;
+  padding: 4px 0; margin: 0 auto 2px; width: 36px;
+  border-radius: var(--radius-sm);
+}
+.sidebar.collapsed .node-library-item:hover { background: var(--bg-button); }
+.sidebar.collapsed .node-library-item .lib-icon { width: 26px; height: 26px; }
+.sidebar.collapsed .node-library-item .lib-icon::before { width: 2px; }
+.sidebar.collapsed .node-library-item .lib-icon svg { width: 15px; height: 15px; }
