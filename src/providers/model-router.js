@@ -23,12 +23,11 @@ function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch
 // 其余厂商默认 disabled：需代理侧配置对应 Key 后才启用（前端只选模型，不碰 Key）。
 export const SEED_MODELS = [
   { id: 'openai/gpt-5.4', provider: 'openai', model: 'gpt-5.4', label: 'GPT-5.4', capabilities: ['text'], tier: 'production', cost: 0.8, speed: 0.7, quality: 0.95, enabled: true },
+  { id: 'openai/gpt-5.4-mini', provider: 'openai', model: 'gpt-5.4-mini', label: 'GPT-5.4 Mini', capabilities: ['text'], tier: 'production', cost: 0.5, speed: 0.85, quality: 0.9, enabled: true },
   { id: 'openai/gpt-image-2', provider: 'openai', model: 'gpt-image-2', label: 'GPT Image 2', capabilities: ['image'], tier: 'production', cost: 0.9, speed: 0.6, quality: 0.95, enabled: true },
-  { id: 'deepseek/deepseek-chat', provider: 'deepseek', model: 'deepseek-chat', label: 'DeepSeek V3', capabilities: ['text'], tier: 'production', cost: 0.1, speed: 0.8, quality: 0.85, enabled: true },
-  { id: 'anthropic/claude-3.5-sonnet', provider: 'anthropic', model: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet', capabilities: ['text'], tier: 'production', cost: 0.9, speed: 0.7, quality: 0.96, enabled: false },
-  { id: 'google/gemini-2.0-flash', provider: 'google', model: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', capabilities: ['text'], tier: 'production', cost: 0.2, speed: 0.95, quality: 0.88, enabled: false },
-  { id: 'xai/grok-2', provider: 'xai', model: 'grok-2', label: 'Grok 2', capabilities: ['text'], tier: 'production', cost: 0.5, speed: 0.8, quality: 0.9, enabled: false },
-  { id: 'openai/gpt-image-1', provider: 'openai', model: 'gpt-image-1', label: 'GPT Image 1', capabilities: ['image'], tier: 'production', cost: 0.6, speed: 0.7, quality: 0.9, enabled: false },
+  { id: 'deepseek/deepseek-v4-flash', provider: 'deepseek', model: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash', capabilities: ['text'], tier: 'production', cost: 0.1, speed: 0.8, quality: 0.85, enabled: true },
+  { id: 'anthropic/claude-sonnet-4-6', provider: 'anthropic', model: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', capabilities: ['text'], tier: 'production', cost: 0.85, speed: 0.72, quality: 0.96, enabled: true },
+  { id: 'google/gemini-3-flash-preview', provider: 'google', model: 'gemini-3-flash-preview', label: 'Gemini 3 Flash', capabilities: ['text'], tier: 'production', cost: 0.25, speed: 0.95, quality: 0.9, enabled: true },
 ];
 
 // capability 无可用模型时的回退（保持现网默认行为）

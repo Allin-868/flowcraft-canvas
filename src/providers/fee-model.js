@@ -20,6 +20,11 @@ export const FeeModel = {
         const res = p.resolution === '超清2K' || p.resolution === '原画4K' ? 0.12 : 0.04;
         return +(n * res).toFixed(4);
       }
+      case 'imageEdit': {
+        const n = Math.max(1, Number(p.count) || 1);
+        const res = p.resolution === '超清2K' || p.resolution === '原画4K' ? 0.12 : 0.04;
+        return +(n * res).toFixed(4);
+      }
       case 'aiVideo': {
         const dur = Math.max(4, Number(p.duration) || 5);
         return +(dur * 0.5).toFixed(4); // 视频按秒估算
