@@ -12725,8 +12725,8 @@ function renderConnectionNodeMenu() {
   // 圆心从 CSS 变量 --hud-size 读取，保证与所有圆环使用同一中心点（单一来源）
   const menuSize = parseFloat(getComputedStyle(connectionNodeMenu).getPropertyValue('--hud-size')) || 440;
   const center = menuSize / 2;
-  const innerRadius = 108;
-  const outerRadius = 168;
+  const innerRadius = 84;   // 与 CSS .hud-ring-inner 直径(168)对齐
+  const outerRadius = 130;  // 与 CSS .hud-ring 直径(260)对齐
   const exactItems = allItems.filter(i => i.compat.exactMatch);
   const otherItems = allItems.filter(i => !i.compat.exactMatch);
 

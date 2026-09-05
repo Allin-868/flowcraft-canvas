@@ -3514,11 +3514,11 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 440px;
-  height: 440px;
+  width: 340px;
+  height: 340px;
   box-sizing: border-box;
-  --hud-size: 440px;          /* 单一尺寸来源：所有圆环/按钮均以此为准计算圆心 */
-  --hud-center: 220px;
+  --hud-size: 340px;          /* 单一尺寸来源：所有圆环/按钮均以此为准计算圆心 */
+  --hud-center: 170px;
   border-radius: 50%;
   z-index: 120;
   display: none;
@@ -3557,8 +3557,8 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 336px;
-  height: 336px;
+  width: 260px;
+  height: 260px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: 1px dashed var(--hud-ring);
@@ -3570,8 +3570,8 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 216px;
-  height: 216px;
+  width: 168px;
+  height: 168px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: 1px solid var(--hud-ring);
@@ -3589,8 +3589,8 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 132px;
-  height: 132px;
+  width: 102px;
+  height: 102px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, rgba(91, 141, 239, 0.18), transparent 60%),
@@ -3619,19 +3619,19 @@ body {
   50%      { transform: scale(1.06); opacity: 0.2; }
 }
 .hud-hub-icon {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   color: var(--hud-accent);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.hud-hub-icon svg { width: 24px; height: 24px; }
+.hud-hub-icon svg { width: 20px; height: 20px; }
 .hud-hub-title {
   font-size: var(--text-meta);
   font-weight: 600;
   color: var(--hud-text);
-  max-width: 110px;
+  max-width: 86px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3649,16 +3649,16 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 440px;
-  height: 440px;
+  width: 340px;
+  height: 340px;
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 3;
 }
 .hud-node-btn {
   position: absolute;
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: rgba(21, 22, 26, 0.95);
   border: 1.5px solid currentColor;
@@ -3690,8 +3690,8 @@ body {
   box-shadow: none;
 }
 .hud-node-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   color: currentColor;
   pointer-events: none;
 }
