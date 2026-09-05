@@ -5859,10 +5859,12 @@ function getNodeDisplayImageSource(node) {
   if (!node) return null;
   const cropped = normalizeImageSrc(node.croppedImage);
   if (cropped) return cropped;
-  const thumb = normalizeImageSrc(node.thumb);
-  if (thumb) return thumb;
+  // 优先原图 uploadedImage：显示/查看大图/导出/裁剪都用原图，避免 720px 缩略 thumb 造成的质量损失；
+  // thumb 仅作轻量占位与素材库缩略。uploadedImage 缺失（生成节点/旧数据）时回退 thumb。
   const uploaded = normalizeImageSrc(node.uploadedImage);
   if (uploaded) return uploaded;
+  const thumb = normalizeImageSrc(node.thumb);
+  if (thumb) return thumb;
   return null;
 }
 
