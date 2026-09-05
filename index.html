@@ -575,6 +575,29 @@ body {
   position: relative;
   z-index: 1;
 }
+/* 生成等待反馈：耗时徽章 + 骨架脉冲 + 失败原因 */
+.node-elapsed {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  z-index: 4; padding: 2px 10px; border-radius: 999px; white-space: nowrap;
+  background: rgba(10, 12, 20, .74); color: var(--color-warn, #f59e0b);
+  border: 1px solid rgba(245, 158, 11, .32); font-size: 11px; line-height: 16px;
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.node-skeleton .node-body { position: relative; }
+.node-skeleton-veil {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit; overflow: hidden;
+  background: linear-gradient(100deg, transparent 32%, rgba(255,255,255,.10) 50%, transparent 68%);
+  background-size: 220% 100%; animation: node-skeleton-shimmer 1.25s ease-in-out infinite;
+}
+@keyframes node-skeleton-shimmer { 0% { background-position: 130% 0; } 100% { background-position: -30% 0; } }
+.node-error-reason {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 4;
+  padding: 4px 8px; border-radius: var(--radius-sm, 6px);
+  background: rgba(239, 68, 68, .14); border: 1px solid rgba(239, 68, 68, .4);
+  color: #fca5a5; font-size: 11px; line-height: 1.4; pointer-events: none;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  word-break: break-word;
+}
 .node > .node-header { flex-shrink: 0; }
 .node > .node-dataflow { flex-shrink: 0; }
 .node > .node-body {
@@ -16257,6 +16280,68 @@ function formatTime(ts) {
   if (node === __composerNode) positionNodeComposer();
 }
 
+// ===== 生成等待反馈（阶段3）：运行态实时耗时 + 骨架脉冲；失败态原因上节点 =====
+// 运行态：显示「生成中 · Ns」实时耗时徽章 + 媒体节点骨架脉冲；离开运行态清理定时器与占位
+function updateNodeRunningFeedback(node) {
+  const el = node.el;
+  if (!el) return;
+  const isMediaGen = node.type === 'aiImage' || node.type === 'imageEdit' || node.type === 'aiVideo';
+  if (node.status === 'running') {
+    if (!node._runStartedAt) node._runStartedAt = Date.now();
+    let badge = el.querySelector('.node-elapsed');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'node-elapsed';
+      el.appendChild(badge);
+    }
+    const tick = () => {
+      // 节点元素被移除（删除 / 撤销重建）时自动清理，避免定时器泄漏
+      if (!node.el || !node.el.isConnected) {
+        if (node._elapsedTimer) { clearInterval(node._elapsedTimer); node._elapsedTimer = null; }
+        return;
+      }
+      const secs = Math.max(0, Math.round((Date.now() - (node._runStartedAt || Date.now())) / 1000));
+      badge.textContent = '生成中 · ' + secs + 's';
+    };
+    tick();
+    if (node._elapsedTimer) clearInterval(node._elapsedTimer);
+    node._elapsedTimer = setInterval(tick, 1000);
+    if (isMediaGen) {
+      el.classList.add('node-skeleton');
+      const host = el.querySelector('.node-body') || el;
+      if (!el.querySelector('.node-skeleton-veil')) {
+        const veil = document.createElement('div');
+        veil.className = 'node-skeleton-veil';
+        host.appendChild(veil);
+      }
+    }
+  } else {
+    if (node._elapsedTimer) { clearInterval(node._elapsedTimer); node._elapsedTimer = null; }
+    node._runStartedAt = 0;
+    const badge = el.querySelector('.node-elapsed');
+    if (badge) badge.remove();
+    el.classList.remove('node-skeleton');
+    const veil = el.querySelector('.node-skeleton-veil');
+    if (veil) veil.remove();
+  }
+}
+
+// 失败原因直接显示在节点上（角色状态节点已由 renderCharacterStateInfo 展示，跳过避免重复）
+function updateNodeErrorReason(node) {
+  const el = node.el;
+  if (!el) return;
+  if (isCharacterStateNode(node)) return;
+  const reason = node.status === 'error' ? String(node.failureReason || node._lastError || '').trim() : '';
+  let box = el.querySelector('.node-error-reason');
+  if (reason) {
+    if (!box) { box = document.createElement('div'); box.className = 'node-error-reason'; el.appendChild(box); }
+    box.textContent = '失败：' + reason;
+    box.title = reason;
+  } else if (box) {
+    box.remove();
+  }
+}
+
 function updateNodeStatus(node) {
   if (!node.el) return;
   if (node.status === 'failure') node.status = 'error';
@@ -16286,6 +16371,10 @@ function updateNodeStatus(node) {
   } else {
     node.el.classList.remove('node-marquee');
   }
+
+  // 生成等待反馈：运行态实时耗时 + 骨架；失败态原因上节点
+  updateNodeRunningFeedback(node);
+  updateNodeErrorReason(node);
 
   if (isCharacterStateNode(node)) renderCharacterStateInfo(node);
 

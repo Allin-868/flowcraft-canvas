@@ -562,6 +562,29 @@ body {
   position: relative;
   z-index: 1;
 }
+/* 生成等待反馈：耗时徽章 + 骨架脉冲 + 失败原因 */
+.node-elapsed {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  z-index: 4; padding: 2px 10px; border-radius: 999px; white-space: nowrap;
+  background: rgba(10, 12, 20, .74); color: var(--color-warn, #f59e0b);
+  border: 1px solid rgba(245, 158, 11, .32); font-size: 11px; line-height: 16px;
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.node-skeleton .node-body { position: relative; }
+.node-skeleton-veil {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit; overflow: hidden;
+  background: linear-gradient(100deg, transparent 32%, rgba(255,255,255,.10) 50%, transparent 68%);
+  background-size: 220% 100%; animation: node-skeleton-shimmer 1.25s ease-in-out infinite;
+}
+@keyframes node-skeleton-shimmer { 0% { background-position: 130% 0; } 100% { background-position: -30% 0; } }
+.node-error-reason {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 4;
+  padding: 4px 8px; border-radius: var(--radius-sm, 6px);
+  background: rgba(239, 68, 68, .14); border: 1px solid rgba(239, 68, 68, .4);
+  color: #fca5a5; font-size: 11px; line-height: 1.4; pointer-events: none;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  word-break: break-word;
+}
 .node > .node-header { flex-shrink: 0; }
 .node > .node-dataflow { flex-shrink: 0; }
 .node > .node-body {

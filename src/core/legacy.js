@@ -9212,6 +9212,68 @@ function formatTime(ts) {
   if (node === __composerNode) positionNodeComposer();
 }
 
+// ===== 生成等待反馈（阶段3）：运行态实时耗时 + 骨架脉冲；失败态原因上节点 =====
+// 运行态：显示「生成中 · Ns」实时耗时徽章 + 媒体节点骨架脉冲；离开运行态清理定时器与占位
+function updateNodeRunningFeedback(node) {
+  const el = node.el;
+  if (!el) return;
+  const isMediaGen = node.type === 'aiImage' || node.type === 'imageEdit' || node.type === 'aiVideo';
+  if (node.status === 'running') {
+    if (!node._runStartedAt) node._runStartedAt = Date.now();
+    let badge = el.querySelector('.node-elapsed');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'node-elapsed';
+      el.appendChild(badge);
+    }
+    const tick = () => {
+      // 节点元素被移除（删除 / 撤销重建）时自动清理，避免定时器泄漏
+      if (!node.el || !node.el.isConnected) {
+        if (node._elapsedTimer) { clearInterval(node._elapsedTimer); node._elapsedTimer = null; }
+        return;
+      }
+      const secs = Math.max(0, Math.round((Date.now() - (node._runStartedAt || Date.now())) / 1000));
+      badge.textContent = '生成中 · ' + secs + 's';
+    };
+    tick();
+    if (node._elapsedTimer) clearInterval(node._elapsedTimer);
+    node._elapsedTimer = setInterval(tick, 1000);
+    if (isMediaGen) {
+      el.classList.add('node-skeleton');
+      const host = el.querySelector('.node-body') || el;
+      if (!el.querySelector('.node-skeleton-veil')) {
+        const veil = document.createElement('div');
+        veil.className = 'node-skeleton-veil';
+        host.appendChild(veil);
+      }
+    }
+  } else {
+    if (node._elapsedTimer) { clearInterval(node._elapsedTimer); node._elapsedTimer = null; }
+    node._runStartedAt = 0;
+    const badge = el.querySelector('.node-elapsed');
+    if (badge) badge.remove();
+    el.classList.remove('node-skeleton');
+    const veil = el.querySelector('.node-skeleton-veil');
+    if (veil) veil.remove();
+  }
+}
+
+// 失败原因直接显示在节点上（角色状态节点已由 renderCharacterStateInfo 展示，跳过避免重复）
+function updateNodeErrorReason(node) {
+  const el = node.el;
+  if (!el) return;
+  if (isCharacterStateNode(node)) return;
+  const reason = node.status === 'error' ? String(node.failureReason || node._lastError || '').trim() : '';
+  let box = el.querySelector('.node-error-reason');
+  if (reason) {
+    if (!box) { box = document.createElement('div'); box.className = 'node-error-reason'; el.appendChild(box); }
+    box.textContent = '失败：' + reason;
+    box.title = reason;
+  } else if (box) {
+    box.remove();
+  }
+}
+
 function updateNodeStatus(node) {
   if (!node.el) return;
   if (node.status === 'failure') node.status = 'error';
@@ -9241,6 +9303,10 @@ function updateNodeStatus(node) {
   } else {
     node.el.classList.remove('node-marquee');
   }
+
+  // 生成等待反馈：运行态实时耗时 + 骨架；失败态原因上节点
+  updateNodeRunningFeedback(node);
+  updateNodeErrorReason(node);
 
   if (isCharacterStateNode(node)) renderCharacterStateInfo(node);
 
