@@ -1745,6 +1745,15 @@ body {
 }
 .rp-prompt-area:focus { outline: none; border-color: #7C5CFF; }
 .rp-action-row { display: flex; flex-direction: column; gap: 6px; }
+.rp-fields-section { margin-top: 8px; padding: 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md, 8px); background: var(--bg-panel, rgba(255,255,255,.03)); }
+.rp-fields-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
+.rp-fields-title { font-size: var(--text-meta, 12px); color: var(--text-1); font-weight: 600; }
+.rp-fields-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.rp-fields-label { flex: 0 0 34px; font-size: var(--text-micro, 11px); color: var(--text-2); text-align: right; }
+.rp-fields-input { flex: 1; min-width: 0; height: 24px; padding: 0 6px; font-size: var(--text-micro, 11px);
+  background: var(--bg-input); color: var(--text-1); border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm, 6px); font-family: var(--font-sans); outline: none; }
+.rp-fields-input:focus { border-color: var(--accent, #8B5CF6); }
 .rp-history-section { display: flex; flex-direction: column; gap: 6px; }
 .rp-history-head { display: flex; align-items: center; gap: 6px; }
 .rp-history-title { font-size: var(--text-xs); color: #B8B8CC; flex: 1 1 auto; }

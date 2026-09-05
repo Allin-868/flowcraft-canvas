@@ -27,7 +27,8 @@
     "verify:image-quality": "node ../../脚本/verify-image-quality.mjs",
     "verify:asset-dedup": "node ../../脚本/verify-asset-dedup.mjs",
     "verify:zoom-reset": "node ../../脚本/verify-zoom-reset.mjs",
-    "verify:char-flow": "node ../../脚本/verify-char-flow.mjs"
+    "verify:char-flow": "node ../../脚本/verify-char-flow.mjs",
+    "verify:reverse-prompt": "node ../../脚本/verify-reverse-prompt-structured.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"

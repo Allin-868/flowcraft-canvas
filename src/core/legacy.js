@@ -7834,969 +7834,6 @@ function buildNodeBody(el, node) {
 
   if (body) el.appendChild(body);
 
-  // —— 反推提示词节点 body（视频 → 抽帧 → 中文电影级提示词）——
-function renderReversePromptBody(node) {
-  const wrap = document.createElement('div');
-  wrap.className = 'node-body node-body-reverse';
-
-  // ===== A. 视频上传 / 预览区 =====
-  const videoBox = document.createElement('div');
-  videoBox.className = 'rp-video-box';
-
-  const videoMeta = document.createElement('div');
-  videoMeta.className = 'rp-video-meta';
-
-  const videoEl = document.createElement('video');
-  videoEl.className = 'rp-video';
-  videoEl.controls = true;
-  videoEl.muted = true;
-  videoEl.preload = 'auto';   // auto 确保 seek 抽帧时视频数据已加载（metadata 可能抽不出帧）
-  videoEl.playsInline = true;
-  if (node.params.videoSrc) videoEl.src = node.params.videoSrc;
-
-  function pickVideo() {
-    const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = 'video/*';
-    inp.style.display = 'none';
-    inp.onchange = (e) => {
-      const f = e.target.files && e.target.files[0];
-      if (!f) return;
-      if (node.params.videoSrc && node.params.videoSrc.startsWith('blob:')) URL.revokeObjectURL(node.params.videoSrc);
-      const url = URL.createObjectURL(f);
-      node.params.videoSrc = url;
-      node.params.videoName = f.name;
-      videoEl.src = url;
-      renderMeta();
-      scheduleAutosave();
-    };
-    document.body.appendChild(inp);
-    inp.click();
-    setTimeout(() => inp.remove(), 100);
-  }
-
-  // 拖放支持：直接把视频文件拖到节点上载入（不需要点按钮）
-  function handleDropVideo(f) {
-    if (!f || !f.type || !f.type.startsWith('video/')) {
-      showToast('请拖入视频文件（MP4 / WebM 等）', 'warn');
-      return;
-    }
-    if (node.params.videoSrc && node.params.videoSrc.startsWith('blob:')) URL.revokeObjectURL(node.params.videoSrc);
-    const url = URL.createObjectURL(f);
-    node.params.videoSrc = url;
-    node.params.videoName = f.name;
-    videoEl.src = url;
-    renderMeta();
-    scheduleAutosave();
-    showToast('已载入视频：' + f.name, 'success');
-  }
-  // 暴露给外部（画布拖放创建节点后直接注入视频）
-  node.__handleDropVideo = handleDropVideo;
-  ['dragenter', 'dragover'].forEach(evtName => {
-    videoBox.addEventListener(evtName, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-      videoBox.classList.add('rp-drop-active');
-    });
-  });
-  videoBox.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    videoBox.classList.remove('rp-drop-active');
-  });
-  videoBox.addEventListener('drop', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    videoBox.classList.remove('rp-drop-active');
-    const files = e.dataTransfer && e.dataTransfer.files;
-    if (files && files.length) handleDropVideo(files[0]);
-  });
-
-  videoEl.onloadedmetadata = () => { renderMeta(); };
-
-  const uploadBtn = document.createElement('button');
-  uploadBtn.type = 'button';
-  uploadBtn.className = 'rp-btn rp-btn-ghost';
-  uploadBtn.innerHTML = '📤 上传视频';
-  uploadBtn.onclick = (e) => { e.stopPropagation(); pickVideo(); };
-  uploadBtn.onmousedown = (e) => e.stopPropagation();
-
-  const extractBtn = document.createElement('button');
-  extractBtn.type = 'button';
-  extractBtn.className = 'rp-btn rp-btn-primary';
-  extractBtn.innerHTML = '🎬 提取关键帧';
-  extractBtn.onclick = (e) => { e.stopPropagation(); runExtractFrames(node, framesBox, pickBtn, videoEl); };
-  extractBtn.onmousedown = (e) => e.stopPropagation();
-  extractBtn.disabled = !node.params.videoSrc;
-  function syncExtractDisabled() { extractBtn.disabled = !node.params.videoSrc; }
-
-  // 抽帧数量配置
-  const frameCountWrap = document.createElement('label');
-  frameCountWrap.className = 'rp-frame-count rp-video-meta-text';
-  frameCountWrap.title = '设置提取关键帧的数量（1-30）';
-  frameCountWrap.innerHTML = '<span>抽</span>';
-  const frameCountInput = document.createElement('input');
-  frameCountInput.type = 'number';
-  frameCountInput.min = 1;
-  frameCountInput.max = 30;
-  frameCountInput.value = node.params.frameCount || 5;
-  frameCountInput.onchange = (e) => {
-    let v = parseInt(e.target.value, 10);
-    if (!isFinite(v) || v < 1) v = 1;
-    if (v > 30) v = 30;
-    node.params.frameCount = v;
-    e.target.value = v;
-    scheduleAutosave();
-  };
-  frameCountInput.onmousedown = (e) => e.stopPropagation();
-  frameCountInput.onclick = (e) => e.stopPropagation();
-  const frameCountSuffix = document.createElement('span');
-  frameCountSuffix.textContent = '帧';
-  frameCountWrap.appendChild(frameCountInput);
-  frameCountWrap.appendChild(frameCountSuffix);
-
-  // 抽帧模式切换：content（按镜头切换检测）/ uniform（按时间均匀）
-  const frameModeWrap = document.createElement('span');
-  frameModeWrap.className = 'rp-mode-toggle rp-video-meta-text';
-  const MODES = [
-    { id: 'content', label: '智能' },
-    { id: 'uniform', label: '均匀' }
-  ];
-  node.params.frameMode = node.params.frameMode || 'content';
-  const modeBtns = {};
-  function syncModeActive() {
-    MODES.forEach(function(m) {
-      if (modeBtns[m.id]) modeBtns[m.id].classList.toggle('active', node.params.frameMode === m.id);
-    });
-  }
-  MODES.forEach(function(m) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'rp-mode-btn';
-    b.textContent = m.label;
-    b.onclick = (e) => { e.stopPropagation(); node.params.frameMode = m.id; scheduleAutosave(); syncModeActive(); };
-    b.onmousedown = (e) => e.stopPropagation();
-    modeBtns[m.id] = b;
-    frameModeWrap.appendChild(b);
-  });
-  syncModeActive();
-
-  const downloadAllBtn = document.createElement('button');
-  downloadAllBtn.type = 'button';
-  downloadAllBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
-  downloadAllBtn.innerHTML = '⤓ 全部下载';
-  downloadAllBtn.onclick = (e) => { e.stopPropagation(); downloadAllFrames(node); };
-  downloadAllBtn.onmousedown = (e) => e.stopPropagation();
-  downloadAllBtn.style.display = (node.params.frames && node.params.frames.length) ? '' : 'none';
-
-  function renderMeta() {
-    // 仅清除旧的元数据子节点（保留按钮不被误删）
-    videoMeta.querySelectorAll('.rp-video-meta-text').forEach(function(el) { el.remove(); });
-    const dur = videoEl.duration && isFinite(videoEl.duration) ? formatDuration(videoEl.duration) : '--:--';
-    const name = node.params.videoName || '示例视频';
-    const metaTitle = document.createElement('span');
-    metaTitle.className = 'rp-video-name rp-video-meta-text';
-    metaTitle.textContent = '🎞 ' + name;
-    const metaDur = document.createElement('span');
-    metaDur.className = 'rp-video-dur rp-video-meta-text';
-    metaDur.textContent = dur;
-    videoMeta.appendChild(metaTitle);
-    videoMeta.appendChild(metaDur);
-    syncExtractDisabled();
-  }
-  videoMeta.appendChild(uploadBtn);
-  videoMeta.appendChild(frameCountWrap);
-  videoMeta.appendChild(frameModeWrap);
-  videoMeta.appendChild(extractBtn);
-  videoMeta.appendChild(downloadAllBtn);
-  videoBox.appendChild(videoMeta);
-  videoBox.appendChild(videoEl);
-  wrap.appendChild(videoBox);
-  renderMeta();
-
-  // ===== B. 抽帧缩略图横排 =====
-  const framesBox = document.createElement('div');
-  framesBox.className = 'rp-frames-box';
-  function renderFrames() {
-    framesBox.innerHTML = '';
-    const arr = node.params.frames || [];
-    if (!arr.length) {
-      const empty = document.createElement('div');
-      empty.className = 'rp-frames-empty';
-      empty.textContent = '尚未提取帧 · 拖入视频或点「📤 上传视频」后点「🎬 提取关键帧」';
-      framesBox.appendChild(empty);
-      downloadAllBtn.style.display = 'none';
-      return;
-    }
-    arr.forEach((src, i) => {
-      const item = document.createElement('div');
-      item.className = 'rp-frame';
-      const img = document.createElement('img');
-      img.src = src;
-      img.alt = '';
-      img.onclick = (e) => { e.stopPropagation(); openRpFrameLightbox(node, i); };
-      const idx = document.createElement('span');
-      idx.className = 'rp-frame-idx';
-      idx.textContent = '#' + (i + 1);
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'rp-frame-del';
-      del.title = '删除该帧';
-      del.innerHTML = '×';
-      del.onclick = (e) => { e.stopPropagation(); deleteRpFrame(node, i); };
-      del.onmousedown = (e) => e.stopPropagation();
-      const view = document.createElement('button');
-      view.type = 'button';
-      view.className = 'rp-frame-view';
-      view.title = '查看大图';
-      view.innerHTML = '🔍';
-      view.onclick = (e) => { e.stopPropagation(); openRpFrameLightbox(node, i); };
-      view.onmousedown = (e) => e.stopPropagation();
-      item.appendChild(img);
-      item.appendChild(idx);
-      item.appendChild(del);
-      item.appendChild(view);
-      item.onmousedown = (e) => e.stopPropagation();
-      framesBox.appendChild(item);
-    });
-    downloadAllBtn.style.display = '';
-  }
-  renderFrames();
-  wrap.appendChild(framesBox);
-
-  // ===== C. 生成的提示词区 =====
-  const promptSection = document.createElement('div');
-  promptSection.className = 'rp-prompt-section';
-
-  const promptHead = document.createElement('div');
-  promptHead.className = 'rp-prompt-head';
-  const promptTitle = document.createElement('span');
-  promptTitle.className = 'rp-prompt-title';
-  promptTitle.textContent = '生成的提示词';
-  const saveTxtBtn = document.createElement('button');
-  saveTxtBtn.type = 'button';
-  saveTxtBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
-  saveTxtBtn.innerHTML = '💾 保存 TXT';
-  saveTxtBtn.onclick = (e) => { e.stopPropagation(); downloadText(node.params.prompt || '', `reverse-prompt-${Date.now()}.txt`); };
-  saveTxtBtn.onmousedown = (e) => e.stopPropagation();
-  const copyBtn = document.createElement('button');
-  copyBtn.type = 'button';
-  copyBtn.className = 'rp-btn rp-btn-primary rp-btn-sm';
-  copyBtn.innerHTML = '📋 复制';
-  copyBtn.onclick = (e) => { e.stopPropagation(); copyToClipboard(node.params.prompt || '', '已复制到剪贴板'); };
-  copyBtn.onmousedown = (e) => e.stopPropagation();
-  promptHead.appendChild(promptTitle);
-  promptHead.appendChild(saveTxtBtn);
-  promptHead.appendChild(copyBtn);
-
-  const promptTa = document.createElement('textarea');
-  promptTa.className = 'rp-prompt-area';
-  promptTa.placeholder = '点击下方「✨ 生成中文电影级提示词」自动生成…';
-  promptTa.value = node.params.prompt || '';
-  promptTa.rows = 6;
-  promptTa.oninput = (e) => { node.params.prompt = e.target.value; scheduleAutosave(); };
-  promptTa.onmousedown = (e) => e.stopPropagation();
-
-  promptSection.appendChild(promptHead);
-  promptSection.appendChild(promptTa);
-  wrap.appendChild(promptSection);
-
-  // ===== C2. 视觉模型设置（反推需要"能看图"的多模态模型）=====
-  node.params.visionModel = node.params.visionModel || 'gpt-4o-mini';
-  const settingsSection = document.createElement('div');
-  settingsSection.className = 'rp-settings-section';
-
-  const setHead = document.createElement('div');
-  setHead.className = 'rp-settings-head';
-  setHead.innerHTML = '⚙ 视觉模型 <span class="rp-settings-sub">反推需能看图的模型</span>';
-  settingsSection.appendChild(setHead);
-
-  const modelRow = document.createElement('div');
-  modelRow.className = 'rp-settings-row';
-  const modelLabel = document.createElement('label');
-  modelLabel.className = 'rp-settings-label';
-  modelLabel.textContent = '模型';
-  const modelSel = document.createElement('select');
-  modelSel.className = 'rp-settings-select';
-  // 兜底：VISION_MODEL_PRESETS 可能因作用域/初始化顺序问题不可用，确保下拉框始终能渲染
-  const VISION_PRESETS = (typeof VISION_MODEL_PRESETS !== 'undefined' && VISION_MODEL_PRESETS && VISION_MODEL_PRESETS.length)
-    ? VISION_MODEL_PRESETS
-    : [
-        { id:'gpt-4o-mini', label:'GPT-4o mini（推荐·快·省）' },
-        { id:'gpt-4o', label:'GPT-4o（强·准）' },
-        { id:'gpt-4.1-mini', label:'GPT-4.1 mini' },
-        { id:'gpt-4.1', label:'GPT-4.1' },
-        { id:'gpt-4.1-nano', label:'GPT-4.1 nano（最省）' },
-        { id:'gemini-2.0-flash', label:'Gemini 2.0 Flash' },
-        { id:'custom', label:'自定义模型…' }
-      ];
-  VISION_PRESETS.forEach(function(p) {
-    const opt = document.createElement('option');
-    opt.value = p.id; opt.textContent = p.label;
-    modelSel.appendChild(opt);
-  });
-  // 若当前有激活的提供方，把其模型也加入下拉，方便直接选用（与 AI 助手对话同源 Key / 地址）
-  try {
-    const _ap = (typeof getActiveProvider === 'function') ? getActiveProvider() : null;
-    if (_ap && _ap.model) {
-      const _has = Array.prototype.some.call(modelSel.options, function(o) { return o.value === _ap.model; });
-      if (!_has) {
-        const _opt = document.createElement('option');
-        _opt.value = _ap.model; _opt.textContent = (_ap.name || '提供方') + ' · ' + _ap.model;
-        modelSel.appendChild(_opt);
-      }
-    }
-  } catch (_) {}
-  modelSel.value = node.params.visionModel;
-  modelSel.onchange = (e) => { e.stopPropagation(); node.params.visionModel = modelSel.value; scheduleAutosave(); syncCustom(); };
-  modelSel.onmousedown = (e) => e.stopPropagation();
-  modelRow.appendChild(modelLabel);
-  modelRow.appendChild(modelSel);
-  settingsSection.appendChild(modelRow);
-
-  const customRow = document.createElement('div');
-  customRow.className = 'rp-settings-row';
-  const customLabel = document.createElement('label');
-  customLabel.className = 'rp-settings-label';
-  customLabel.textContent = '自定义';
-  const customInput = document.createElement('input');
-  customInput.type = 'text';
-  customInput.className = 'rp-settings-input';
-  customInput.placeholder = '如 gpt-4.1 / 你的端点支持的视觉模型 id';
-  customInput.value = node.params.visionCustom || '';
-  customInput.oninput = (e) => { e.stopPropagation(); node.params.visionCustom = customInput.value; scheduleAutosave(); };
-  customInput.onmousedown = (e) => e.stopPropagation();
-  customInput.onclick = (e) => e.stopPropagation();
-  customRow.appendChild(customLabel);
-  customRow.appendChild(customInput);
-  settingsSection.appendChild(customRow);
-  function syncCustom() { customRow.style.display = (modelSel.value === 'custom') ? '' : 'none'; }
-  syncCustom();
-
-  const hintRow = document.createElement('div');
-  hintRow.className = 'rp-settings-row rp-settings-row-col';
-  const hintLabel = document.createElement('label');
-  hintLabel.className = 'rp-settings-label';
-  hintLabel.textContent = '补充说明（可选）';
-  const hintInput = document.createElement('textarea');
-  hintInput.className = 'rp-settings-hint';
-  hintInput.rows = 2;
-  hintInput.placeholder = '例如：「这是女性角色受伤特写，偏写实电影质感」——仅作参考，最终以画面为准';
-  hintInput.value = node.params.userHint || '';
-  hintInput.oninput = (e) => { e.stopPropagation(); node.params.userHint = hintInput.value; scheduleAutosave(); };
-  hintInput.onmousedown = (e) => e.stopPropagation();
-  hintRow.appendChild(hintLabel);
-  hintRow.appendChild(hintInput);
-  settingsSection.appendChild(hintRow);
-
-  wrap.appendChild(settingsSection);
-
-  // ===== D. 操作按钮（生成 + 分析另一段） =====
-  const actionRow = document.createElement('div');
-  actionRow.className = 'rp-action-row';
-
-  const genBtn = document.createElement('button');
-  genBtn.type = 'button';
-  genBtn.className = 'rp-btn rp-btn-primary rp-btn-block';
-  genBtn.innerHTML = '✨ 反推电影级提示词（视觉模型）';
-  genBtn.onclick = (e) => { e.stopPropagation(); runGeneratePrompt(node, promptTa, genBtn); };
-  genBtn.onmousedown = (e) => e.stopPropagation();
-
-  const reanalyzeBtn = document.createElement('button');
-  reanalyzeBtn.type = 'button';
-  reanalyzeBtn.className = 'rp-btn rp-btn-ghost rp-btn-block';
-  reanalyzeBtn.innerHTML = '🔄 分析另一段视频';
-  reanalyzeBtn.onclick = (e) => { e.stopPropagation(); clearForReanalyze(node, promptTa, videoEl, framesBox, syncExtractDisabled, renderMeta); };
-  reanalyzeBtn.onmousedown = (e) => e.stopPropagation();
-
-  actionRow.appendChild(genBtn);
-  actionRow.appendChild(reanalyzeBtn);
-  wrap.appendChild(actionRow);
-
-  // ===== E. 历史记录区 =====
-  const historySection = document.createElement('div');
-  historySection.className = 'rp-history-section';
-  const historyHead = document.createElement('div');
-  historyHead.className = 'rp-history-head';
-  const historyTitle = document.createElement('span');
-  historyTitle.className = 'rp-history-title';
-  historyTitle.innerHTML = '🕘 历史记录 <span class="rp-history-count">' + (node.params.history ? node.params.history.length : 0) + '</span>';
-  const clearHistoryBtn = document.createElement('button');
-  clearHistoryBtn.type = 'button';
-  clearHistoryBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
-  clearHistoryBtn.textContent = '清空';
-  clearHistoryBtn.onclick = (e) => { e.stopPropagation(); node.params.history = []; scheduleAutosave(); renderHistory(); };
-  clearHistoryBtn.onmousedown = (e) => e.stopPropagation();
-  historyHead.appendChild(historyTitle);
-  historyHead.appendChild(clearHistoryBtn);
-  const historyList = document.createElement('div');
-  historyList.className = 'rp-history-list';
-  function renderHistory() {
-    historyTitle.innerHTML = '🕘 历史记录 <span class="rp-history-count">' + (node.params.history ? node.params.history.length : 0) + '</span>';
-    historyList.innerHTML = '';
-    const arr = (node.params.history || []).slice().reverse();
-    if (!arr.length) {
-      const empty = document.createElement('div');
-      empty.className = 'rp-history-empty';
-      empty.textContent = '暂无历史记录';
-      historyList.appendChild(empty);
-      return;
-    }
-    arr.forEach((item) => {
-      const row = document.createElement('div');
-      row.className = 'rp-history-item';
-      const meta = document.createElement('div');
-      meta.className = 'rp-history-meta';
-      const time = document.createElement('span');
-      time.textContent = formatTime(item.ts);
-      const useBtn = document.createElement('button');
-      useBtn.type = 'button';
-      useBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
-      useBtn.textContent = '使用';
-      useBtn.onclick = (e) => { e.stopPropagation(); node.params.prompt = item.prompt; promptTa.value = item.prompt; scheduleAutosave(); showToast('已加载历史提示词', 'success'); };
-      useBtn.onmousedown = (e) => e.stopPropagation();
-      meta.appendChild(time);
-      meta.appendChild(useBtn);
-      const text = document.createElement('div');
-      text.className = 'rp-history-text';
-      text.textContent = (item.prompt || '').slice(0, 60) + ((item.prompt || '').length > 60 ? '…' : '');
-      row.appendChild(meta);
-      row.appendChild(text);
-      historyList.appendChild(row);
-    });
-  }
-  renderHistory();
-  historySection.appendChild(historyHead);
-  historySection.appendChild(historyList);
-  wrap.appendChild(historySection);
-
-  // pickBtn 占位（兼容旧引用，unused）
-  var pickBtn = null;
-  return wrap;
-}
-
-// ===== 反推提示词 · 工具函数 =====
-
-// 从已上传视频中抽取 N 帧（HTML5 video + canvas，dataURL 数组）
-// 抽帧模式：内容感知（按镜头切换检测）。
-// 思路：先密集抽小指纹 → 比较相邻帧差异 → 取差异最大的若干个切换点作为关键帧；
-//       若检测到的切换点不足目标数量，则用均匀采样补足；若视频无变化则整体退化为均匀采样。
-function extractVideoFrames(videoEl, count, opts) {
-  opts = opts || {};
-  count = count || 5;
-  const maxDim = opts.maxDim || 480;
-  const mode = opts.mode || 'content';
-  if (mode === 'uniform') return extractUniformFrames(videoEl, count, maxDim);
-  return new Promise(function(resolve, reject) {
-    const v = videoEl;
-    if (!v || !v.duration || !isFinite(v.duration) || v.duration <= 0) {
-      reject(new Error('视频尚未就绪或时长不可读')); return;
-    }
-    const dur = v.duration;
-    const frames = [];
-    let done = false;
-
-    function finish(err, fr) {
-      if (done) return;
-      done = true;
-      v.onseeked = null;
-      clearTimeout(timer);
-      if (err) reject(err);
-      else resolve(fr || []);
-    }
-
-    // 超时保护：内容感知需多次 seek，放宽到 45 秒
-    const timer = setTimeout(function() { finish(new Error('抽帧超时（视频数据未加载？）')); }, 45000);
-
-    // —— 阶段一：密集抽灰度指纹，用于镜头切换检测 ——
-    const cand = Math.max(30, Math.min(90, Math.round(dur))); // 候选点：每秒约 1 个，30~90
-    const candTimes = [];
-    for (let k = 0; k < cand; k++) {
-      candTimes.push(Math.min(dur * (k + 0.5) / cand, Math.max(dur - 0.05, 0)));
-    }
-    const FP_W = 32, FP_H = 18;
-    const fingerprints = new Array(cand);
-
-    function grabFingerprint() {
-      const cv = document.createElement('canvas');
-      cv.width = FP_W; cv.height = FP_H;
-      const ctx = cv.getContext('2d');
-      ctx.drawImage(v, 0, 0, FP_W, FP_H);
-      const data = ctx.getImageData(0, 0, FP_W, FP_H).data;
-      const arr = new Float32Array(FP_W * FP_H);
-      let p = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        arr[p++] = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
-      }
-      return arr;
-    }
-    function diffFp(a, b) {
-      if (!a || !b) return 0;
-      let s = 0;
-      for (let i = 0; i < a.length; i++) { const d = a[i] - b[i]; s += d * d; }
-      return s / a.length; // MSE，范围 0~1
-    }
-
-    let ci = 0;
-    function phase1() {
-      if (done) return;
-      if (ci < cand) {
-        const t = candTimes[ci];
-        v.onseeked = function() {
-          if (done) return;
-          try { fingerprints[ci] = grabFingerprint(); }
-          catch (e) { fingerprints[ci] = null; }
-          ci++;
-          if (ci < cand) {
-            try { v.currentTime = candTimes[ci]; }
-            catch (e) { finish(new Error('视频跳转失败')); }
-          } else {
-            phase2();
-          }
-        };
-        try { v.currentTime = t; }
-        catch (e) { finish(new Error('视频跳转失败')); }
-      } else {
-        phase2();
-      }
-    }
-
-    // —— 阶段二：差异分析 + 选目标时间点 ——
-    function phase2() {
-      const diffs = [];
-      for (let k = 0; k < cand - 1; k++) diffs.push(diffFp(fingerprints[k], fingerprints[k + 1]));
-      const mean = diffs.reduce(function(a, b) { return a + b; }, 0) / (diffs.length || 1);
-      const variance = diffs.reduce(function(a, b) { return a + (b - mean) * (b - mean); }, 0) / (diffs.length || 1);
-      const std = Math.sqrt(variance);
-      const thresh = mean + 0.8 * std;
-
-      const shotPoints = [];
-      for (let k = 0; k < diffs.length; k++) {
-        if (diffs[k] > thresh) shotPoints.push({ idx: k + 1, score: diffs[k] });
-      }
-      shotPoints.sort(function(a, b) { return b.score - a.score; });
-
-      const minGap = Math.max(dur / cand, 0.2); // 两帧最小间隔，避免太近
-      const targets = [];
-
-      if (shotPoints.length === 0) {
-        // 无切换：退化均匀采样
-        for (let i = 0; i < count; i++) targets.push(Math.min(dur * (i + 0.5) / count, Math.max(dur - 0.05, 0)));
-      } else {
-        for (let s = 0; s < shotPoints.length && targets.length < count; s++) {
-          const tm = candTimes[shotPoints[s].idx];
-          if (targets.every(function(c) { return Math.abs(c - tm) > minGap; })) targets.push(tm);
-        }
-        // 切换点不足，用均匀采样补足
-        if (targets.length < count) {
-          for (let i = 0; i < count && targets.length < count; i++) {
-            const tm = Math.min(dur * (i + 0.5) / count, Math.max(dur - 0.05, 0));
-            if (targets.every(function(c) { return Math.abs(c - tm) > minGap; })) targets.push(tm);
-          }
-        }
-        targets.sort(function(a, b) { return a - b; });
-      }
-
-      // —— 阶段三：对目标点抽高清帧 ——
-      let fi = 0;
-      function phase3() {
-        if (done) return;
-        if (fi < targets.length) {
-          v.onseeked = function() {
-            if (done) return;
-            try {
-              const cv = document.createElement('canvas');
-              const ratio = (v.videoWidth || 16) / (v.videoHeight || 9);
-              let w = maxDim, h = Math.round(maxDim / ratio);
-              if ((v.videoWidth || 0) < maxDim) { w = v.videoWidth; h = v.videoHeight; }
-              cv.width = w; cv.height = h;
-              const ctx = cv.getContext('2d');
-              ctx.drawImage(v, 0, 0, w, h);
-              frames.push(cv.toDataURL('image/jpeg', 0.82));
-            } catch (err) { /* 单帧失败不阻塞整体 */ }
-            fi++;
-            if (fi < targets.length) {
-              try { v.currentTime = targets[fi]; }
-              catch (e) { finish(new Error('视频跳转失败')); }
-            } else {
-              finish(null, frames);
-            }
-          };
-          try { v.currentTime = targets[fi]; }
-          catch (e) { finish(new Error('视频跳转失败')); }
-        } else {
-          finish(null, frames);
-        }
-      }
-      phase3();
-    }
-
-    phase1();
-  });
-}
-
-// 均匀抽帧（回退模式）：按视频时长等间隔、每段中点取一帧
-function extractUniformFrames(videoEl, count, maxDim) {
-  count = count || 5;
-  maxDim = maxDim || 480;
-  return new Promise(function(resolve, reject) {
-    const v = videoEl;
-    if (!v || !v.duration || !isFinite(v.duration) || v.duration <= 0) {
-      reject(new Error('视频尚未就绪或时长不可读')); return;
-    }
-    const dur = v.duration;
-    const frames = [];
-    let idx = 0;
-    let done = false;
-    function finish(err) {
-      if (done) return;
-      done = true;
-      v.onseeked = null;
-      clearTimeout(timer);
-      if (err) reject(err);
-      else resolve(frames);
-    }
-    const timer = setTimeout(function() { finish(new Error('抽帧超时（视频数据未加载？）')); }, 15000);
-    v.onseeked = function() {
-      if (done) return;
-      try {
-        const cv = document.createElement('canvas');
-        const ratio = (v.videoWidth || 16) / (v.videoHeight || 9);
-        let w = maxDim, h = Math.round(maxDim / ratio);
-        if ((v.videoWidth || 0) < maxDim) { w = v.videoWidth; h = v.videoHeight; }
-        cv.width = w; cv.height = h;
-        const ctx = cv.getContext('2d');
-        ctx.drawImage(v, 0, 0, w, h);
-        frames.push(cv.toDataURL('image/jpeg', 0.78));
-      } catch (err) { /* 单帧失败不阻塞整体 */ }
-      idx++;
-      if (idx < count) {
-        const t = Math.min(dur * (idx + 0.5) / count, Math.max(dur - 0.05, 0));
-        try { v.currentTime = t; } catch (e) { finish(new Error('视频跳转失败')); }
-      } else {
-        finish();
-      }
-    };
-    try { v.currentTime = Math.min(dur * 0.5 / count, Math.max(dur - 0.05, 0)); }
-    catch (e) { finish(new Error('视频跳转失败')); }
-  });
-}
-
-function runExtractFrames(node, framesBox, pickBtn, videoEl) {
-  if (!node.params.videoSrc) { showToast('请先上传视频', 'warn'); return; }
-  const mode = node.params.frameMode || 'content';
-  const modeLabel = mode === 'uniform' ? '均匀' : '智能（镜头切换）';
-  showToast('正在抽帧（' + modeLabel + '）…', 'info');
-  extractVideoFrames(videoEl, node.params.frameCount || 5, { mode: mode, maxDim: 480 }).then(function(frames) {
-    node.params.frames = frames;
-    scheduleAutosave();
-    // 重渲染：触发 buildNodeBody 即可，简化起见手动刷新当前面板
-    if (node.el) buildNodeBody(node.el, node);
-    showToast('已提取 ' + frames.length + ' 帧', 'success');
-  }).catch(function(err) {
-    showToast('抽帧失败：' + err.message, 'danger');
-  });
-}
-
-// ===== 反推提示词 · 视觉模型（多模态）管线 =====
-// 关键修复：旧版只把"帧数量"当文字发给纯文本模型 → 模型看不到画面只能瞎编。
-// 现在把抽帧图片真正发给「能看图」的视觉模型（OpenAI 兼容 /chat/completions，image_url）。
-var VISION_MODEL_PRESETS = [
-  { id: 'gpt-4o-mini', label: 'GPT-4o mini（推荐·快·省）' },
-  { id: 'gpt-4o', label: 'GPT-4o（强·准）' },
-  { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
-  { id: 'gpt-4.1', label: 'GPT-4.1' },
-  { id: 'gpt-4.1-nano', label: 'GPT-4.1 nano（最省）' },
-  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-  { id: 'custom', label: '自定义模型…' }
-];
-
-var RP_VISION_SYSTEM = '你是一位专业的影视分镜 / 视觉分析师，擅长把视频关键帧反推成电影级提示词。\n' +
-  '用户会给你若干张按时间顺序排列、已编号的视频关键帧图片。请严格遵守：\n' +
-  '1. 只描述你在这些图片中【真实看到】的内容：场景环境、人物/主体、服装与外观、动作与姿态、镜头景别与角度、光线与色彩、构图、整体氛围。\n' +
-  '2. 严禁编造画面中并不存在的物体、人物、情节或具体数字（例如怀表、码头、船只、特定时间等，除非你确实在画面中看到了）。\n' +
-  '3. 若某张帧模糊或看不清，请明确写"看不清"，不要脑补细节。\n' +
-  '4. 先逐帧用 1-2 句话点出该帧要点（标注帧号），再综合成一段完整的中文电影级提示词。\n' +
-  '5. 电影级提示词需包含：场景、主体动作、镜头运动、构图、光线与色彩、氛围，并显式列出你从帧中捕捉到的关键转折。\n' +
-  '6. 只输出逐帧要点 + 电影级提示词正文，不要寒暄、不要解释你的分析过程。';
-
-// 从帧列表中均匀抽样最多 max 帧，避免超出模型上下文 / 请求体积过大
-function pickFramesEvenly(arr, max) {
-  arr = arr || [];
-  if (arr.length <= max) return arr.slice();
-  var out = [];
-  for (var i = 0; i < max; i++) out.push(arr[Math.floor(i * arr.length / max)]);
-  return out;
-}
-
-// 调用视觉（多模态）模型：OpenAI 兼容 /chat/completions，优先本地 Key/Base，回退中转代理
-function callVisionChat(messages, model) {
-  return new Promise(function(resolve, reject) {
-    var key = localStorage.getItem(OPENAI_KEY_STORAGE);
-    var proxy = _fcProxy();
-    if (!key && !proxy) {
-      reject(new Error('未配置视觉模型：请打开 AI 助手 ⚙ 填入 OpenAI 兼容 Key，或在设置中开启中转代理。'));
-      return;
-    }
-    if (proxy) {
-      proxy.call({ provider: 'openai', endpoint: '/chat/completions', body: { model: model, messages: messages, stream: false, temperature: 0.4 }, token: window.FlowCraft.__userToken || undefined })
-        .then(function(data) {
-          var txt = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-          if (!txt) { reject(new Error('视觉模型返回为空')); return; }
-          resolve(txt);
-        })
-        .catch(function(err) {
-          if (err && err.kind) { var m = new Error(err.message || 'proxy error'); m.status = err.status || 0; m.proxyKind = err.kind; reject(m); return; }
-          reject(err);
-        });
-      return;
-    }
-    var base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
-    fetch(base + '/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify({ model: model, messages: messages, stream: false, temperature: 0.4 })
-    }).then(function(resp) {
-      if (!resp.ok) return resp.text().then(function(t) { var e = new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 200) : '')); e.status = resp.status; throw e; });
-      return resp.json();
-    }).then(function(data) {
-      var txt = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-      if (!txt) { reject(new Error('视觉模型返回为空')); return; }
-      resolve(txt);
-    }).catch(reject);
-  });
-}
-
-function runGeneratePrompt(node, promptTa, genBtn) {
-  const frames = node.params.frames || [];
-  if (!frames.length) { showToast('请先提取关键帧', 'warn'); return; }
-  const key = localStorage.getItem(OPENAI_KEY_STORAGE);
-  const proxy = _fcProxy();
-  if (!key && !proxy) {
-    showToast('反推提示词需要「能看图的视觉模型」。请在 AI 助手 ⚙ 填入 OpenAI 兼容 Key，或开启中转代理。', 'warn');
-    return;
-  }
-  genBtn.disabled = true;
-  var oldText = genBtn.innerHTML;
-  genBtn.innerHTML = '⏳ 视觉分析中…';
-
-  const model = (node.params.visionModel && node.params.visionModel !== 'custom')
-    ? node.params.visionModel
-    : ((node.params.visionCustom && node.params.visionCustom.trim()) || 'gpt-4o-mini');
-  const picked = pickFramesEvenly(frames, 12);
-  const imageParts = picked.map(function(src) {
-    return { type: 'image_url', image_url: { url: src, detail: 'auto' } };
-  });
-  const userHint = (node.params.userHint || '').trim();
-  const frameNote = '以下是不同时刻的视频关键帧（共 ' + frames.length + ' 帧，本次请求选取其中 ' + picked.length + ' 帧）。视频名：' + (node.params.videoName || '未命名') + '；时长：' + formatDuration(videoElDuration(node)) + '。' +
-    (userHint ? '\n用户补充说明（仅供参考，仍以画面为准）：' + userHint : '');
-  const messages = [
-    { role: 'system', content: RP_VISION_SYSTEM },
-    { role: 'user', content: [{ type: 'text', text: frameNote }].concat(imageParts) }
-  ];
-
-  callVisionChat(messages, model)
-    .then(function(text) {
-      const t = (text || '').trim();
-      if (!t) { showToast('生成结果为空', 'warn'); return; }
-      node.params.prompt = t;
-      promptTa.value = t;
-      node.params.history = node.params.history || [];
-      node.params.history.push({ ts: Date.now(), prompt: t, videoName: node.params.videoName || '' });
-      if (node.params.history.length > 20) node.params.history.splice(0, node.params.history.length - 20);
-      scheduleAutosave();
-      node.outputsData = [{ type: 'text', value: t }];
-      markEdgesDirty();
-      if (node.el) buildNodeBody(node.el, node);
-      showToast('提示词已生成（已写入历史 + 输出到下游）', 'success');
-    })
-    .catch(function(err) {
-      showToast('生成失败：' + (err && err.message || err), 'danger');
-    })
-    .finally(function() {
-      genBtn.disabled = false;
-      genBtn.innerHTML = oldText;
-    });
-}
-
-function videoElDuration(node) {
-  // 从 panel 里的 video 取
-  if (!node || !node.el) return 0;
-  const v = node.el.querySelector('.rp-video');
-  return (v && v.duration && isFinite(v.duration)) ? v.duration : 0;
-}
-
-function clearForReanalyze(node, promptTa, videoEl, framesBox, syncExtractDisabled, renderMeta) {
-  if (node.params.videoSrc && node.params.videoSrc.startsWith('blob:')) URL.revokeObjectURL(node.params.videoSrc);
-  node.params.videoSrc = '';
-  node.params.videoName = '';
-  node.params.frames = [];
-  node.params.prompt = '';
-  promptTa.value = '';
-  videoEl.removeAttribute('src');
-  videoEl.load();
-  scheduleAutosave();
-  if (node.el) buildNodeBody(node.el, node);
-  showToast('已清空，可上传新视频', 'info');
-}
-
-function downloadAllFrames(node) {
-  const frames = node.params.frames || [];
-  if (!frames.length) return;
-  // 依次触发下载（浏览器限制并发，依次延迟更稳）
-  frames.forEach(function(src, i) {
-    setTimeout(function() {
-      try {
-        const a = document.createElement('a');
-        a.href = src;
-        a.download = (node.params.videoName || 'video').replace(/\.[^.]+$/, '') + '-frame-' + (i + 1) + '.jpg';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      } catch (e) {}
-    }, i * 120);
-  });
-  showToast('开始下载 ' + frames.length + ' 帧', 'success');
-}
-
-function deleteRpFrame(node, idx) {
-  const frames = node.params.frames || [];
-  if (idx < 0 || idx >= frames.length) return;
-  frames.splice(idx, 1);
-  node.params.frames = frames;
-  scheduleAutosave();
-  if (node.el) buildNodeBody(node.el, node);
-  showToast('已删除第 ' + (idx + 1) + ' 帧', 'info');
-}
-
-// 轻量图片灯箱：查看抽帧大图，支持左右切换、关闭、下载
-function openRpFrameLightbox(node, startIdx) {
-  const frames = (node.params.frames || []).slice();
-  if (!frames.length) return;
-  let idx = Math.max(0, Math.min(startIdx, frames.length - 1));
-
-  const overlay = document.createElement('div');
-  overlay.className = 'rp-lightbox-overlay';
-
-  const img = document.createElement('img');
-  img.className = 'rp-lightbox-img';
-  img.src = frames[idx];
-
-  const topBar = document.createElement('div');
-  topBar.className = 'rp-lightbox-bar';
-  const counter = document.createElement('span');
-  counter.className = 'rp-lightbox-counter';
-  function updateCounter() { counter.textContent = (idx + 1) + ' / ' + frames.length; }
-  updateCounter();
-
-  const downloadBtn = document.createElement('button');
-  downloadBtn.type = 'button';
-  downloadBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
-  downloadBtn.innerHTML = '⤓ 下载';
-  downloadBtn.onclick = (e) => { e.stopPropagation(); downloadDataUrl(frames[idx], (node.params.videoName || 'video').replace(/\.[^.]+$/, '') + '-frame-' + (idx + 1) + '.jpg'); };
-
-  const closeBtn = document.createElement('button');
-  closeBtn.type = 'button';
-  closeBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
-  closeBtn.innerHTML = '✕ 关闭';
-  closeBtn.onclick = (e) => { e.stopPropagation(); close(); };
-
-  topBar.appendChild(counter);
-  topBar.appendChild(downloadBtn);
-  topBar.appendChild(closeBtn);
-
-  const prevBtn = document.createElement('button');
-  prevBtn.type = 'button';
-  prevBtn.className = 'rp-lightbox-nav rp-lightbox-prev';
-  prevBtn.innerHTML = '‹';
-  prevBtn.onclick = (e) => { e.stopPropagation(); prev(); };
-
-  const nextBtn = document.createElement('button');
-  nextBtn.type = 'button';
-  nextBtn.className = 'rp-lightbox-nav rp-lightbox-next';
-  nextBtn.innerHTML = '›';
-  nextBtn.onclick = (e) => { e.stopPropagation(); next(); };
-
-  overlay.appendChild(img);
-  overlay.appendChild(topBar);
-  overlay.appendChild(prevBtn);
-  overlay.appendChild(nextBtn);
-  document.body.appendChild(overlay);
-
-  function refresh() {
-    img.src = frames[idx];
-    updateCounter();
-  }
-  function prev() { idx = (idx - 1 + frames.length) % frames.length; refresh(); }
-  function next() { idx = (idx + 1) % frames.length; refresh(); }
-  function close() { overlay.remove(); document.removeEventListener('keydown', onKey); }
-  function onKey(e) {
-    if (e.key === 'Escape') close();
-    if (e.key === 'ArrowLeft') prev();
-    if (e.key === 'ArrowRight') next();
-  }
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-  document.addEventListener('keydown', onKey);
-}
-
-function downloadDataUrl(dataUrl, filename) {
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = filename || 'download.jpg';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
-function downloadText(text, filename) {
-  try {
-    const blob = new Blob([text || ''], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename || 'reverse-prompt.txt';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch (err) {
-    showToast('下载失败：' + err.message, 'danger');
-  }
-}
-
-function copyToClipboard(text, successMsg) {
-  if (!text) { showToast('无内容可复制', 'warn'); return; }
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(
-      function() { showToast(successMsg || '已复制', 'success'); },
-      function() { fallbackCopy(text, successMsg); }
-    );
-  } else { fallbackCopy(text, successMsg); }
-}
-function fallbackCopy(text, successMsg) {
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed'; ta.style.opacity = '0';
-  document.body.appendChild(ta);
-  ta.select();
-  try { document.execCommand('copy'); showToast(successMsg || '已复制', 'success'); }
-  catch (e) { showToast('复制失败', 'danger'); }
-  finally { ta.remove(); }
-}
-
-function formatDuration(seconds) {
-  if (!seconds || !isFinite(seconds)) return '--:--';
-  const total = Math.round(seconds);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
-}
-function formatTime(ts) {
-  const d = new Date(ts);
-  const pad = function(n) { return n < 10 ? '0' + n : n; };
-  return d.getMonth() + 1 + '月' + d.getDate() + '日 ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-}
 
   // —— 视频生成节点 body ——
   const videoTypes = ['script', 'footage', 'voiceover', 'subtitle', 'bgm', 'compose', 'publish'];
@@ -9259,6 +8296,1078 @@ function formatTime(ts) {
 
   // #5：节点重建后高度可能变化 → 若 Composer 正跟随该节点则重定位
   if (node === __composerNode) positionNodeComposer();
+}
+
+  // —— 反推提示词节点 body（视频 → 抽帧 → 中文电影级提示词）——
+function renderReversePromptBody(node) {
+  const wrap = document.createElement('div');
+  wrap.className = 'node-body node-body-reverse';
+
+  // ===== A. 视频上传 / 预览区 =====
+  const videoBox = document.createElement('div');
+  videoBox.className = 'rp-video-box';
+
+  const videoMeta = document.createElement('div');
+  videoMeta.className = 'rp-video-meta';
+
+  const videoEl = document.createElement('video');
+  videoEl.className = 'rp-video';
+  videoEl.controls = true;
+  videoEl.muted = true;
+  videoEl.preload = 'auto';   // auto 确保 seek 抽帧时视频数据已加载（metadata 可能抽不出帧）
+  videoEl.playsInline = true;
+  if (node.params.videoSrc) videoEl.src = node.params.videoSrc;
+
+  function pickVideo() {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'video/*';
+    inp.style.display = 'none';
+    inp.onchange = (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (node.params.videoSrc && node.params.videoSrc.startsWith('blob:')) URL.revokeObjectURL(node.params.videoSrc);
+      const url = URL.createObjectURL(f);
+      node.params.videoSrc = url;
+      node.params.videoName = f.name;
+      videoEl.src = url;
+      renderMeta();
+      scheduleAutosave();
+    };
+    document.body.appendChild(inp);
+    inp.click();
+    setTimeout(() => inp.remove(), 100);
+  }
+
+  // 拖放支持：直接把视频文件拖到节点上载入（不需要点按钮）
+  function handleDropVideo(f) {
+    if (!f || !f.type || !f.type.startsWith('video/')) {
+      showToast('请拖入视频文件（MP4 / WebM 等）', 'warn');
+      return;
+    }
+    if (node.params.videoSrc && node.params.videoSrc.startsWith('blob:')) URL.revokeObjectURL(node.params.videoSrc);
+    const url = URL.createObjectURL(f);
+    node.params.videoSrc = url;
+    node.params.videoName = f.name;
+    videoEl.src = url;
+    renderMeta();
+    scheduleAutosave();
+    showToast('已载入视频：' + f.name, 'success');
+  }
+  // 暴露给外部（画布拖放创建节点后直接注入视频）
+  node.__handleDropVideo = handleDropVideo;
+  ['dragenter', 'dragover'].forEach(evtName => {
+    videoBox.addEventListener(evtName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      videoBox.classList.add('rp-drop-active');
+    });
+  });
+  videoBox.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    videoBox.classList.remove('rp-drop-active');
+  });
+  videoBox.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    videoBox.classList.remove('rp-drop-active');
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (files && files.length) handleDropVideo(files[0]);
+  });
+
+  videoEl.onloadedmetadata = () => { renderMeta(); };
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.className = 'rp-btn rp-btn-ghost';
+  uploadBtn.innerHTML = '📤 上传视频';
+  uploadBtn.onclick = (e) => { e.stopPropagation(); pickVideo(); };
+  uploadBtn.onmousedown = (e) => e.stopPropagation();
+
+  const extractBtn = document.createElement('button');
+  extractBtn.type = 'button';
+  extractBtn.className = 'rp-btn rp-btn-primary';
+  extractBtn.innerHTML = '🎬 提取关键帧';
+  extractBtn.onclick = (e) => { e.stopPropagation(); runExtractFrames(node, framesBox, pickBtn, videoEl); };
+  extractBtn.onmousedown = (e) => e.stopPropagation();
+  extractBtn.disabled = !node.params.videoSrc;
+  function syncExtractDisabled() { extractBtn.disabled = !node.params.videoSrc; }
+
+  // 抽帧数量配置
+  const frameCountWrap = document.createElement('label');
+  frameCountWrap.className = 'rp-frame-count rp-video-meta-text';
+  frameCountWrap.title = '设置提取关键帧的数量（1-30）';
+  frameCountWrap.innerHTML = '<span>抽</span>';
+  const frameCountInput = document.createElement('input');
+  frameCountInput.type = 'number';
+  frameCountInput.min = 1;
+  frameCountInput.max = 30;
+  frameCountInput.value = node.params.frameCount || 5;
+  frameCountInput.onchange = (e) => {
+    let v = parseInt(e.target.value, 10);
+    if (!isFinite(v) || v < 1) v = 1;
+    if (v > 30) v = 30;
+    node.params.frameCount = v;
+    e.target.value = v;
+    scheduleAutosave();
+  };
+  frameCountInput.onmousedown = (e) => e.stopPropagation();
+  frameCountInput.onclick = (e) => e.stopPropagation();
+  const frameCountSuffix = document.createElement('span');
+  frameCountSuffix.textContent = '帧';
+  frameCountWrap.appendChild(frameCountInput);
+  frameCountWrap.appendChild(frameCountSuffix);
+
+  // 抽帧模式切换：content（按镜头切换检测）/ uniform（按时间均匀）
+  const frameModeWrap = document.createElement('span');
+  frameModeWrap.className = 'rp-mode-toggle rp-video-meta-text';
+  const MODES = [
+    { id: 'content', label: '智能' },
+    { id: 'uniform', label: '均匀' }
+  ];
+  node.params.frameMode = node.params.frameMode || 'content';
+  const modeBtns = {};
+  function syncModeActive() {
+    MODES.forEach(function(m) {
+      if (modeBtns[m.id]) modeBtns[m.id].classList.toggle('active', node.params.frameMode === m.id);
+    });
+  }
+  MODES.forEach(function(m) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rp-mode-btn';
+    b.textContent = m.label;
+    b.onclick = (e) => { e.stopPropagation(); node.params.frameMode = m.id; scheduleAutosave(); syncModeActive(); };
+    b.onmousedown = (e) => e.stopPropagation();
+    modeBtns[m.id] = b;
+    frameModeWrap.appendChild(b);
+  });
+  syncModeActive();
+
+  const downloadAllBtn = document.createElement('button');
+  downloadAllBtn.type = 'button';
+  downloadAllBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+  downloadAllBtn.innerHTML = '⤓ 全部下载';
+  downloadAllBtn.onclick = (e) => { e.stopPropagation(); downloadAllFrames(node); };
+  downloadAllBtn.onmousedown = (e) => e.stopPropagation();
+  downloadAllBtn.style.display = (node.params.frames && node.params.frames.length) ? '' : 'none';
+
+  function renderMeta() {
+    // 仅清除旧的元数据子节点（保留按钮不被误删）
+    videoMeta.querySelectorAll('.rp-video-meta-text').forEach(function(el) { el.remove(); });
+    const dur = videoEl.duration && isFinite(videoEl.duration) ? formatDuration(videoEl.duration) : '--:--';
+    const name = node.params.videoName || '示例视频';
+    const metaTitle = document.createElement('span');
+    metaTitle.className = 'rp-video-name rp-video-meta-text';
+    metaTitle.textContent = '🎞 ' + name;
+    const metaDur = document.createElement('span');
+    metaDur.className = 'rp-video-dur rp-video-meta-text';
+    metaDur.textContent = dur;
+    videoMeta.appendChild(metaTitle);
+    videoMeta.appendChild(metaDur);
+    syncExtractDisabled();
+  }
+  videoMeta.appendChild(uploadBtn);
+  videoMeta.appendChild(frameCountWrap);
+  videoMeta.appendChild(frameModeWrap);
+  videoMeta.appendChild(extractBtn);
+  videoMeta.appendChild(downloadAllBtn);
+  videoBox.appendChild(videoMeta);
+  videoBox.appendChild(videoEl);
+  wrap.appendChild(videoBox);
+  renderMeta();
+
+  // ===== B. 抽帧缩略图横排 =====
+  const framesBox = document.createElement('div');
+  framesBox.className = 'rp-frames-box';
+  function renderFrames() {
+    framesBox.innerHTML = '';
+    const arr = node.params.frames || [];
+    if (!arr.length) {
+      const empty = document.createElement('div');
+      empty.className = 'rp-frames-empty';
+      empty.textContent = '尚未提取帧 · 拖入视频或点「📤 上传视频」后点「🎬 提取关键帧」';
+      framesBox.appendChild(empty);
+      downloadAllBtn.style.display = 'none';
+      return;
+    }
+    arr.forEach((src, i) => {
+      const item = document.createElement('div');
+      item.className = 'rp-frame';
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = '';
+      img.onclick = (e) => { e.stopPropagation(); openRpFrameLightbox(node, i); };
+      const idx = document.createElement('span');
+      idx.className = 'rp-frame-idx';
+      idx.textContent = '#' + (i + 1);
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'rp-frame-del';
+      del.title = '删除该帧';
+      del.innerHTML = '×';
+      del.onclick = (e) => { e.stopPropagation(); deleteRpFrame(node, i); };
+      del.onmousedown = (e) => e.stopPropagation();
+      const view = document.createElement('button');
+      view.type = 'button';
+      view.className = 'rp-frame-view';
+      view.title = '查看大图';
+      view.innerHTML = '🔍';
+      view.onclick = (e) => { e.stopPropagation(); openRpFrameLightbox(node, i); };
+      view.onmousedown = (e) => e.stopPropagation();
+      item.appendChild(img);
+      item.appendChild(idx);
+      item.appendChild(del);
+      item.appendChild(view);
+      item.onmousedown = (e) => e.stopPropagation();
+      framesBox.appendChild(item);
+    });
+    downloadAllBtn.style.display = '';
+  }
+  renderFrames();
+  wrap.appendChild(framesBox);
+
+  // ===== C. 生成的提示词区 =====
+  const promptSection = document.createElement('div');
+  promptSection.className = 'rp-prompt-section';
+
+  const promptHead = document.createElement('div');
+  promptHead.className = 'rp-prompt-head';
+  const promptTitle = document.createElement('span');
+  promptTitle.className = 'rp-prompt-title';
+  promptTitle.textContent = '生成的提示词';
+  const saveTxtBtn = document.createElement('button');
+  saveTxtBtn.type = 'button';
+  saveTxtBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+  saveTxtBtn.innerHTML = '💾 保存 TXT';
+  saveTxtBtn.onclick = (e) => { e.stopPropagation(); downloadText(node.params.prompt || '', `reverse-prompt-${Date.now()}.txt`); };
+  saveTxtBtn.onmousedown = (e) => e.stopPropagation();
+  const copyBtn = document.createElement('button');
+  copyBtn.type = 'button';
+  copyBtn.className = 'rp-btn rp-btn-primary rp-btn-sm';
+  copyBtn.innerHTML = '📋 复制';
+  copyBtn.onclick = (e) => { e.stopPropagation(); copyToClipboard(node.params.prompt || '', '已复制到剪贴板'); };
+  copyBtn.onmousedown = (e) => e.stopPropagation();
+  promptHead.appendChild(promptTitle);
+  promptHead.appendChild(saveTxtBtn);
+  promptHead.appendChild(copyBtn);
+
+  const promptTa = document.createElement('textarea');
+  promptTa.className = 'rp-prompt-area';
+  promptTa.placeholder = '点击下方「✨ 生成中文电影级提示词」自动生成…';
+  promptTa.value = node.params.prompt || '';
+  promptTa.rows = 6;
+  promptTa.oninput = (e) => { node.params.prompt = e.target.value; scheduleAutosave(); };
+  promptTa.onmousedown = (e) => e.stopPropagation();
+
+  promptSection.appendChild(promptHead);
+  promptSection.appendChild(promptTa);
+  wrap.appendChild(promptSection);
+
+  // ===== C1b. 结构化字段卡片（阶段D）：可拆分、可编辑、可一键套用 =====
+  const fieldsSection = document.createElement('div');
+  fieldsSection.className = 'rp-fields-section';
+  function renderRpFields() {
+    fieldsSection.innerHTML = '';
+    // 旧数据/手动文本：无已存字段时尝试从全文解析（幂等，不覆盖已编辑值）
+    if (!node.params.fields || !Object.keys(node.params.fields).length) {
+      const parsed = parseRpStructured(node.params.prompt || '');
+      if (Object.keys(parsed).length) node.params.fields = parsed;
+    }
+    const fields = node.params.fields || {};
+    const keys = Object.keys(fields);
+    if (!keys.length) { fieldsSection.style.display = 'none'; return; }
+    fieldsSection.style.display = '';
+    const head = document.createElement('div');
+    head.className = 'rp-fields-head';
+    const title = document.createElement('span');
+    title.className = 'rp-fields-title';
+    title.textContent = '🧩 结构化字段（可编辑）';
+    const sendBtn = document.createElement('button');
+    sendBtn.type = 'button';
+    sendBtn.className = 'rp-btn rp-btn-primary rp-btn-sm';
+    sendBtn.innerHTML = '🎨 送到 AI 绘图节点';
+    sendBtn.title = '新建 AI 绘图节点：提示词 = 结构化字段合成（含负面约束），并自动连线';
+    sendBtn.onclick = (e) => { e.stopPropagation(); applyRpToAiNode(node); };
+    sendBtn.onmousedown = (e) => e.stopPropagation();
+    head.appendChild(title);
+    head.appendChild(sendBtn);
+    fieldsSection.appendChild(head);
+    RP_FIELD_DEFS.forEach(function(def) {
+      if (!(def.key in fields)) return;
+      const row = document.createElement('div');
+      row.className = 'rp-fields-row';
+      const lab = document.createElement('span');
+      lab.className = 'rp-fields-label';
+      lab.textContent = def.label;
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'rp-fields-input';
+      inp.value = fields[def.key] || '';
+      inp.placeholder = '—';
+      inp.oninput = (e) => { e.stopPropagation(); node.params.fields = node.params.fields || {}; node.params.fields[def.key] = e.target.value; scheduleAutosave(); };
+      inp.onmousedown = (e) => e.stopPropagation();
+      inp.onclick = (e) => e.stopPropagation();
+      row.appendChild(lab);
+      row.appendChild(inp);
+      fieldsSection.appendChild(row);
+    });
+  }
+  renderRpFields();
+  wrap.appendChild(fieldsSection);
+
+  // ===== C2. 视觉模型设置（反推需要"能看图"的多模态模型）=====
+  node.params.visionModel = node.params.visionModel || 'gpt-4o-mini';
+  const settingsSection = document.createElement('div');
+  settingsSection.className = 'rp-settings-section';
+
+  const setHead = document.createElement('div');
+  setHead.className = 'rp-settings-head';
+  setHead.innerHTML = '⚙ 视觉模型 <span class="rp-settings-sub">反推需能看图的模型</span>';
+  settingsSection.appendChild(setHead);
+
+  const modelRow = document.createElement('div');
+  modelRow.className = 'rp-settings-row';
+  const modelLabel = document.createElement('label');
+  modelLabel.className = 'rp-settings-label';
+  modelLabel.textContent = '模型';
+  const modelSel = document.createElement('select');
+  modelSel.className = 'rp-settings-select';
+  // 兜底：VISION_MODEL_PRESETS 可能因作用域/初始化顺序问题不可用，确保下拉框始终能渲染
+  const VISION_PRESETS = (typeof VISION_MODEL_PRESETS !== 'undefined' && VISION_MODEL_PRESETS && VISION_MODEL_PRESETS.length)
+    ? VISION_MODEL_PRESETS
+    : [
+        { id:'gpt-4o-mini', label:'GPT-4o mini（推荐·快·省）' },
+        { id:'gpt-4o', label:'GPT-4o（强·准）' },
+        { id:'gpt-4.1-mini', label:'GPT-4.1 mini' },
+        { id:'gpt-4.1', label:'GPT-4.1' },
+        { id:'gpt-4.1-nano', label:'GPT-4.1 nano（最省）' },
+        { id:'gemini-2.0-flash', label:'Gemini 2.0 Flash' },
+        { id:'custom', label:'自定义模型…' }
+      ];
+  VISION_PRESETS.forEach(function(p) {
+    const opt = document.createElement('option');
+    opt.value = p.id; opt.textContent = p.label;
+    modelSel.appendChild(opt);
+  });
+  // 若当前有激活的提供方，把其模型也加入下拉，方便直接选用（与 AI 助手对话同源 Key / 地址）
+  try {
+    const _ap = (typeof getActiveProvider === 'function') ? getActiveProvider() : null;
+    if (_ap && _ap.model) {
+      const _has = Array.prototype.some.call(modelSel.options, function(o) { return o.value === _ap.model; });
+      if (!_has) {
+        const _opt = document.createElement('option');
+        _opt.value = _ap.model; _opt.textContent = (_ap.name || '提供方') + ' · ' + _ap.model;
+        modelSel.appendChild(_opt);
+      }
+    }
+  } catch (_) {}
+  modelSel.value = node.params.visionModel;
+  modelSel.onchange = (e) => { e.stopPropagation(); node.params.visionModel = modelSel.value; scheduleAutosave(); syncCustom(); };
+  modelSel.onmousedown = (e) => e.stopPropagation();
+  modelRow.appendChild(modelLabel);
+  modelRow.appendChild(modelSel);
+  settingsSection.appendChild(modelRow);
+
+  const customRow = document.createElement('div');
+  customRow.className = 'rp-settings-row';
+  const customLabel = document.createElement('label');
+  customLabel.className = 'rp-settings-label';
+  customLabel.textContent = '自定义';
+  const customInput = document.createElement('input');
+  customInput.type = 'text';
+  customInput.className = 'rp-settings-input';
+  customInput.placeholder = '如 gpt-4.1 / 你的端点支持的视觉模型 id';
+  customInput.value = node.params.visionCustom || '';
+  customInput.oninput = (e) => { e.stopPropagation(); node.params.visionCustom = customInput.value; scheduleAutosave(); };
+  customInput.onmousedown = (e) => e.stopPropagation();
+  customInput.onclick = (e) => e.stopPropagation();
+  customRow.appendChild(customLabel);
+  customRow.appendChild(customInput);
+  settingsSection.appendChild(customRow);
+  function syncCustom() { customRow.style.display = (modelSel.value === 'custom') ? '' : 'none'; }
+  syncCustom();
+
+  const hintRow = document.createElement('div');
+  hintRow.className = 'rp-settings-row rp-settings-row-col';
+  const hintLabel = document.createElement('label');
+  hintLabel.className = 'rp-settings-label';
+  hintLabel.textContent = '补充说明（可选）';
+  const hintInput = document.createElement('textarea');
+  hintInput.className = 'rp-settings-hint';
+  hintInput.rows = 2;
+  hintInput.placeholder = '例如：「这是女性角色受伤特写，偏写实电影质感」——仅作参考，最终以画面为准';
+  hintInput.value = node.params.userHint || '';
+  hintInput.oninput = (e) => { e.stopPropagation(); node.params.userHint = hintInput.value; scheduleAutosave(); };
+  hintInput.onmousedown = (e) => e.stopPropagation();
+  hintRow.appendChild(hintLabel);
+  hintRow.appendChild(hintInput);
+  settingsSection.appendChild(hintRow);
+
+  wrap.appendChild(settingsSection);
+
+  // ===== D. 操作按钮（生成 + 分析另一段） =====
+  const actionRow = document.createElement('div');
+  actionRow.className = 'rp-action-row';
+
+  const genBtn = document.createElement('button');
+  genBtn.type = 'button';
+  genBtn.className = 'rp-btn rp-btn-primary rp-btn-block';
+  genBtn.innerHTML = '✨ 反推电影级提示词（视觉模型）';
+  genBtn.onclick = (e) => { e.stopPropagation(); runGeneratePrompt(node, promptTa, genBtn); };
+  genBtn.onmousedown = (e) => e.stopPropagation();
+
+  const reanalyzeBtn = document.createElement('button');
+  reanalyzeBtn.type = 'button';
+  reanalyzeBtn.className = 'rp-btn rp-btn-ghost rp-btn-block';
+  reanalyzeBtn.innerHTML = '🔄 分析另一段视频';
+  reanalyzeBtn.onclick = (e) => { e.stopPropagation(); clearForReanalyze(node, promptTa, videoEl, framesBox, syncExtractDisabled, renderMeta); };
+  reanalyzeBtn.onmousedown = (e) => e.stopPropagation();
+
+  actionRow.appendChild(genBtn);
+  actionRow.appendChild(reanalyzeBtn);
+  wrap.appendChild(actionRow);
+
+  // ===== E. 历史记录区 =====
+  const historySection = document.createElement('div');
+  historySection.className = 'rp-history-section';
+  const historyHead = document.createElement('div');
+  historyHead.className = 'rp-history-head';
+  const historyTitle = document.createElement('span');
+  historyTitle.className = 'rp-history-title';
+  historyTitle.innerHTML = '🕘 历史记录 <span class="rp-history-count">' + (node.params.history ? node.params.history.length : 0) + '</span>';
+  const clearHistoryBtn = document.createElement('button');
+  clearHistoryBtn.type = 'button';
+  clearHistoryBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+  clearHistoryBtn.textContent = '清空';
+  clearHistoryBtn.onclick = (e) => { e.stopPropagation(); node.params.history = []; scheduleAutosave(); renderHistory(); };
+  clearHistoryBtn.onmousedown = (e) => e.stopPropagation();
+  historyHead.appendChild(historyTitle);
+  historyHead.appendChild(clearHistoryBtn);
+  const historyList = document.createElement('div');
+  historyList.className = 'rp-history-list';
+  function renderHistory() {
+    historyTitle.innerHTML = '🕘 历史记录 <span class="rp-history-count">' + (node.params.history ? node.params.history.length : 0) + '</span>';
+    historyList.innerHTML = '';
+    const arr = (node.params.history || []).slice().reverse();
+    if (!arr.length) {
+      const empty = document.createElement('div');
+      empty.className = 'rp-history-empty';
+      empty.textContent = '暂无历史记录';
+      historyList.appendChild(empty);
+      return;
+    }
+    arr.forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'rp-history-item';
+      const meta = document.createElement('div');
+      meta.className = 'rp-history-meta';
+      const time = document.createElement('span');
+      time.textContent = formatTime(item.ts);
+      const useBtn = document.createElement('button');
+      useBtn.type = 'button';
+      useBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+      useBtn.textContent = '使用';
+      useBtn.onclick = (e) => { e.stopPropagation(); node.params.prompt = item.prompt; promptTa.value = item.prompt; scheduleAutosave(); showToast('已加载历史提示词', 'success'); };
+      useBtn.onmousedown = (e) => e.stopPropagation();
+      meta.appendChild(time);
+      meta.appendChild(useBtn);
+      const text = document.createElement('div');
+      text.className = 'rp-history-text';
+      text.textContent = (item.prompt || '').slice(0, 60) + ((item.prompt || '').length > 60 ? '…' : '');
+      row.appendChild(meta);
+      row.appendChild(text);
+      historyList.appendChild(row);
+    });
+  }
+  renderHistory();
+  historySection.appendChild(historyHead);
+  historySection.appendChild(historyList);
+  wrap.appendChild(historySection);
+
+  // pickBtn 占位（兼容旧引用，unused）
+  var pickBtn = null;
+  return wrap;
+}
+
+// 阶段D：反推结果一键套用——新建 AI 绘图节点（字段合成提示词）+ 自动连线；无字段时用全文
+function applyRpToAiNode(rpNode) {
+  const fields = rpNode.params.fields || {};
+  const composed = rpFieldsToPrompt(fields);
+  const full = String(rpNode.params.prompt || '').trim();
+  const promptText = composed || full;
+  if (!promptText) { showToast('还没有可送出的提示词（先点「✨ 反推」生成）', 'warn'); return null; }
+  const ai = addNode('aiImage', rpNode.x + 420, rpNode.y);
+  ai.title = '反推·生图';
+  ai.prompt = promptText;
+  // 负面约束同步到负向词（字段模式才有）
+  if (composed && fields.negative) ai.params = Object.assign({}, ai.params, { negativePrompt: fields.negative });
+  if (ai.el) buildNodeBody(ai.el, ai);
+  connectNodes(rpNode.id, 0, ai.id, 0); // 反推 outputs[0](提示词) → aiImage inputs[0]
+  markEdgesDirty();
+  scheduleAutosave();
+  showToast('已新建 AI 绘图节点并套用反推提示词' + (composed ? '（结构化字段合成，负面约束已同步负向词）' : '（全文）'), 'success', 4200);
+  return ai;
+}
+
+// ===== 反推提示词 · 工具函数 =====
+
+// 从已上传视频中抽取 N 帧（HTML5 video + canvas，dataURL 数组）
+// 抽帧模式：内容感知（按镜头切换检测）。
+// 思路：先密集抽小指纹 → 比较相邻帧差异 → 取差异最大的若干个切换点作为关键帧；
+//       若检测到的切换点不足目标数量，则用均匀采样补足；若视频无变化则整体退化为均匀采样。
+function extractVideoFrames(videoEl, count, opts) {
+  opts = opts || {};
+  count = count || 5;
+  const maxDim = opts.maxDim || 480;
+  const mode = opts.mode || 'content';
+  if (mode === 'uniform') return extractUniformFrames(videoEl, count, maxDim);
+  return new Promise(function(resolve, reject) {
+    const v = videoEl;
+    if (!v || !v.duration || !isFinite(v.duration) || v.duration <= 0) {
+      reject(new Error('视频尚未就绪或时长不可读')); return;
+    }
+    const dur = v.duration;
+    const frames = [];
+    let done = false;
+
+    function finish(err, fr) {
+      if (done) return;
+      done = true;
+      v.onseeked = null;
+      clearTimeout(timer);
+      if (err) reject(err);
+      else resolve(fr || []);
+    }
+
+    // 超时保护：内容感知需多次 seek，放宽到 45 秒
+    const timer = setTimeout(function() { finish(new Error('抽帧超时（视频数据未加载？）')); }, 45000);
+
+    // —— 阶段一：密集抽灰度指纹，用于镜头切换检测 ——
+    const cand = Math.max(30, Math.min(90, Math.round(dur))); // 候选点：每秒约 1 个，30~90
+    const candTimes = [];
+    for (let k = 0; k < cand; k++) {
+      candTimes.push(Math.min(dur * (k + 0.5) / cand, Math.max(dur - 0.05, 0)));
+    }
+    const FP_W = 32, FP_H = 18;
+    const fingerprints = new Array(cand);
+
+    function grabFingerprint() {
+      const cv = document.createElement('canvas');
+      cv.width = FP_W; cv.height = FP_H;
+      const ctx = cv.getContext('2d');
+      ctx.drawImage(v, 0, 0, FP_W, FP_H);
+      const data = ctx.getImageData(0, 0, FP_W, FP_H).data;
+      const arr = new Float32Array(FP_W * FP_H);
+      let p = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        arr[p++] = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+      }
+      return arr;
+    }
+    function diffFp(a, b) {
+      if (!a || !b) return 0;
+      let s = 0;
+      for (let i = 0; i < a.length; i++) { const d = a[i] - b[i]; s += d * d; }
+      return s / a.length; // MSE，范围 0~1
+    }
+
+    let ci = 0;
+    function phase1() {
+      if (done) return;
+      if (ci < cand) {
+        const t = candTimes[ci];
+        v.onseeked = function() {
+          if (done) return;
+          try { fingerprints[ci] = grabFingerprint(); }
+          catch (e) { fingerprints[ci] = null; }
+          ci++;
+          if (ci < cand) {
+            try { v.currentTime = candTimes[ci]; }
+            catch (e) { finish(new Error('视频跳转失败')); }
+          } else {
+            phase2();
+          }
+        };
+        try { v.currentTime = t; }
+        catch (e) { finish(new Error('视频跳转失败')); }
+      } else {
+        phase2();
+      }
+    }
+
+    // —— 阶段二：差异分析 + 选目标时间点 ——
+    function phase2() {
+      const diffs = [];
+      for (let k = 0; k < cand - 1; k++) diffs.push(diffFp(fingerprints[k], fingerprints[k + 1]));
+      const mean = diffs.reduce(function(a, b) { return a + b; }, 0) / (diffs.length || 1);
+      const variance = diffs.reduce(function(a, b) { return a + (b - mean) * (b - mean); }, 0) / (diffs.length || 1);
+      const std = Math.sqrt(variance);
+      const thresh = mean + 0.8 * std;
+
+      const shotPoints = [];
+      for (let k = 0; k < diffs.length; k++) {
+        if (diffs[k] > thresh) shotPoints.push({ idx: k + 1, score: diffs[k] });
+      }
+      shotPoints.sort(function(a, b) { return b.score - a.score; });
+
+      const minGap = Math.max(dur / cand, 0.2); // 两帧最小间隔，避免太近
+      const targets = [];
+
+      if (shotPoints.length === 0) {
+        // 无切换：退化均匀采样
+        for (let i = 0; i < count; i++) targets.push(Math.min(dur * (i + 0.5) / count, Math.max(dur - 0.05, 0)));
+      } else {
+        for (let s = 0; s < shotPoints.length && targets.length < count; s++) {
+          const tm = candTimes[shotPoints[s].idx];
+          if (targets.every(function(c) { return Math.abs(c - tm) > minGap; })) targets.push(tm);
+        }
+        // 切换点不足，用均匀采样补足
+        if (targets.length < count) {
+          for (let i = 0; i < count && targets.length < count; i++) {
+            const tm = Math.min(dur * (i + 0.5) / count, Math.max(dur - 0.05, 0));
+            if (targets.every(function(c) { return Math.abs(c - tm) > minGap; })) targets.push(tm);
+          }
+        }
+        targets.sort(function(a, b) { return a - b; });
+      }
+
+      // —— 阶段三：对目标点抽高清帧 ——
+      let fi = 0;
+      function phase3() {
+        if (done) return;
+        if (fi < targets.length) {
+          v.onseeked = function() {
+            if (done) return;
+            try {
+              const cv = document.createElement('canvas');
+              const ratio = (v.videoWidth || 16) / (v.videoHeight || 9);
+              let w = maxDim, h = Math.round(maxDim / ratio);
+              if ((v.videoWidth || 0) < maxDim) { w = v.videoWidth; h = v.videoHeight; }
+              cv.width = w; cv.height = h;
+              const ctx = cv.getContext('2d');
+              ctx.drawImage(v, 0, 0, w, h);
+              frames.push(cv.toDataURL('image/jpeg', 0.82));
+            } catch (err) { /* 单帧失败不阻塞整体 */ }
+            fi++;
+            if (fi < targets.length) {
+              try { v.currentTime = targets[fi]; }
+              catch (e) { finish(new Error('视频跳转失败')); }
+            } else {
+              finish(null, frames);
+            }
+          };
+          try { v.currentTime = targets[fi]; }
+          catch (e) { finish(new Error('视频跳转失败')); }
+        } else {
+          finish(null, frames);
+        }
+      }
+      phase3();
+    }
+
+    phase1();
+  });
+}
+
+// 均匀抽帧（回退模式）：按视频时长等间隔、每段中点取一帧
+function extractUniformFrames(videoEl, count, maxDim) {
+  count = count || 5;
+  maxDim = maxDim || 480;
+  return new Promise(function(resolve, reject) {
+    const v = videoEl;
+    if (!v || !v.duration || !isFinite(v.duration) || v.duration <= 0) {
+      reject(new Error('视频尚未就绪或时长不可读')); return;
+    }
+    const dur = v.duration;
+    const frames = [];
+    let idx = 0;
+    let done = false;
+    function finish(err) {
+      if (done) return;
+      done = true;
+      v.onseeked = null;
+      clearTimeout(timer);
+      if (err) reject(err);
+      else resolve(frames);
+    }
+    const timer = setTimeout(function() { finish(new Error('抽帧超时（视频数据未加载？）')); }, 15000);
+    v.onseeked = function() {
+      if (done) return;
+      try {
+        const cv = document.createElement('canvas');
+        const ratio = (v.videoWidth || 16) / (v.videoHeight || 9);
+        let w = maxDim, h = Math.round(maxDim / ratio);
+        if ((v.videoWidth || 0) < maxDim) { w = v.videoWidth; h = v.videoHeight; }
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext('2d');
+        ctx.drawImage(v, 0, 0, w, h);
+        frames.push(cv.toDataURL('image/jpeg', 0.78));
+      } catch (err) { /* 单帧失败不阻塞整体 */ }
+      idx++;
+      if (idx < count) {
+        const t = Math.min(dur * (idx + 0.5) / count, Math.max(dur - 0.05, 0));
+        try { v.currentTime = t; } catch (e) { finish(new Error('视频跳转失败')); }
+      } else {
+        finish();
+      }
+    };
+    try { v.currentTime = Math.min(dur * 0.5 / count, Math.max(dur - 0.05, 0)); }
+    catch (e) { finish(new Error('视频跳转失败')); }
+  });
+}
+
+function runExtractFrames(node, framesBox, pickBtn, videoEl) {
+  if (!node.params.videoSrc) { showToast('请先上传视频', 'warn'); return; }
+  const mode = node.params.frameMode || 'content';
+  const modeLabel = mode === 'uniform' ? '均匀' : '智能（镜头切换）';
+  showToast('正在抽帧（' + modeLabel + '）…', 'info');
+  extractVideoFrames(videoEl, node.params.frameCount || 5, { mode: mode, maxDim: 480 }).then(function(frames) {
+    node.params.frames = frames;
+    scheduleAutosave();
+    // 重渲染：触发 buildNodeBody 即可，简化起见手动刷新当前面板
+    if (node.el) buildNodeBody(node.el, node);
+    showToast('已提取 ' + frames.length + ' 帧', 'success');
+  }).catch(function(err) {
+    showToast('抽帧失败：' + err.message, 'danger');
+  });
+}
+
+// ===== 反推提示词 · 结构化字段（阶段D：反推结果可拆分、可编辑、可一键套用） =====
+var RP_FIELD_DEFS = [
+  { key: 'subject', label: '主体' },
+  { key: 'action', label: '动作' },
+  { key: 'shot', label: '镜头' },
+  { key: 'composition', label: '构图' },
+  { key: 'environment', label: '环境' },
+  { key: 'light', label: '光线' },
+  { key: 'color', label: '色彩' },
+  { key: 'material', label: '材质' },
+  { key: 'motion', label: '运动' },
+  { key: 'negative', label: '负面' }
+];
+
+// 从反推全文中解析【标签】行 → 字段对象；无【结构化】段时返回 {}
+function parseRpStructured(text) {
+  var out = {};
+  if (!text || typeof text !== 'string') return out;
+  RP_FIELD_DEFS.forEach(function(def) {
+    var re = new RegExp('【' + def.label + '】\\s*([^【\n]+)', 'i');
+    var m = re.exec(text);
+    if (m) {
+      var v = m[1].trim().replace(/[;；,，]$/, '');
+      if (v && v !== '—' && v !== '-') out[def.key] = v;
+    }
+  });
+  return out;
+}
+
+// 字段对象 → 可直接用于生图的提示词（中文逗号拼接，负面约束单独标注）
+function rpFieldsToPrompt(fields) {
+  if (!fields) return '';
+  var parts = [];
+  RP_FIELD_DEFS.forEach(function(def) {
+    var v = (fields[def.key] || '').trim();
+    if (v && def.key !== 'negative') parts.push(v);
+  });
+  var neg = (fields.negative || '').trim();
+  var s = parts.join('，');
+  if (neg) s += '\n（负面约束：' + neg + '）';
+  return s;
+}
+
+// ===== 反推提示词 · 视觉模型（多模态）管线 =====
+// 关键修复：旧版只把"帧数量"当文字发给纯文本模型 → 模型看不到画面只能瞎编。
+// 现在把抽帧图片真正发给「能看图」的视觉模型（OpenAI 兼容 /chat/completions，image_url）。
+var VISION_MODEL_PRESETS = [
+  { id: 'gpt-4o-mini', label: 'GPT-4o mini（推荐·快·省）' },
+  { id: 'gpt-4o', label: 'GPT-4o（强·准）' },
+  { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
+  { id: 'gpt-4.1', label: 'GPT-4.1' },
+  { id: 'gpt-4.1-nano', label: 'GPT-4.1 nano（最省）' },
+  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+  { id: 'custom', label: '自定义模型…' }
+];
+
+var RP_VISION_SYSTEM = '你是一位专业的影视分镜 / 视觉分析师，擅长把视频关键帧反推成电影级提示词。\n' +
+  '用户会给你若干张按时间顺序排列、已编号的视频关键帧图片。请严格遵守：\n' +
+  '1. 只描述你在这些图片中【真实看到】的内容：场景环境、人物/主体、服装与外观、动作与姿态、镜头景别与角度、光线与色彩、构图、整体氛围。\n' +
+  '2. 严禁编造画面中并不存在的物体、人物、情节或具体数字（例如怀表、码头、船只、特定时间等，除非你确实在画面中看到了）。\n' +
+  '3. 若某张帧模糊或看不清，请明确写"看不清"，不要脑补细节。\n' +
+  '4. 先逐帧用 1-2 句话点出该帧要点（标注帧号），再综合成一段完整的中文电影级提示词。\n' +
+  '5. 电影级提示词需包含：场景、主体动作、镜头运动、构图、光线与色彩、氛围，并显式列出你从帧中捕捉到的关键转折。\n' +
+  '6. 只输出逐帧要点 + 电影级提示词正文，不要寒暄、不要解释你的分析过程。\n' +
+  '7. 最后另起一行写【结构化】，随后每行一个字段（值看不清或不存在写"—"）：【主体】【动作】【镜头】【构图】【环境】【光线】【色彩】【材质】【运动】【负面】。';
+
+// 从帧列表中均匀抽样最多 max 帧，避免超出模型上下文 / 请求体积过大
+function pickFramesEvenly(arr, max) {
+  arr = arr || [];
+  if (arr.length <= max) return arr.slice();
+  var out = [];
+  for (var i = 0; i < max; i++) out.push(arr[Math.floor(i * arr.length / max)]);
+  return out;
+}
+
+// 调用视觉（多模态）模型：OpenAI 兼容 /chat/completions，优先本地 Key/Base，回退中转代理
+function callVisionChat(messages, model) {
+  return new Promise(function(resolve, reject) {
+    var key = localStorage.getItem(OPENAI_KEY_STORAGE);
+    var proxy = _fcProxy();
+    if (!key && !proxy) {
+      reject(new Error('未配置视觉模型：请打开 AI 助手 ⚙ 填入 OpenAI 兼容 Key，或在设置中开启中转代理。'));
+      return;
+    }
+    if (proxy) {
+      proxy.call({ provider: 'openai', endpoint: '/chat/completions', body: { model: model, messages: messages, stream: false, temperature: 0.4 }, token: window.FlowCraft.__userToken || undefined })
+        .then(function(data) {
+          var txt = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+          if (!txt) { reject(new Error('视觉模型返回为空')); return; }
+          resolve(txt);
+        })
+        .catch(function(err) {
+          if (err && err.kind) { var m = new Error(err.message || 'proxy error'); m.status = err.status || 0; m.proxyKind = err.kind; reject(m); return; }
+          reject(err);
+        });
+      return;
+    }
+    var base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
+    fetch(base + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({ model: model, messages: messages, stream: false, temperature: 0.4 })
+    }).then(function(resp) {
+      if (!resp.ok) return resp.text().then(function(t) { var e = new Error('HTTP ' + resp.status + (t ? '：' + t.slice(0, 200) : '')); e.status = resp.status; throw e; });
+      return resp.json();
+    }).then(function(data) {
+      var txt = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      if (!txt) { reject(new Error('视觉模型返回为空')); return; }
+      resolve(txt);
+    }).catch(reject);
+  });
+}
+
+function runGeneratePrompt(node, promptTa, genBtn) {
+  const frames = node.params.frames || [];
+  if (!frames.length) { showToast('请先提取关键帧', 'warn'); return; }
+  const key = localStorage.getItem(OPENAI_KEY_STORAGE);
+  const proxy = _fcProxy();
+  if (!key && !proxy) {
+    showToast('反推提示词需要「能看图的视觉模型」。请在 AI 助手 ⚙ 填入 OpenAI 兼容 Key，或开启中转代理。', 'warn');
+    return;
+  }
+  genBtn.disabled = true;
+  var oldText = genBtn.innerHTML;
+  genBtn.innerHTML = '⏳ 视觉分析中…';
+
+  const model = (node.params.visionModel && node.params.visionModel !== 'custom')
+    ? node.params.visionModel
+    : ((node.params.visionCustom && node.params.visionCustom.trim()) || 'gpt-4o-mini');
+  const picked = pickFramesEvenly(frames, 12);
+  const imageParts = picked.map(function(src) {
+    return { type: 'image_url', image_url: { url: src, detail: 'auto' } };
+  });
+  const userHint = (node.params.userHint || '').trim();
+  const frameNote = '以下是不同时刻的视频关键帧（共 ' + frames.length + ' 帧，本次请求选取其中 ' + picked.length + ' 帧）。视频名：' + (node.params.videoName || '未命名') + '；时长：' + formatDuration(videoElDuration(node)) + '。' +
+    (userHint ? '\n用户补充说明（仅供参考，仍以画面为准）：' + userHint : '');
+  const messages = [
+    { role: 'system', content: RP_VISION_SYSTEM },
+    { role: 'user', content: [{ type: 'text', text: frameNote }].concat(imageParts) }
+  ];
+
+  callVisionChat(messages, model)
+    .then(function(text) {
+      const t = (text || '').trim();
+      if (!t) { showToast('生成结果为空', 'warn'); return; }
+      node.params.prompt = t;
+      node.params.fields = parseRpStructured(t); // 阶段D：拆结构化字段（无结构化段则为 {}）
+      promptTa.value = t;
+      node.params.history = node.params.history || [];
+      node.params.history.push({ ts: Date.now(), prompt: t, videoName: node.params.videoName || '' });
+      if (node.params.history.length > 20) node.params.history.splice(0, node.params.history.length - 20);
+      scheduleAutosave();
+      node.outputsData = [{ type: 'text', value: t }];
+      markEdgesDirty();
+      if (node.el) buildNodeBody(node.el, node);
+      showToast('提示词已生成（已写入历史 + 输出到下游）', 'success');
+    })
+    .catch(function(err) {
+      showToast('生成失败：' + (err && err.message || err), 'danger');
+    })
+    .finally(function() {
+      genBtn.disabled = false;
+      genBtn.innerHTML = oldText;
+    });
+}
+
+function videoElDuration(node) {
+  // 从 panel 里的 video 取
+  if (!node || !node.el) return 0;
+  const v = node.el.querySelector('.rp-video');
+  return (v && v.duration && isFinite(v.duration)) ? v.duration : 0;
+}
+
+function clearForReanalyze(node, promptTa, videoEl, framesBox, syncExtractDisabled, renderMeta) {
+  if (node.params.videoSrc && node.params.videoSrc.startsWith('blob:')) URL.revokeObjectURL(node.params.videoSrc);
+  node.params.videoSrc = '';
+  node.params.videoName = '';
+  node.params.frames = [];
+  node.params.prompt = '';
+  promptTa.value = '';
+  videoEl.removeAttribute('src');
+  videoEl.load();
+  scheduleAutosave();
+  if (node.el) buildNodeBody(node.el, node);
+  showToast('已清空，可上传新视频', 'info');
+}
+
+function downloadAllFrames(node) {
+  const frames = node.params.frames || [];
+  if (!frames.length) return;
+  // 依次触发下载（浏览器限制并发，依次延迟更稳）
+  frames.forEach(function(src, i) {
+    setTimeout(function() {
+      try {
+        const a = document.createElement('a');
+        a.href = src;
+        a.download = (node.params.videoName || 'video').replace(/\.[^.]+$/, '') + '-frame-' + (i + 1) + '.jpg';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (e) {}
+    }, i * 120);
+  });
+  showToast('开始下载 ' + frames.length + ' 帧', 'success');
+}
+
+function deleteRpFrame(node, idx) {
+  const frames = node.params.frames || [];
+  if (idx < 0 || idx >= frames.length) return;
+  frames.splice(idx, 1);
+  node.params.frames = frames;
+  scheduleAutosave();
+  if (node.el) buildNodeBody(node.el, node);
+  showToast('已删除第 ' + (idx + 1) + ' 帧', 'info');
+}
+
+// 轻量图片灯箱：查看抽帧大图，支持左右切换、关闭、下载
+function openRpFrameLightbox(node, startIdx) {
+  const frames = (node.params.frames || []).slice();
+  if (!frames.length) return;
+  let idx = Math.max(0, Math.min(startIdx, frames.length - 1));
+
+  const overlay = document.createElement('div');
+  overlay.className = 'rp-lightbox-overlay';
+
+  const img = document.createElement('img');
+  img.className = 'rp-lightbox-img';
+  img.src = frames[idx];
+
+  const topBar = document.createElement('div');
+  topBar.className = 'rp-lightbox-bar';
+  const counter = document.createElement('span');
+  counter.className = 'rp-lightbox-counter';
+  function updateCounter() { counter.textContent = (idx + 1) + ' / ' + frames.length; }
+  updateCounter();
+
+  const downloadBtn = document.createElement('button');
+  downloadBtn.type = 'button';
+  downloadBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+  downloadBtn.innerHTML = '⤓ 下载';
+  downloadBtn.onclick = (e) => { e.stopPropagation(); downloadDataUrl(frames[idx], (node.params.videoName || 'video').replace(/\.[^.]+$/, '') + '-frame-' + (idx + 1) + '.jpg'); };
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'rp-btn rp-btn-ghost rp-btn-sm';
+  closeBtn.innerHTML = '✕ 关闭';
+  closeBtn.onclick = (e) => { e.stopPropagation(); close(); };
+
+  topBar.appendChild(counter);
+  topBar.appendChild(downloadBtn);
+  topBar.appendChild(closeBtn);
+
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'rp-lightbox-nav rp-lightbox-prev';
+  prevBtn.innerHTML = '‹';
+  prevBtn.onclick = (e) => { e.stopPropagation(); prev(); };
+
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'rp-lightbox-nav rp-lightbox-next';
+  nextBtn.innerHTML = '›';
+  nextBtn.onclick = (e) => { e.stopPropagation(); next(); };
+
+  overlay.appendChild(img);
+  overlay.appendChild(topBar);
+  overlay.appendChild(prevBtn);
+  overlay.appendChild(nextBtn);
+  document.body.appendChild(overlay);
+
+  function refresh() {
+    img.src = frames[idx];
+    updateCounter();
+  }
+  function prev() { idx = (idx - 1 + frames.length) % frames.length; refresh(); }
+  function next() { idx = (idx + 1) % frames.length; refresh(); }
+  function close() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+  function onKey(e) {
+    if (e.key === 'Escape') close();
+    if (e.key === 'ArrowLeft') prev();
+    if (e.key === 'ArrowRight') next();
+  }
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', onKey);
+}
+
+function downloadText(text, filename) {
+  try {
+    const blob = new Blob([text || ''], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'reverse-prompt.txt';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) {
+    showToast('下载失败：' + err.message, 'danger');
+  }
+}
+
+function copyToClipboard(text, successMsg) {
+  if (!text) { showToast('无内容可复制', 'warn'); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      function() { showToast(successMsg || '已复制', 'success'); },
+      function() { fallbackCopy(text, successMsg); }
+    );
+  } else { fallbackCopy(text, successMsg); }
+}
+function fallbackCopy(text, successMsg) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); showToast(successMsg || '已复制', 'success'); }
+  catch (e) { showToast('复制失败', 'danger'); }
+  finally { ta.remove(); }
+}
+
+function formatDuration(seconds) {
+  if (!seconds || !isFinite(seconds)) return '--:--';
+  const total = Math.round(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+}
+function formatTime(ts) {
+  const d = new Date(ts);
+  const pad = function(n) { return n < 10 ? '0' + n : n; };
+  return d.getMonth() + 1 + '月' + d.getDate() + '日 ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
 // ===== 生成等待反馈（阶段3）：运行态实时耗时 + 骨架脉冲；失败态原因上节点 =====
