@@ -6488,3 +6488,19 @@ html, body { overflow-x: hidden; }
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
+
+/* —— 其余节点框状态栏外置（2026-09-06）：与媒体节点一致，整条移到节点框外上方 —— */
+.node > .node-header {
+  top: auto;
+  bottom: calc(100% + var(--media-card-header-gap));
+  left: -1px;
+  right: -1px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--media-card-radius);
+  box-shadow: var(--shadow-card);
+  padding: var(--media-card-header-pad-y) var(--media-card-header-pad-x);
+}
+/* 悬浮工具条上移到外置标题栏之上，避免与标题栏重叠 */
+.node-toolbar,
+.node-toolbar-hit { top: -76px; }
