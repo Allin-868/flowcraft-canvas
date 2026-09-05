@@ -10531,6 +10531,17 @@ document.getElementById('zoomOut').onclick = () => {
   markEdgesDirty();
 };
 document.getElementById('zoomFit').onclick = () => fitToContent();
+// 点击缩放百分比 → 回到 100%（以画布中心为锚点）
+const zoomDisplayEl = document.getElementById('zoomDisplay');
+zoomDisplayEl.title = '点击回到 100%';
+zoomDisplayEl.onclick = () => {
+  const cam = workflow.camera;
+  if (Math.abs(cam.zoom - 1) < 1e-6) return;
+  const rect = canvasWrap.getBoundingClientRect();
+  cam.zoomAt(rect.width / 2, rect.height / 2, 1 / cam.zoom);
+  applyTransform();
+  markEdgesDirty();
+};
 
 function fitToContent() {
   if (workflow.nodes.size === 0) {

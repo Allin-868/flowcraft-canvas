@@ -25,7 +25,8 @@
     "verify:responsive": "node ../../脚本/verify-responsive.mjs",
     "verify:sidebar-icons": "node ../../脚本/verify-sidebar-icons.mjs",
     "verify:image-quality": "node ../../脚本/verify-image-quality.mjs",
-    "verify:asset-dedup": "node ../../脚本/verify-asset-dedup.mjs"
+    "verify:asset-dedup": "node ../../脚本/verify-asset-dedup.mjs",
+    "verify:zoom-reset": "node ../../脚本/verify-zoom-reset.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"

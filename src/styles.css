@@ -3199,7 +3199,8 @@ body {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   min-width: 32px;
-}
+}.zoom-display { cursor: pointer; user-select: none; }
+.zoom-display:hover { color: var(--text-1); background: var(--bg-button); }
 
 /* ================================================================
    快捷键设置面板
