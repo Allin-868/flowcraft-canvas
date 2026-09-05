@@ -6135,6 +6135,14 @@ body {
 .asset-btn:hover { background: var(--bg-button-hover); color: var(--text-1); }
 
 /* 素材分类筛选 + 引用令牌（Hell Grind 蒸馏） */
+.asset-search-row { padding: 0 10px 8px; }
+.asset-search-row input {
+  width: 100%; box-sizing: border-box; height: 28px; padding: 0 8px;
+  font-size: var(--text-meta, 12px); background: var(--bg-input); color: var(--text-1);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm, 6px);
+  font-family: var(--font-sans); outline: none;
+}
+.asset-search-row input:focus { border-color: var(--accent, #8B5CF6); }
 .asset-filters { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 10px 8px; border-bottom: 1px solid var(--border-subtle); }
 .asset-filter-chip {
   padding: 3px 9px; font-size: var(--text-meta, 12px); border-radius: 999px;

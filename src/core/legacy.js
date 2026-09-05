@@ -1908,8 +1908,13 @@ function updateAssetPanel() {
   const catsMap = loadAssetCats();
   const all = collectAssets();
   const nameMap = assetNameMap(all);
-  const assets = _assetCatFilter ? all.filter(a => catsMap[assetKey(a)] === _assetCatFilter) : all;
-  if (count) count.textContent = assets.length + (_assetCatFilter ? ' / ' + all.length : '');
+  // 搜索框：按资产名称（含引用令牌名/节点标题/标签）过滤，与分类过滤叠加
+  const searchEl = document.getElementById('assetSearch');
+  if (searchEl && !searchEl._fcBound) { searchEl._fcBound = true; searchEl.oninput = () => updateAssetPanel(); }
+  const q = String((searchEl && searchEl.value) || '').trim().toLowerCase();
+  let assets = _assetCatFilter ? all.filter(a => catsMap[assetKey(a)] === _assetCatFilter) : all;
+  if (q) assets = assets.filter(a => String(nameMap[assetKey(a)] || a.nodeTitle || a.label || '').toLowerCase().indexOf(q) >= 0);
+  if (count) count.textContent = assets.length + ((_assetCatFilter || q) ? ' / ' + all.length : '');
   grid.innerHTML = '';
   if (assets.length === 0) {
     if (empty) empty.style.display = '';
@@ -3599,6 +3604,20 @@ function saveCharacterStateAsAsset(node) {
   showToast('已存为全局角色资产 <<<' + defaultName + '>>>（跨画布可复用），其他 AI 节点可用 <<<' + defaultName + '>>> 引用它', 'success', 5200);
   refreshAssetPanelIfOpen();
   return { key: key, name: defaultName };
+}
+
+// 状态列表节点：把本角色所有已出图状态节点一键归档为角色资产（未出图/已归档的跳过）
+function saveAllCharacterStatesAsAsset(stateListNode) {
+  const states = [];
+  workflow.nodes.forEach(n => {
+    if (n && n.stateMeta && n.stateMeta.sourceId === stateListNode.id && nodeHasOutputImage(n)) states.push(n);
+  });
+  if (!states.length) { showToast('没有已出图的状态节点可归档（先运行状态节点生成图片）', 'warn'); return 0; }
+  let saved = 0;
+  states.forEach(n => { if (saveCharacterStateAsAsset(n)) saved++; });
+  showToast('批量归档完成：' + saved + '/' + states.length + ' 个状态已存为角色资产', 'success', 4200);
+  refreshAssetPanelIfOpen();
+  return saved;
 }
 
 // 列出所有「角色」类资产（供其他 AI 节点下拉引用），按资产去重只显示一次（优先自定义名称）
@@ -7604,6 +7623,15 @@ function buildNodeBody(el, node) {
       stateBtn.onclick = function(e) { e.stopPropagation(); generateStateNodes(node); };
       stateBtn.onmousedown = function(e) { e.stopPropagation(); };
       textBody.appendChild(stateBtn);
+
+      const batchSaveBtn = document.createElement('button');
+      batchSaveBtn.type = 'button';
+      batchSaveBtn.className = 'node-ref-upload-btn state-save-btn';
+      batchSaveBtn.textContent = '💾 全部存为角色资产';
+      batchSaveBtn.title = '把本角色已完成的状态节点一键归档为角色资产（跨画布可复用，未出图的跳过）';
+      batchSaveBtn.onclick = function(e) { e.stopPropagation(); saveAllCharacterStatesAsAsset(node); };
+      batchSaveBtn.onmousedown = function(e) { e.stopPropagation(); };
+      textBody.appendChild(batchSaveBtn);
 
       const countTip = document.createElement('div');
       countTip.className = 'node-field-label state-count-tip';
