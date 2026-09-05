@@ -6350,3 +6350,38 @@ body {
 .rl-save-wrap { margin-left:auto; }
 .rl-save { background:var(--color-primary); color:#fff; border:none; border-radius:6px; padding:2px 8px; font-size:10.5px; cursor:pointer; font-family:inherit; }
 .rl-save:hover { filter:brightness(1.08); }
+
+/* ===== 响应式窄屏适配（2026-09-05）===== */
+/* 全局：禁止横向文档滚动（画布内容/工具栏不应撑出页面滚动条） */
+html, body { overflow-x: hidden; }
+
+/* ≤900px：minimap 收纳，避免与画布/状态栏/AI 面板挤叠 */
+@media (max-width: 900px) {
+  .minimap, #minimap { display: none; }
+}
+
+/* ≤760px：移动端布局——侧栏改覆盖式抽屉，画布占满宽度 */
+@media (max-width: 760px) {
+  /* 侧栏固定抽屉：默认(.collapsed)用 left 滑出屏幕外（不用 transform，避免 fixed 子按钮失效）；展开时覆盖画布 */
+  .sidebar {
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 60;
+    width: min(280px, 84vw);
+    transition: left 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.4);
+  }
+  .sidebar.collapsed { left: calc(-1 * min(280px, 84vw)); width: min(280px, 84vw); box-shadow: none; }
+  /* 折叠按钮固定到视口左上：抽屉开/关两种状态都可达 */
+  .sidebar-toggle-btn {
+    position: fixed; left: 8px; top: 8px; right: auto; z-index: 70;
+    width: 32px; height: 32px;
+    background: var(--bg-panel); border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  }
+  .sidebar.collapsed .sidebar-toggle-btn { transform: none; }
+  /* 状态栏占满宽度并换行，保证 #btnArrange/#btnUndo 等按钮在窄屏可达 */
+  .statusbar { flex-wrap: wrap; height: auto; min-height: 28px; padding: 2px 8px; row-gap: 2px; }
+  .statusbar-left, .statusbar-right { gap: 8px; flex-wrap: wrap; }
+  /* 画布工具栏换行不横向溢出 */
+  .canvas-toolbar { left: 8px; top: 48px; right: 8px; flex-wrap: wrap; max-width: calc(100vw - 16px); }
+  /* AI 面板适配窄屏宽度 */
+  .ai-panel { left: 8px !important; right: 8px !important; width: auto !important; max-width: calc(100vw - 16px); }
+}

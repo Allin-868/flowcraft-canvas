@@ -12818,6 +12818,22 @@ document.getElementById('sidebarCollapseBtn').addEventListener('click', () => {
   }, 260);
 });
 
+// 响应式窄屏：≤760px 侧栏默认收起为覆盖式抽屉（给画布让出宽度），宽屏恢复展开。
+// 仅在加载与跨断点 resize 时同步，不干扰用户在断点内的手动折叠/展开。
+(function mountResponsiveSidebar() {
+  const sb = document.getElementById('sidebar');
+  if (!sb) return;
+  const MOBILE = 760;
+  let t = null;
+  const repaint = () => setTimeout(() => {
+    if (typeof resizeCanvases === 'function') resizeCanvases();
+    if (typeof markEdgesDirty === 'function') markEdgesDirty();
+  }, 260);
+  const sync = () => { sb.classList.toggle('collapsed', window.innerWidth <= MOBILE); repaint(); };
+  sync();
+  window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(sync, 150); });
+})();
+
 //================ 16. 拓扑执行引擎 (数据流动骨架 A2) ================
 // 数据载荷统一结构: { type:'image'|'text'|'video'|'audio', value:<内容>, ... }
 //  image  → value 为 dataURL 字符串
