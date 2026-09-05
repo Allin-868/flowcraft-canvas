@@ -17,3 +17,6 @@ _provtest.cjs
 
 # Local Netlify folder
 .netlify
+
+# Vercel CLI 本地状态（含 projectId/orgId）
+.vercel/

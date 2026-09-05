@@ -1,0 +1,8 @@
+[build]
+  functions = "netlify/functions"
+
+# /proxy → Netlify Function
+[[redirects]]
+  from = "/proxy"
+  to = "/.netlify/functions/proxy"
+  status = 200
