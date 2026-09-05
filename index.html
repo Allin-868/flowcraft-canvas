@@ -4047,7 +4047,7 @@ body {
   z-index: 501;
   display: flex;
   flex-direction: column;
-  transform: translateX(100%);
+  transform: translateX(calc(100% + 48px)); /* +48px 覆盖左向阴影宽度，隐藏时不渗进画布 */
   transition: transform var(--transition-normal);
 }
 .recycle-panel.show {
@@ -4149,7 +4149,7 @@ body {
   z-index: 501;
   display: flex;
   flex-direction: column;
-  transform: translateX(100%);
+  transform: translateX(calc(100% + 48px)); /* +48px 覆盖左向阴影宽度，隐藏时不渗进画布 */
   transition: transform var(--transition-normal);
 }
 .shot-panel.show {
