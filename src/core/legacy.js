@@ -1871,13 +1871,32 @@ function collectAssets() {
       }
     });
   });
-  // #11 跨画布复用：合并全局资产库（与当前画布同 key 的以当前为准，避免重复）
-  const curKeys = new Set(assets.map(a => assetKey(a)));
+  // 同图去重（按内容 src）：同一张图在不同身份(节点图/产出/输入/多节点)下只保留一条，避免素材库双份
+  let list = [];
+  const seenSrc = new Set();
+  assets.forEach(a => { if (!seenSrc.has(a.src)) { seenSrc.add(a.src); list.push(a); } });
+  // #11 跨画布复用：合并全局资产库。全局库内同 src：保留所有「带自定义名」的（不同命名资产），无名的只留首条（重复保存去重）。
+  // 全局 vs 当前同 src：带自定义名的全局条目替换当前条目（保留 <<<名称>>> 令牌），无名的当前已展示则跳过。
+  const curKeys = new Set(list.map(a => assetKey(a)));
+  const gNamedSrc = new Set();
+  const gUnnamedSrc = new Set();
+  const gPicked = [];
   globalAssetEntries().forEach(g => {
-    const k = assetKey(g);
-    if (!curKeys.has(k)) assets.push(g);
+    if (getAssetMeta(assetKey(g)).name) { gPicked.push(g); gNamedSrc.add(g.src); return; }
+    if (gUnnamedSrc.has(g.src) || gNamedSrc.has(g.src)) return;
+    gUnnamedSrc.add(g.src);
+    gPicked.push(g);
   });
-  return assets;
+  gPicked.forEach(g => {
+    const k = assetKey(g);
+    const same = list.find(a => a.src === g.src);
+    if (same) {
+      if (getAssetMeta(k).name) { const idx = list.indexOf(same); if (idx >= 0) list[idx] = g; }
+      return;
+    }
+    if (!curKeys.has(k)) list.push(g);
+  });
+  return list;
 }
 
 function updateAssetPanel() {
