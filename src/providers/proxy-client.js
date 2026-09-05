@@ -51,7 +51,7 @@ export const ProxyClient = {
   // 由 compat 启动时调用：base 为空 → 代理未启用（legacy 回退直连，便于本地开发）
   configure(opts) {
     opts = opts || {};
-    if (opts.base) this.setBase(opts.base);
+    if (Object.prototype.hasOwnProperty.call(opts, 'base')) this.setBase(opts.base);
     if (opts.token != null) this.setToken(opts.token);
     return this;
   },

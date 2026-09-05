@@ -1,0 +1,13 @@
+name = "flowcraft-proxy"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+[vars]
+# 个人自用：放行所有来源（含 file:// 本地打开）。公开部署请改回白名单：
+# PROXY_ALLOWED_ORIGINS = "https://allin-868.github.io"
+PROXY_ALLOWED_ORIGINS = "*"
+# 访问口令不要写入此文件。部署前执行：
+# wrangler secret put PERSONAL_ACCESS_TOKEN
+# 前端 ⚙ 里的「代理令牌」填写同一个 Secret 值。
+# 上游指向中转站（openai provider 的生图/对话都会走这里）
+OPENAI_UPSTREAM_BASE = "https://momoai.asia/v1"
