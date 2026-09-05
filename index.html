@@ -11783,19 +11783,32 @@ function positionNodeComposer() {
   if (!workflow.nodes.has(node.id)) { hideNodeComposer(); return; }
   const cam = workflow.camera;
   const h = node.height || (node.el && node.el.offsetHeight) || 160;
-  const x = node.x * cam.zoom + cam.x;
-  const y = (node.y + h) * cam.zoom + cam.y + 12;
   const w = Math.max(240, Math.round((node.width || 280) * cam.zoom));
-  el.style.left = Math.round(x) + 'px';
-  el.style.top = Math.round(y) + 'px';
   el.style.width = Math.round(w) + 'px';
-  // 视口内兜底：不超出 canvas 右/下边缘
+  // 节点四边屏幕坐标
+  const nodeTop = node.y * cam.zoom + cam.y;
+  const nodeBottom = (node.y + h) * cam.zoom + cam.y;
+  const nodeLeft = node.x * cam.zoom + cam.x;
+  const nodeRight = (node.x + (node.width || 280)) * cam.zoom + cam.x;
+  let left = nodeLeft;
+  let top = nodeBottom + 12; // 首选：节点正下方
+  // 视口内兜底：下方放不下时依次尝试 右侧 → 左侧 → 最后 clamp，避免面板压住节点本体
   try {
     const wrapRect = canvasWrap.getBoundingClientRect();
-    const er = el.getBoundingClientRect();
-    if (er.right > wrapRect.right) el.style.left = Math.max(8, (wrapRect.right - wrapRect.left) - el.offsetWidth - 8) + 'px';
-    if (er.bottom > wrapRect.bottom) el.style.top = Math.max(8, (wrapRect.bottom - wrapRect.top) - el.offsetHeight - 8) + 'px';
+    const ch = el.offsetHeight, cw = el.offsetWidth;
+    const roomBelow = (top + ch) <= (wrapRect.bottom - 8);
+    if (!roomBelow) {
+      const rightLeft = nodeRight + 12;
+      const leftLeft = nodeLeft - cw - 12;
+      if (rightLeft + cw <= wrapRect.right - 8) { left = rightLeft; top = nodeTop; }
+      else if (leftLeft >= wrapRect.left + 8) { left = leftLeft; top = nodeTop; }
+      else { top = Math.max(8, (wrapRect.bottom - wrapRect.top) - ch - 8); }
+    }
+    if (left + cw > wrapRect.right - 8) left = Math.max(8, (wrapRect.right - wrapRect.left) - cw - 8);
+    if (top + ch > wrapRect.bottom - 8) top = Math.max(8, (wrapRect.bottom - wrapRect.top) - ch - 8);
   } catch (e) {}
+  el.style.left = Math.round(left) + 'px';
+  el.style.top = Math.round(top) + 'px';
 }
 
 function buildNodeComposerBody(node) {
