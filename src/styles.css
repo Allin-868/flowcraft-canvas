@@ -1165,6 +1165,11 @@ body {
 .image-crop-overlay.dragging .image-crop-handle.br {
   cursor: grabbing;
 }
+/* 图片旋转模态（复用 image-crop-overlay 布局） */
+.image-rotate-overlay .image-crop-stage { cursor: default; }
+.image-rotate-img { transform-origin: center center; transition: transform .08s linear; }
+.image-rotate-slider { width: 180px; height: 4px; cursor: pointer; accent-color: var(--color-primary, #8B5CF6); }
+.image-rotate-angle { min-width: 46px; text-align: center; font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
 
 /* —— 2. 缩略图区 + 提示词 —— */
 .node-body {

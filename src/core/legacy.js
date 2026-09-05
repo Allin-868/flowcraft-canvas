@@ -5649,6 +5649,7 @@ const NODE_TOOL_SVGS = {
   upload: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10V3M5 6l3-3 3 3M3 13h10"/></svg>',
   expand: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="M10 10l4 4M6.5 6v3M5 7.5h3"/></svg>',
   crop: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1v3M1 3h3M13 1v3M12 3h3M3 15v-3M1 13h3M13 15v-3M12 13h3"/><path d="M5 5h6v6H5z"/></svg>',
+  rotate: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 2.2v3.1h-3.1"/></svg>',
   gen: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M7 2h2l-.5 4h2.5l-1 3h-3l-.5-4H7z"/><circle cx="10" cy="12" r="1.6"/><path d="M3 11l2-1 1-2 1.5 3"/></svg>',
   asset: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h4l1.5 2H14v8H2z"/><path d="M8 8v4M6 10h4"/></svg>',
   copy: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>',
@@ -5916,6 +5917,10 @@ function buildMediaNodeTools(node) {
     cropBtn.disabled = !src;
     cropBtn.title = src ? '裁剪图片' : '裁剪图片（请先上传图片）';
     tools.appendChild(cropBtn);
+    const rotBtn = makeNodeToolBtn('旋转图片', NODE_TOOL_SVGS.rotate, () => openImageRotateModal(node));
+    rotBtn.disabled = !src;
+    rotBtn.title = src ? '旋转图片（90° 步进 + 自由角度）' : '旋转图片（请先上传图片）';
+    tools.appendChild(rotBtn);
   }
   const dlBtn = makeNodeToolBtn('下载图片', NODE_TOOL_SVGS.download, () => { if (src) downloadNode(node); });
   dlBtn.disabled = !src;
@@ -12070,6 +12075,7 @@ function openImageCropModal(node) {
           '<div class="image-crop-stage"><img class="image-crop-img" alt="裁剪预览"><div class="image-crop-box"><div class="image-crop-handle br"></div></div></div>' +
         '</div>';
       document.body.appendChild(overlay);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeImageCropModal(); });
       overlay.addEventListener('mousedown', (e) => {
         if (!__imageCropState) return;
         const stage = overlay.querySelector('.image-crop-stage');
@@ -12174,20 +12180,169 @@ function openImageCropModal(node) {
         closeImageCropModal();
       };
     }
-    document.body.appendChild(overlay);
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeImageCropModal();
-    });
-  }
-  const overlay = document.getElementById('imageCropOverlay');
-  if (!overlay) return;
-  overlay.classList.add('show');
-  const aspectSel = overlay.querySelector('#imageCropAspect');
-  if (aspectSel) aspectSel.value = 'free';
-  requestAnimationFrame(() => renderImageCropModal());
+    // 修复：overlay 创建/显示原依赖 probe.onload，但缺少 probe.src 赋值导致 onload 永不触发、模态打不开。
+    if (!overlay.parentNode) document.body.appendChild(overlay);
+    overlay.classList.add('show');
+    const aspectSel = overlay.querySelector('#imageCropAspect');
+    if (aspectSel) aspectSel.value = 'free';
+    __imageCropState._boxReset = true;
+    requestAnimationFrame(() => renderImageCropModal());
+  };
+  probe.src = src;
 }
 
-window.addEventListener('resize', () => { if (__imageCropState) renderImageCropModal(); });
+// ===== 图片节点旋转（阶段2）：90° 步进 + 自由角度 → canvas 烘焙入像素 =====
+let __imageRotateState = null;
+
+// 归一角度到 (-180, 180]
+function normalizeAngle(a) {
+  let d = (Number(a) || 0) % 360;
+  if (d > 180) d -= 360;
+  if (d <= -180) d += 360;
+  return Math.round(d);
+}
+
+// 把 src 旋转 angleDeg 后烘焙为新 dataURL（扩展画布到旋转后外接矩形，自由角度保留透明角）
+function bakeImageRotation(src, angleDeg, cb) {
+  const img = new Image();
+  img.onload = function() {
+    const w = img.naturalWidth || img.width || 1;
+    const h = img.naturalHeight || img.height || 1;
+    const rad = (Number(angleDeg) || 0) * Math.PI / 180;
+    const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+    const nw = Math.max(1, Math.round(w * cos + h * sin));
+    const nh = Math.max(1, Math.round(w * sin + h * cos));
+    const canvas = document.createElement('canvas');
+    canvas.width = nw; canvas.height = nh;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { cb('', 0, 0); return; }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.translate(nw / 2, nh / 2);
+    ctx.rotate(rad);
+    ctx.drawImage(img, -w / 2, -h / 2);
+    let out = '';
+    try { out = canvas.toDataURL('image/png'); } catch (err) { out = ''; }
+    cb(out, nw, nh);
+  };
+  img.onerror = function() { cb('', 0, 0); };
+  img.src = src;
+}
+
+function renderImageRotateModal() {
+  const st = __imageRotateState;
+  const overlay = document.getElementById('imageRotateOverlay');
+  if (!st || !overlay || !overlay.classList.contains('show')) return;
+  const stage = overlay.querySelector('.image-crop-stage');
+  const img = overlay.querySelector('.image-rotate-img');
+  const meta = overlay.querySelector('.image-crop-meta');
+  const angleEl = overlay.querySelector('#imageRotateAngle');
+  const slider = overlay.querySelector('#imageRotateSlider');
+  if (!stage || !img) return;
+  const sr = stage.getBoundingClientRect();
+  if (!sr.width || !sr.height) return;
+  const rad = st.angle * Math.PI / 180;
+  const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+  const bw = Math.max(1, st.naturalW * cos + st.naturalH * sin);
+  const bh = Math.max(1, st.naturalW * sin + st.naturalH * cos);
+  const scale = Math.min(sr.width / bw, sr.height / bh);
+  const dw = Math.max(1, Math.round(st.naturalW * scale));
+  const dh = Math.max(1, Math.round(st.naturalH * scale));
+  img.src = st.src;
+  img.style.width = dw + 'px';
+  img.style.height = dh + 'px';
+  img.style.left = Math.round((sr.width - dw) / 2) + 'px';
+  img.style.top = Math.round((sr.height - dh) / 2) + 'px';
+  img.style.transform = 'rotate(' + st.angle + 'deg)';
+  if (angleEl) angleEl.textContent = st.angle + '°';
+  if (slider && Number(slider.value) !== st.angle) slider.value = String(st.angle);
+  if (meta) meta.textContent = '原图 ' + st.naturalW + ' × ' + st.naturalH + ' · 旋转 ' + st.angle + '°';
+}
+
+function closeImageRotateModal() {
+  const overlay = document.getElementById('imageRotateOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('show');
+  __imageRotateState = null;
+}
+
+function openImageRotateModal(node) {
+  const src = getNodeDisplayImageSource(node) || normalizeImageSrc(node && (node.uploadedImage || node.thumb));
+  if (!node || node.type !== 'image' || !src) {
+    showToast('请先上传图片，再进行旋转', 'info');
+    return;
+  }
+  const probe = new Image();
+  probe.onload = () => {
+    __imageRotateState = {
+      node,
+      src,
+      naturalW: probe.naturalWidth || probe.width || 1,
+      naturalH: probe.naturalHeight || probe.height || 1,
+      angle: 0,
+    };
+    let overlay = document.getElementById('imageRotateOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'imageRotateOverlay';
+      overlay.className = 'image-crop-overlay image-rotate-overlay';
+      overlay.innerHTML =
+        '<div class="image-crop-modal">' +
+          '<div class="image-crop-head">' +
+            '<div><div class="image-crop-title">图片旋转</div><div class="image-crop-meta"></div></div>' +
+            '<div class="image-crop-actions">' +
+              '<button type="button" class="wf-btn" id="imageRotateCCW" title="逆时针 90°">⟲ 90°</button>' +
+              '<button type="button" class="wf-btn" id="imageRotateCW" title="顺时针 90°">⟳ 90°</button>' +
+              '<input type="range" id="imageRotateSlider" class="image-rotate-slider" min="-180" max="180" step="1" value="0">' +
+              '<span class="image-rotate-angle" id="imageRotateAngle">0°</span>' +
+              '<button type="button" class="wf-btn" id="imageRotateReset">重置</button>' +
+              '<button type="button" class="wf-btn" id="imageRotateCancel">取消</button>' +
+              '<button type="button" class="wf-btn primary" id="imageRotateApply">应用旋转</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="image-crop-stage"><img class="image-crop-img image-rotate-img" alt="旋转预览"></div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeImageRotateModal(); });
+      overlay.querySelector('#imageRotateCCW').onclick = (e) => { e.stopPropagation(); if (!__imageRotateState) return; __imageRotateState.angle = normalizeAngle(__imageRotateState.angle - 90); renderImageRotateModal(); };
+      overlay.querySelector('#imageRotateCW').onclick = (e) => { e.stopPropagation(); if (!__imageRotateState) return; __imageRotateState.angle = normalizeAngle(__imageRotateState.angle + 90); renderImageRotateModal(); };
+      overlay.querySelector('#imageRotateSlider').oninput = (e) => { if (!__imageRotateState) return; __imageRotateState.angle = normalizeAngle(e.target.value); renderImageRotateModal(); };
+      overlay.querySelector('#imageRotateReset').onclick = (e) => { e.stopPropagation(); if (!__imageRotateState) return; __imageRotateState.angle = 0; renderImageRotateModal(); };
+      overlay.querySelector('#imageRotateCancel').onclick = (e) => { e.stopPropagation(); closeImageRotateModal(); };
+      overlay.querySelector('#imageRotateApply').onclick = (e) => {
+        e.stopPropagation();
+        const st = __imageRotateState;
+        if (!st) return;
+        const angle = st.angle;
+        if (!angle) { showToast('角度为 0，无需旋转', 'info'); return; }
+        bakeImageRotation(st.src, angle, (baked, nw, nh) => {
+          if (!baked) { showToast('旋转失败，请重试', 'danger'); return; }
+          pushHistory();
+          st.node.croppedImage = baked;
+          st.node.thumb = baked;
+          const prevAngle = (st.node.cropMeta && st.node.cropMeta.angle) || 0;
+          st.node.cropMeta = Object.assign({}, st.node.cropMeta, { angle: normalizeAngle(prevAngle + angle), rotatedAt: Date.now() });
+          st.node.outputsData = computeNodeOutput(st.node);
+          if (st.node.el) buildNodeBody(st.node.el, st.node);
+          probeFitNode(st.node);
+          markEdgesDirty();
+          scheduleAutosave();
+          refreshAssetPanelIfOpen();
+          showToast('图片已旋转 ' + angle + '°', 'success');
+          closeImageRotateModal();
+        });
+      };
+    }
+    if (!overlay.parentNode) document.body.appendChild(overlay);
+    overlay.classList.add('show');
+    const slider = overlay.querySelector('#imageRotateSlider');
+    if (slider) slider.value = '0';
+    requestAnimationFrame(() => renderImageRotateModal());
+  };
+  probe.src = src;
+}
+
+window.addEventListener('resize', () => { if (__imageCropState) renderImageCropModal(); if (__imageRotateState) renderImageRotateModal(); });
 
 function renderConnectionNodeMenu() {
   if (!connectionMenuState) return;
