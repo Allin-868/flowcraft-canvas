@@ -13533,11 +13533,22 @@ function comfyFieldRow(node, f) {
   const cur = (raw === undefined || raw === null || raw === '') ? f.default : raw;
 
   if (f.type === 'textarea') {
+    const taWrap = document.createElement('div');
+    taWrap.className = 'comfy-ta-row';
     const ta = document.createElement('textarea');
     ta.className = 'comfy-ta'; ta.rows = 2; ta.value = String(cur);
     ta.oninput = (e) => { node.params.fields[f.key] = e.target.value; if (f.key === 'prompt') node.prompt = e.target.value; scheduleAutosave(); };
     ta.onmousedown = (e) => e.stopPropagation();
-    row.appendChild(ta); bindEditHistory(ta);
+    taWrap.appendChild(ta);
+    // 放大面板：复用全局 openPromptExpandEditor（Esc/Ctrl+Enter 关闭、点外部关闭、字数统计）
+    const expBtn = makePromptExpandBtn(
+      () => String(node.params.fields[f.key] != null ? node.params.fields[f.key] : ''),
+      (v) => { node.params.fields[f.key] = v; if (f.key === 'prompt') node.prompt = v; scheduleAutosave(); },
+      (v) => { ta.value = v; },
+      (f.label || '提示词') + ' · 放大编辑'
+    );
+    taWrap.appendChild(expBtn);
+    row.appendChild(taWrap); bindEditHistory(ta);
   } else if (f.type === 'dropdown') {
     const sel = document.createElement('select'); sel.className = 'comfy-sel';
     (f.options||[]).forEach(opt => { const o=document.createElement('option'); o.value=opt; o.textContent=opt; sel.appendChild(o); });

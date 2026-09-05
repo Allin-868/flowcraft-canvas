@@ -4072,6 +4072,8 @@ body {
   font-family: inherit; resize: vertical;
 }
 .comfy-ta { min-height: 38px; }
+.comfy-ta-row { position: relative; }
+.comfy-ta-row .prompt-expand-btn { position: absolute; top: 4px; right: 4px; }
 .comfy-range-val { font-size: 11px; color: var(--text-3); margin-left: 6px; }
 .comfy-act-row .run-btn { flex: 1; }
 .comfy-hint { font-size: 11px; color: var(--text-3); line-height: 1.4; }
