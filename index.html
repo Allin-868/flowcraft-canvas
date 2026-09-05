@@ -6203,6 +6203,18 @@ body {
   font-size: 11px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; cursor: pointer;
 }
 .node-ref-thumb-rm:hover { background: #ef4444; }
+.node-ref-thumb-replace, .node-ref-thumb-relocate {
+  position: absolute; top: 1px; left: 1px; width: 14px; height: 14px; line-height: 14px; text-align: center;
+  font-size: 10px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; cursor: pointer;
+}
+.node-ref-thumb-replace:hover, .node-ref-thumb-relocate:hover { background: var(--accent, #8B5CF6); }
+.node-ref-thumb.dragging { opacity: .4; }
+.node-ref-thumb.drag-over { outline: 2px solid var(--accent, #8B5CF6); outline-offset: 1px; }
+.node-ref-thumb-invalid { border-color: #ef4444; background: repeating-linear-gradient(45deg, rgba(239,68,68,.14), rgba(239,68,68,.14) 5px, transparent 5px, transparent 10px); }
+.node-ref-invalid-warn {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: #ef4444; font-weight: 600; pointer-events: none;
+}
 .node-ai-image-ref-thumbs .node-ref-thumb { width: 52px; height: 52px; }
 .node-image-edit-ref-thumbs .node-ref-thumb { width: 34px; height: 34px; }
 .node-image-edit-ref-thumbs { gap: 4px; }
@@ -7441,7 +7453,7 @@ function restoreFromSnapshot(snap) {
       node.cropMeta = nd.cropMeta ? JSON.parse(JSON.stringify(nd.cropMeta)) : null;
       node.prompt = nd.prompt;
       node.params = { ...nd.params };
-      node.refImages = Array.isArray(nd.refImages) ? JSON.parse(JSON.stringify(nd.refImages)) : [];
+      node.refImages = normalizeRefImages(nd.refImages);
       node.charDesc = typeof nd.charDesc === 'string' ? nd.charDesc : '';
       node.stateMeta = copyStateMeta(nd.stateMeta);
       node.failureReason = nd.failureReason || (node.stateMeta && node.stateMeta.failureReason) || nd._lastError || '';
@@ -8082,7 +8094,7 @@ function restoreFromStorage() {
       node.thumb = nd.thumb || null;
       node.uploadedVideo = typeof nd.uploadedVideo === 'string' ? nd.uploadedVideo : '';
       node.prompt = nd.prompt || '';
-      node.refImages = Array.isArray(nd.refImages) ? nd.refImages : [];
+      node.refImages = normalizeRefImages(nd.refImages);
       node.refVideos = Array.isArray(nd.refVideos) ? nd.refVideos : [];
       node.charDesc = typeof nd.charDesc === 'string' ? nd.charDesc : '';
       node.stateMeta = copyStateMeta(nd.stateMeta);
@@ -8528,7 +8540,7 @@ function applyWorkflowData(parsed) {
     node.thumb = nd.thumb || null;
     node.uploadedVideo = typeof nd.uploadedVideo === 'string' ? nd.uploadedVideo : '';
     node.prompt = nd.prompt || '';
-    node.refImages = Array.isArray(nd.refImages) ? JSON.parse(JSON.stringify(nd.refImages)) : [];
+    node.refImages = normalizeRefImages(nd.refImages);
     node.refVideos = Array.isArray(nd.refVideos) ? JSON.parse(JSON.stringify(nd.refVideos)) : [];
     node.charDesc = typeof nd.charDesc === 'string' ? nd.charDesc : '';
     node.stateMeta = copyStateMeta(nd.stateMeta);
@@ -10654,32 +10666,264 @@ function nodeFullText(node) {
   return lead ? (lead + '\n\n' + body) : body;
 }
 
-// 通用参考图上传：读本地图片为 dataURL，存入 node.refImages
+// ===== 参考图管理（P1-1）：结构化对象 / 校验 / 去重 / 迁移 / 失效引用 / 排序 =====
+const REF_IMAGE_ACCEPT_MIME = ['image/png', 'image/jpeg', 'image/webp'];
+const REF_IMAGE_ACCEPT_EXT = /\.(png|jpe?g|webp)$/i;
+const REF_MAX_SINGLE_BYTES = 10 * 1024 * 1024;   // 单图 ≤ 10MB
+const REF_MAX_TOTAL_BYTES = 50 * 1024 * 1024;    // 单节点参考图总量 ≤ 50MB
+// 同步字符串哈希（FNV-1a）——用于重复检测与稳定 identity，不追求密码学强度
+function refHashSrc(src) {
+  const s = String(src || '');
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0; }
+  return ('00000000' + h.toString(16)).slice(-8);
+}
+function refMimeFromSrc(src) {
+  const m = /^data:([^;,]+)/i.exec(String(src || ''));
+  return m ? m[1].toLowerCase() : '';
+}
+function refSizeFromSrc(src) {
+  const s = String(src || '');
+  const comma = s.indexOf(',');
+  if (comma < 0) return s.length;
+  const b64 = s.slice(comma + 1);
+  if (/;base64/i.test(s.slice(0, comma))) return Math.floor(b64.length * 3 / 4);
+  return b64.length;
+}
+// 失效引用：无 src 或 src 无法解析（含被剥离的 "(stripped)" 占位）
+function isRefInvalid(r) { return !r || !normalizeImageSrc(r.src); }
+// 把任意旧格式参考图（裸 dataURL 字符串 / {name,src}）归一为结构化对象
+function normalizeRefImage(r, idx) {
+  let src = '', name = '';
+  if (typeof r === 'string') { src = r; }
+  else if (r && typeof r === 'object') { src = r.src || ''; name = r.name || ''; }
+  const o = (r && typeof r === 'object') ? r : {};
+  const mime = refMimeFromSrc(src);
+  const hash = src ? refHashSrc(src) : '';
+  return {
+    id: o.id || ('ref-' + (hash || 'empty') + '-' + idx),
+    name: name || ('参考图' + (idx + 1)),
+    src: src,
+    order: Number.isFinite(o.order) ? o.order : idx,
+    width: Number.isFinite(o.width) ? o.width : 0,
+    height: Number.isFinite(o.height) ? o.height : 0,
+    size: Number.isFinite(o.size) ? o.size : refSizeFromSrc(src),
+    mime: mime || o.mime || '',
+    hash: hash || o.hash || '',
+  };
+}
+// 归一整个数组并按 order 排序、重排 order 连续（迁移旧数据 + 保证发送编号与 order 一致）
+function normalizeRefImages(arr) {
+  const list = Array.isArray(arr) ? arr : [];
+  const norm = list.map(normalizeRefImage);
+  norm.sort(function(a, b) { return a.order - b.order; });
+  norm.forEach(function(r, i) { r.order = i; });
+  return norm;
+}
+// 上传前校验单个文件：格式 + 大小
+function validateRefImageFile(file) {
+  const mime = (file.type || '').toLowerCase();
+  const name = file.name || '';
+  const okType = REF_IMAGE_ACCEPT_MIME.indexOf(mime) >= 0 || REF_IMAGE_ACCEPT_EXT.test(name);
+  if (!okType) return { ok: false, reason: '格式不支持（仅 PNG / JPEG / WebP）' };
+  if (file.size > REF_MAX_SINGLE_BYTES) return { ok: false, reason: '单图超过 10MB' };
+  return { ok: true };
+}
+// 异步补全宽高（不阻塞入库）
+function probeRefDimensions(ref) {
+  const src = normalizeImageSrc(ref.src);
+  if (!src) return;
+  const img = new Image();
+  img.onload = function() { ref.width = img.naturalWidth; ref.height = img.naturalHeight; };
+  img.src = src;
+}
+
+// 通用参考图上传：校验格式/大小 → 去重 → 读为结构化对象存入 node.refImages
 function openReferenceImagePicker(node, onDone) {
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = 'image/*';
+  input.accept = 'image/png,image/jpeg,image/webp';
   input.multiple = true;
   input.onchange = function() {
     const files = Array.prototype.slice.call(input.files || []);
-    const total = files.length;
-    if (!total) return;
-    let pending = total;
+    if (!files.length) return;
+    node.refImages = normalizeRefImages(node.refImages);
+    const rejected = [];
+    const accepted = [];
+    let totalBytes = node.refImages.reduce(function(s, r) { return s + (r.size || 0); }, 0);
     files.forEach(function(f) {
+      const v = validateRefImageFile(f);
+      if (!v.ok) { rejected.push((f.name || '未命名') + '：' + v.reason); return; }
+      if (totalBytes + f.size > REF_MAX_TOTAL_BYTES) { rejected.push((f.name || '未命名') + '：超出参考图总量 50MB'); return; }
+      totalBytes += f.size;
+      accepted.push(f);
+    });
+    if (rejected.length) showToast('已跳过 ' + rejected.length + ' 个文件：' + rejected.join('；'), 'danger');
+    if (!accepted.length) return;
+    let pending = accepted.length;
+    let dupSkipped = 0;
+    accepted.forEach(function(f) {
       const reader = new FileReader();
       reader.onload = function() {
-        node.refImages = node.refImages || [];
-        const base = (f.name || '参考图').replace(/\.[^.]+$/, '') || ('参考图' + (node.refImages.length + 1));
-        node.refImages.push({ name: base, src: String(reader.result) });
+        const src = String(reader.result);
+        const hash = refHashSrc(src);
+        // 重复检测：同节点内已存在相同图则跳过，不重复入库
+        if (node.refImages.some(function(r) { return r.hash === hash || r.src === src; })) {
+          dupSkipped++;
+        } else {
+          const base = (f.name || '参考图').replace(/\.[^.]+$/, '') || ('参考图' + (node.refImages.length + 1));
+          const ref = normalizeRefImage({ name: base, src: src }, node.refImages.length);
+          probeRefDimensions(ref);
+          node.refImages.push(ref);
+        }
         if (--pending === 0) {
+          node.refImages = normalizeRefImages(node.refImages);
+          if (dupSkipped) showToast('已跳过 ' + dupSkipped + ' 张重复参考图', 'info');
           scheduleAutosave();
           if (typeof onDone === 'function') onDone();
         }
+      };
+      reader.onerror = function() {
+        if (--pending === 0) { scheduleAutosave(); if (typeof onDone === 'function') onDone(); }
       };
       reader.readAsDataURL(f);
     });
   };
   input.click();
+}
+
+// 单图替换：保持 id / order 不变，只换 src 与派生字段
+function openRefReplacePicker(node, refId, onDone) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/png,image/jpeg,image/webp';
+  input.onchange = function() {
+    const f = (input.files || [])[0];
+    if (!f) return;
+    const v = validateRefImageFile(f);
+    if (!v.ok) { showToast('替换失败：' + v.reason, 'danger'); return; }
+    const reader = new FileReader();
+    reader.onload = function() {
+      const src = String(reader.result);
+      const list = normalizeRefImages(node.refImages);
+      const target = list.find(function(r) { return r.id === refId; });
+      if (!target) { showToast('替换失败：参考图不存在', 'danger'); return; }
+      target.src = src;
+      target.hash = refHashSrc(src);
+      target.mime = refMimeFromSrc(src);
+      target.size = refSizeFromSrc(src);
+      target.width = 0; target.height = 0;
+      probeRefDimensions(target);
+      node.refImages = list;
+      scheduleAutosave();
+      if (typeof onDone === 'function') onDone();
+    };
+    reader.readAsDataURL(f);
+  };
+  input.click();
+}
+
+// 共享参考图缩略图渲染：替换 / 拖拽排序 / 失效引用治理 / 删除
+// opts: { onChange(), emptyText, onEmpty(container), thumbClass }
+function renderRefThumbsManaged(node, container, opts) {
+  opts = opts || {};
+  container.innerHTML = '';
+  const list = normalizeRefImages(node.refImages);
+  node.refImages = list;
+  if (!list.length) {
+    if (typeof opts.onEmpty === 'function') { opts.onEmpty(container); return; }
+    const empty = document.createElement('div');
+    empty.className = 'node-ai-image-ref-empty';
+    empty.textContent = opts.emptyText || '暂无参考图';
+    container.appendChild(empty);
+    return;
+  }
+  const commit = function() {
+    scheduleAutosave();
+    if (typeof opts.onChange === 'function') opts.onChange();
+  };
+  list.forEach(function(r, i) {
+    const invalid = isRefInvalid(r);
+    const t = document.createElement('div');
+    t.className = 'node-ref-thumb' + (invalid ? ' node-ref-thumb-invalid' : '') + (opts.thumbClass ? ' ' + opts.thumbClass : '');
+    t.draggable = true;
+    t.dataset.refId = r.id;
+    t.title = (r.name || ('参考图' + (i + 1))) + (r.width ? ' · ' + r.width + '×' + r.height : '') + '（拖拽排序）';
+    // 拖拽排序：拖动某图放到目标图位置，order 随之重排
+    t.ondragstart = function(e) { e.stopPropagation(); t.classList.add('dragging'); try { e.dataTransfer.setData('text/plain', r.id); e.dataTransfer.effectAllowed = 'move'; } catch (_) {} };
+    t.ondragend = function() { t.classList.remove('dragging'); };
+    t.ondragover = function(e) { e.preventDefault(); e.stopPropagation(); t.classList.add('drag-over'); };
+    t.ondragleave = function() { t.classList.remove('drag-over'); };
+    t.ondrop = function(e) {
+      e.preventDefault(); e.stopPropagation();
+      t.classList.remove('drag-over');
+      let dragId = '';
+      try { dragId = e.dataTransfer.getData('text/plain'); } catch (_) {}
+      if (!dragId || dragId === r.id) return;
+      const arr = normalizeRefImages(node.refImages);
+      const from = arr.findIndex(function(x) { return x.id === dragId; });
+      const to = arr.findIndex(function(x) { return x.id === r.id; });
+      if (from < 0 || to < 0) return;
+      const moved = arr.splice(from, 1)[0];
+      arr.splice(to, 0, moved);
+      arr.forEach(function(x, idx) { x.order = idx; });
+      node.refImages = arr;
+      commit();
+    };
+    if (invalid) {
+      // 失效引用：提示 + 重新定位（替换为本地图片）/ 移除引用
+      const warn = document.createElement('div');
+      warn.className = 'node-ref-invalid-warn';
+      warn.textContent = '失效';
+      warn.title = '此参考图来源已失效（可能被剥离或未保存）';
+      t.appendChild(warn);
+      const re = document.createElement('span');
+      re.className = 'node-ref-thumb-relocate';
+      re.textContent = '↻';
+      re.title = '重新定位（替换为本地图片）';
+      re.onmousedown = function(e) { e.stopPropagation(); };
+      re.onclick = function(e) { e.stopPropagation(); openRefReplacePicker(node, r.id, commit); };
+      t.appendChild(re);
+      const rm2 = document.createElement('span');
+      rm2.className = 'node-ref-thumb-rm';
+      rm2.textContent = '×';
+      rm2.title = '移除失效引用';
+      rm2.onmousedown = function(e) { e.stopPropagation(); };
+      rm2.onclick = function(e) {
+        e.stopPropagation();
+        node.refImages = normalizeRefImages(node.refImages).filter(function(x) { return x.id !== r.id; });
+        commit();
+      };
+      t.appendChild(rm2);
+    } else {
+      const img = document.createElement('img');
+      img.src = normalizeImageSrc(r.src) || '';
+      img.alt = r.name || ('参考图' + (i + 1));
+      img.draggable = false;
+      img.onmousedown = function(e) { e.stopPropagation(); };
+      img.onclick = function(e) { e.stopPropagation(); openImageLightbox(r.src); };
+      t.appendChild(img);
+      const rp = document.createElement('span');
+      rp.className = 'node-ref-thumb-replace';
+      rp.textContent = '↻';
+      rp.title = '替换参考图';
+      rp.onmousedown = function(e) { e.stopPropagation(); };
+      rp.onclick = function(e) { e.stopPropagation(); openRefReplacePicker(node, r.id, commit); };
+      t.appendChild(rp);
+      const rm = document.createElement('span');
+      rm.className = 'node-ref-thumb-rm';
+      rm.textContent = '×';
+      rm.title = '移除参考图';
+      rm.onmousedown = function(e) { e.stopPropagation(); };
+      rm.onclick = function(e) {
+        e.stopPropagation();
+        node.refImages = normalizeRefImages(node.refImages).filter(function(x) { return x.id !== r.id; });
+        commit();
+      };
+      t.appendChild(rm);
+    }
+    container.appendChild(t);
+  });
 }
 
 // 通用参考视频上传：读本地视频为 dataURL，存入 node.refVideos
@@ -10720,7 +10964,7 @@ function collectInlineRefs(node) {
   const out = [];
   const push = function(n) {
     if (n && (n.type === 'text' || n.type === 'aiImage') && Array.isArray(n.refImages)) {
-      n.refImages.forEach(function(r) { if (r && r.src) out.push(r); });
+      normalizeRefImages(n.refImages).forEach(function(r) { if (!isRefInvalid(r)) out.push(r); });
     }
   };
   push(node);
@@ -11419,45 +11663,21 @@ function buildNodeComposerBody(node) {
     const refThumbs = document.createElement('div');
     refThumbs.className = 'node-ref-thumbs node-ai-image-ref-thumbs' + (node.type === 'imageEdit' ? ' node-image-edit-ref-thumbs' : '');
     const renderRefThumbs = () => {
-      refThumbs.innerHTML = '';
-      const refs = Array.isArray(node.refImages) ? node.refImages.filter(r => r && r.src) : [];
-      if (!refs.length) {
-        if (node.type === 'imageEdit') {
-          refThumbs.hidden = true;
-          return;
-        }
-        const empty = document.createElement('div');
-        empty.className = 'node-ai-image-ref-empty';
-        empty.textContent = node.type === 'imageEdit' ? '暂无参考图' : '暂无参考图';
-        refThumbs.appendChild(empty);
-        return;
-      }
       refThumbs.hidden = false;
-      refs.forEach((r, i) => {
-        const t = document.createElement('div');
-        t.className = 'node-ref-thumb';
-        const img = document.createElement('img');
-        img.src = normalizeImageSrc(r.src) || '';
-        img.alt = r.name || ('参考图' + (i + 1));
-        img.draggable = false;
-        img.onmousedown = (e) => e.stopPropagation();
-        img.onclick = (e) => { e.stopPropagation(); openImageLightbox(r.src); };
-        t.appendChild(img);
-        const rm = document.createElement('span');
-        rm.className = 'node-ref-thumb-rm';
-        rm.textContent = '×';
-        rm.title = '移除参考图';
-        rm.onmousedown = (e) => e.stopPropagation();
-        rm.onclick = (e) => {
-          e.stopPropagation();
-          node.refImages.splice(i, 1);
-          scheduleAutosave();
+      renderRefThumbsManaged(node, refThumbs, {
+        emptyText: '暂无参考图',
+        onEmpty: (c) => {
+          if (node.type === 'imageEdit') { refThumbs.hidden = true; return; }
+          const empty = document.createElement('div');
+          empty.className = 'node-ai-image-ref-empty';
+          empty.textContent = '暂无参考图';
+          c.appendChild(empty);
+        },
+        onChange: () => {
           renderRefThumbs();
           if (node === __composerNode) showNodeComposer(node);
           else if (node.el) buildNodeBody(node.el, node);
-        };
-        t.appendChild(rm);
-        refThumbs.appendChild(t);
+        },
       });
     };
     refWrap.appendChild(refBtn);
@@ -12094,7 +12314,7 @@ function restoreFromRecycle(index) {
   node.uploadedVideo = typeof nd.uploadedVideo === 'string' ? nd.uploadedVideo : '';
   node.prompt = nd.prompt;
   node.params = { ...nd.params };
-  node.refImages = Array.isArray(nd.refImages) ? JSON.parse(JSON.stringify(nd.refImages)) : [];
+  node.refImages = normalizeRefImages(nd.refImages);
   node.charDesc = typeof nd.charDesc === 'string' ? nd.charDesc : '';
       node.stateMeta = copyStateMeta(nd.stateMeta);
       node.failureReason = nd.failureReason || (node.stateMeta && node.stateMeta.failureReason) || nd._lastError || '';
@@ -14325,26 +14545,9 @@ function buildNodeBody(el, node) {
     refThumbs.className = 'node-ref-thumbs';
     refWrap.appendChild(refThumbs);
     function renderRefThumbs() {
-      refThumbs.innerHTML = '';
-      (node.refImages || []).forEach(function(r, i) {
-        const t = document.createElement('div');
-        t.className = 'node-ref-thumb';
-        const img = document.createElement('img');
-        img.src = normalizeImageSrc(r.src) || ''; img.alt = '';
-        t.appendChild(img);
-        const rm = document.createElement('span');
-        rm.className = 'node-ref-thumb-rm';
-        rm.textContent = '×';
-        rm.title = '移除参考图';
-        rm.onclick = function(e) {
-          e.stopPropagation();
-          node.refImages.splice(i, 1);
-          scheduleAutosave();
-          buildNodeBody(el, node);
-        };
-        rm.onmousedown = function(e) { e.stopPropagation(); };
-        t.appendChild(rm);
-        refThumbs.appendChild(t);
+      renderRefThumbsManaged(node, refThumbs, {
+        emptyText: '暂无参考图',
+        onChange: function() { buildNodeBody(el, node); },
       });
     }
     textBody.appendChild(refWrap);
