@@ -6492,6 +6492,16 @@ html, body { overflow-x: hidden; }
 .node--image-only > .node-header .node-tool-btn { width: 22px; height: 22px; border-radius: 6px; }
 .node--image-only > .node-header .node-tool-btn svg { width: 13px; height: 13px; }
 
+/* —— 其余节点框统一美化（2026-09-06）：内部 header 与媒体节点同一视觉语言 —— */
+.node-header-row { flex-wrap: wrap; row-gap: 4px; }
+.node-header .node-tools { gap: 2px; }
+.node-header .node-tool-btn { width: 22px; height: 22px; border-radius: 6px; }
+.node-header .node-tool-btn svg { width: 13px; height: 13px; }
+.node-header {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
 </style>
 
 </head>
