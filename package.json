@@ -30,7 +30,8 @@
     "verify:char-flow": "node ../../脚本/verify-char-flow.mjs",
     "verify:reverse-prompt": "node ../../脚本/verify-reverse-prompt-structured.mjs",
     "verify:real-links": "node ../../脚本/verify-real-links.mjs",
-    "verify:error-calibration": "node ../../脚本/verify-error-calibration.mjs"
+    "verify:error-calibration": "node ../../脚本/verify-error-calibration.mjs",
+    "reel:char-trial": "node ../../脚本/reel-char-trial.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"
