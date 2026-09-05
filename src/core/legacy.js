@@ -9258,19 +9258,83 @@ function updateNodeRunningFeedback(node) {
   }
 }
 
-// 失败原因直接显示在节点上（角色状态节点已由 renderCharacterStateInfo 展示，跳过避免重复）
+// ===== P1-4 错误分类与恢复引导：技术报错 → 友好文案 + 下一步恢复动作 =====
+// 仅判定类别与动作；用户文案复用 localizeError（已覆盖网络/CORS/超时/HTTP码/auth/quota/model/内容策略/ComfyUI）
+function classifyNodeError(node) {
+  const raw = String((node && (node.failureReason || node._lastError)) || '');
+  const lc = raw.toLowerCase();
+  const status = Number(node && node._lastErrorStatus) || Number((raw.match(/HTTP\s*(\d{3})/i) || [])[1]) || 0;
+  const kind = String((node && node._lastErrorKind) || '');
+  if (kind === 'storage' || /quotaexceeded|存储|保存失败|indexeddb|localstorage|空间不足|导出备份/i.test(raw))
+    return { category: 'storage', actionLabel: '导出备份', actionKind: 'backup' };
+  if ((node && node._timedOut) || kind === 'timeout' || status === 408 || /timeout|timed out|aborted|deadline|超时|未在限定时间/i.test(lc))
+    return { category: 'timeout', actionLabel: '重试', actionKind: 'retry' };
+  if (/未配置|尚未配置|请先配置|填入.*key|需要.*key|no.*api.*key/i.test(raw))
+    return { category: 'no-key', actionLabel: '打开设置', actionKind: 'settings' };
+  if (status === 401 || kind === 'auth' || /invalid.*key|incorrect.*key|authentication|unauthorized|鉴权|key.*无效|无效.*key|已过期/i.test(lc))
+    return { category: 'auth', actionLabel: '打开设置', actionKind: 'settings' };
+  if (status === 402 || status === 429 || kind === 'quota' || kind === 'rate_limited' || /insufficient|quota|额度|余额|欠费|rate.*limit|too many|频繁|限流/i.test(lc))
+    return { category: 'quota', actionLabel: '打开设置', actionKind: 'settings' };
+  if (/content.*policy|moderat|unsafe|safety|violat|安全策略|内容.*拦截|敏感词/i.test(lc))
+    return { category: 'content', actionLabel: '编辑提示词', actionKind: 'composer' };
+  if (status === 400 || status === 404 || kind === 'param' || /model.*not found|does not exist|unknown model|invalid model|不支持|invalid.*param|此比例|此模型|node_errors|node type|参数有误/i.test(lc))
+    return { category: 'param', actionLabel: '编辑参数', actionKind: 'composer' };
+  if (/failed to fetch|networkerror|load failed|net::err|cors|cross-origin|网络|不可达|连接失败|econnrefused/i.test(lc))
+    return { category: 'network', actionLabel: '重试', actionKind: 'retry' };
+  return { category: 'unknown', actionLabel: '重试', actionKind: 'retry' };
+}
+
+// 恢复动作执行：重试 / 打开设置 / 导出备份 / 编辑参数
+function runNodeErrorRecovery(node, actionKind) {
+  try {
+    if (actionKind === 'retry') {
+      if (window.FlowCraft && window.FlowCraft.runner && typeof window.FlowCraft.runner.clearCancel === 'function') window.FlowCraft.runner.clearCancel(node.id);
+      setNodeStatus(node, 'idle', '');
+      updateNodeStatus(node);
+      if (typeof runNode === 'function') runNode(node);
+    } else if (actionKind === 'settings') {
+      if (typeof toggleAIPanel === 'function') toggleAIPanel(false);
+      showToast('请在 AI 面板右上角 ⚙ 检查 API Key 与接口地址', 'info', 4000);
+    } else if (actionKind === 'backup') {
+      if (typeof exportJSON === 'function') exportJSON();
+    } else if (actionKind === 'composer') {
+      if (typeof showNodeComposer === 'function') showNodeComposer(node);
+      else showToast('请在节点参数中调整提示词/参数后重试', 'info');
+    }
+  } catch (e) {
+    showToast('恢复操作失败：' + ((e && e.message) || e), 'danger');
+  }
+}
+
+// 失败原因直接显示在节点上：友好文案(localizeError) + 恢复动作按钮；原始诊断保留在 title（不写入日志）
+// 角色状态节点已由 renderCharacterStateInfo 展示失败原因，跳过避免重复
 function updateNodeErrorReason(node) {
   const el = node.el;
   if (!el) return;
   if (isCharacterStateNode(node)) return;
-  const reason = node.status === 'error' ? String(node.failureReason || node._lastError || '').trim() : '';
+  const raw = node.status === 'error' ? String(node.failureReason || node._lastError || '').trim() : '';
   let box = el.querySelector('.node-error-reason');
-  if (reason) {
-    if (!box) { box = document.createElement('div'); box.className = 'node-error-reason'; el.appendChild(box); }
-    box.textContent = '失败：' + reason;
-    box.title = reason;
-  } else if (box) {
-    box.remove();
+  if (!raw) { if (box) box.remove(); return; }
+  if (!box) { box = document.createElement('div'); box.className = 'node-error-reason'; el.appendChild(box); }
+  box.innerHTML = '';
+  box.onmousedown = (e) => e.stopPropagation();
+  const cls = classifyNodeError(node);
+  let friendly = raw;
+  try { friendly = localizeError(raw) || raw; } catch (_) { friendly = raw; }
+  const msg = document.createElement('div');
+  msg.className = 'node-error-msg';
+  msg.textContent = friendly;
+  msg.title = '原始诊断：' + raw;
+  box.appendChild(msg);
+  if (cls.actionLabel && cls.actionKind && cls.actionKind !== 'none') {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'node-error-action';
+    btn.textContent = cls.actionLabel;
+    btn.title = '恢复动作：' + cls.actionLabel;
+    btn.onmousedown = (e) => e.stopPropagation();
+    btn.onclick = (e) => { e.stopPropagation(); runNodeErrorRecovery(node, cls.actionKind); };
+    box.appendChild(btn);
   }
 }
 
