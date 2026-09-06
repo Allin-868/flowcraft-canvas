@@ -10098,6 +10098,11 @@ function startNodeDrag(e, node) {
         group.forEach(g => { if (g && g.n) g.n.__dragClickBlocked = false; });
       }, 0);
       scheduleAutosave();
+    } else if (isComposerType(node)) {
+      // mousedown 中为拖拽调用 preventDefault() 时，部分浏览器会吞掉 click；
+      // 用未发生位移的左键松开作为可靠单击判定，右键不会进入 startNodeDrag。
+      if (node.type === 'videoInput') node.__settingsCollapsed = false;
+      showNodeComposer(node);
     }
   };
   window.addEventListener('mousemove', onMove);
