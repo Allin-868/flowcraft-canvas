@@ -61,7 +61,7 @@ await page.waitForTimeout(250);
 const afterDbl = await page.evaluate(() => ({
   lightbox: document.getElementById('imageLightbox').classList.contains('show'),
 }));
-ok('双击打开大图', afterDbl.lightbox === true, afterDbl);
+ok('双击不再打开大图(查看大图走右键菜单)', afterDbl.lightbox === false, afterDbl);
 
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);

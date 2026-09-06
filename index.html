@@ -13554,7 +13554,7 @@ function renderImagePreviewSection(el, node) {
           gimg.src = normalizeImageSrc(src) || '';
           gimg.alt = '生成 ' + (i + 1);
           gimg.onmousedown = (e) => e.stopPropagation();
-          gimg.onclick = (e) => { e.stopPropagation(); openImageLightbox(src, gen, i); };
+          gimg.onclick = (e) => { e.stopPropagation(); }; // 查看大图走右键菜单
           cell.appendChild(gimg);
           grid.appendChild(cell);
         });
@@ -13565,7 +13565,7 @@ function renderImagePreviewSection(el, node) {
         simg.src = normalizeImageSrc(gen[0]) || '';
         simg.alt = '生成结果';
         simg.onmousedown = (e) => e.stopPropagation();
-        simg.onclick = (e) => { e.stopPropagation(); openImageLightbox(gen[0]); };
+        simg.onclick = (e) => { e.stopPropagation(); }; // 查看大图走右键菜单
         cleanArea.appendChild(simg);
       }
     } else {
@@ -13617,7 +13617,7 @@ function renderImagePreviewSection(el, node) {
       img.src = normalizeImageSrc(src) || '';
       img.alt = '图' + (idx + 1);
       img.onmousedown = (e) => e.stopPropagation();
-      img.onclick = (e) => { e.stopPropagation(); openImageLightbox(src, gallery, idx); };
+      img.onclick = (e) => { e.stopPropagation(); }; // 查看大图走右键菜单
       cell.appendChild(img);
 
       // 下载按钮（hover 显示）+ 编号
@@ -13687,7 +13687,7 @@ function renderImagePreviewSection(el, node) {
       img.className = 'node-image-input-img';
       img.src = normalizeImageSrc(imgs[0].src) || '';
       img.alt = imgs[0].cap || '图片输入';
-      img.onclick = (e) => { e.stopPropagation(); openImageLightbox(imgs[0].src); };
+      img.onclick = (e) => { e.stopPropagation(); }; // 查看大图走右键菜单
       wrap.appendChild(img);
     } else {
       const empty = document.createElement('div');
@@ -13718,7 +13718,7 @@ function renderImagePreviewSection(el, node) {
     img.alt = imgs[0].cap;
     if (node.ratio) img.style.aspectRatio = '1 / ' + (1 / node.ratio); // aspect-ratio: 宽 / 高
     img.onmousedown = (e) => e.stopPropagation();
-    img.onclick = (e) => { e.stopPropagation(); openImageLightbox(imgs[0].src); };
+    img.onclick = (e) => { e.stopPropagation(); }; // 查看大图走右键菜单
     area.appendChild(img);
   } else if (imgs.length > 1) {
     const grid = document.createElement('div');
@@ -13731,7 +13731,7 @@ function renderImagePreviewSection(el, node) {
       img.src = normalizeImageSrc(it.src) || '';
       img.alt = it.cap;
       img.onmousedown = (e) => e.stopPropagation();
-      img.onclick = (e) => { e.stopPropagation(); openImageLightbox(it.src); };
+      img.onclick = (e) => { e.stopPropagation(); }; // 查看大图走右键菜单
       cell.appendChild(img);
       const cap = document.createElement('span');
       cap.className = 'node-preview-cap';
@@ -14308,13 +14308,8 @@ function buildNodeHero(node) {
         const fileName = String(node.params.name || '').trim();
         if (fileName) wrap.dataset.filename = fileName;
       }
-      // 右键保留给节点上下文菜单（由 canvasWrap 统一处理），查看大图只用双击
-      wrap.title = '双击查看大图';
-      wrap.ondblclick = (e) => {
-        e.stopPropagation();
-        if (node.__dragClickBlocked) return;
-        openImageLightbox(ownThumb);
-      };
+      // 查看大图统一走右键上下文菜单（不再单击/双击弹层）
+      wrap.title = '右键菜单 → 查看大图';
       const img = document.createElement('img');
       img.className = 'node-image-input-img';
       img.src = imageSrc;
