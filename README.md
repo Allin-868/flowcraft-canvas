@@ -20,24 +20,25 @@ FlowCraft v2.1 —— 基于无限画布的 AI 生图工作流编辑器（单文
 静态页面，单文件，可部署到任意静态托管（GitHub Pages / Vercel / 本地服务器）。
 ## 本地构建与回归（阶段三）
 
-要求：Node.js 18+、npm、当前平台的 esbuild、Playwright 和可用的 Chrome/Chromium。部署仓库的 `node_modules` 如果来自其他操作系统，不能直接复用原生 esbuild；请设置 `ESBUILD_BINARY_PATH` 指向当前平台的 esbuild CLI。
+要求：Node.js 20+、npm、当前平台的 esbuild、Playwright 和可用的 Chrome/Chromium。部署仓库的 `node_modules` 如果来自其他操作系统，不能直接复用原生 esbuild；请设置 `ESBUILD_BINARY_PATH` 指向当前平台的 esbuild CLI。
 
 ```bash
 cd /Users/allin/Workspace/项目/project-001-FlowCraft无限画布/输出成果/deploy
 npm ci
+npx playwright install chromium
 npm run build
 npm run verify:security
 npm run verify:build
-FLOWCRAFT_NODE_MODULES=/path/to/node_modules npm run verify:regression
+npm run verify:regression
 ```
 
-`verify:build` 会额外确认 `index.html` 与当前 `src/` 源码严格一致，避免源码改动没有进入部署产物。`verify:regression` 默认运行 19 个不调用真实 AI 的本地 mock/浏览器 smoke test，其中包含真实 / 演示 / 未实现语义、图片比例适配和 AI 流水线节点界面回归，结果写入项目 `日志/`。旧测试脚本中仍有历史 Windows 路径，暂不直接执行；迁移完成前以 `脚本/run-regression.mjs` 为准。
+`verify:build` 会额外确认 `index.html` 与当前 `src/` 源码严格一致，避免源码改动没有进入部署产物；`verify:security` 与 `verify:regression` 默认运行仓库内 `test/` 的校验脚本。回归包含 20 个不调用真实 AI 的本地 mock/浏览器 smoke test，覆盖真实 / 演示 / 未实现语义、图片比例适配、AI 流水线节点界面和工作流执行机制；结果写入 Git 忽略的 `test-results/`。因此克隆此仓库后无需依赖上层 Workspace 的历史脚本。
 
 如果回归输出 `EPERM` 且涉及 `listen`，或 Chrome 输出 `bootstrap_check_in ... Permission denied`，表示当前执行环境禁止本机回环端口或浏览器进程启动，统一记录为“环境阻塞”，不能当作业务测试失败。此时请在本机终端执行：
 
 ```bash
 cd /Users/allin/Workspace/项目/project-001-FlowCraft无限画布/输出成果/deploy
-/Users/allin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node ../../脚本/run-regression.mjs
+npm run verify:regression
 ```
 
 本机已有可用 Node 时，也可以直接使用 `npm run verify:regression`。

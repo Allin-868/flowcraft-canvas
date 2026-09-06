@@ -3,14 +3,15 @@
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-const ROOT = '/Users/allin/Workspace/项目/project-001-FlowCraft无限画布/输出成果/deploy';
+const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const checks = [];
 const check = (n, p, d = '') => { checks.push({ n, p }); console.log(`${p ? '  ✅' : '  ❌'} ${n}${d ? '：' + d : ''}`); };
 const server = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(readFileSync(join(ROOT, 'index.html'))); });
 await new Promise(d => server.listen(0, '127.0.0.1', d));
 const { port } = server.address();
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 await page.setViewportSize({ width: 1440, height: 900 });
 await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load' });
