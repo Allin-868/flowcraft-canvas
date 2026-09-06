@@ -582,6 +582,9 @@ function bindEditHistory(elm) {
     executeNodeAsync: executeNodeAsync,
     updateNodeStatus: updateNodeStatus,
     markEdgesDirty: markEdgesDirty,
+    // 执行引擎的增量运行缓存钩子：runner 不能直接读取本文件的词法绑定。
+    fcRunCacheKey: fcRunCacheKey,
+    fcHasOutput: fcHasOutput,
     topoSortNodes: topoSortNodes,
     collectAncestors: collectAncestors,
     getDescendants: getDescendants,
@@ -13759,6 +13762,27 @@ function executeNodeAsync(node, delay) {
               showToast(node.title + ' 真实图生图失败，已回退为原图：' + localizeError(err), 'warn');
             }
           }
+          // 无 AI Key/代理但有上游图 → 本地线稿（Sobel 边缘检测，离线真实出图）
+          if (node.type === 'lineart' && upImg && !editKey && !proxyOn) {
+            const la = await localLineartImage(upImg);
+            if (la) {
+              node.thumb = la;
+              node.outputsData = [{ type: 'image', value: la }];
+              node._galleryImages = [la];
+              setNodeResultMode(node, 'real');
+              node.status = 'done';
+              node._localLineart = true;
+              captureGenMeta(node, Date.now() - _t0);
+              logRun(node, true, Date.now() - _t0);
+              if (node.el) buildNodeBody(node.el, node);
+              updateNodeStatus(node);
+              markEdgesDirty();
+              scheduleAutosave();
+              showToast('本地线稿完成（边缘检测）。配置 AI Key/代理后可用模型线稿', 'success', 4200);
+              resolve();
+              return;
+            }
+          }
           // 无 AI Key/代理但有上游图 → 本地算法超清（离线真实出图，非占位）
           if (node.type === 'upscale' && upImg && !editKey && !proxyOn) {
             const localUp = await localUpscaleImage(upImg, 2);
@@ -13824,6 +13848,8 @@ function executeNodeAsync(node, delay) {
           node.status = 'done';
           captureGenMeta(node, Date.now() - _t0);
           logRun(node, true, Date.now() - _t0);
+        } else if (node.resultMode === 'real' && Array.isArray(node.outputsData) && node.outputsData.length) {
+          // 已由真实/本地路径产出：防止重复执行时演示回退覆盖真实结果
         } else {
           const out = computeNodeOutput(node);
           node.outputsData = out;
@@ -14906,6 +14932,53 @@ function buildImg2ImgPrompt(node) {
   return base + 'Convert this image into clean black-and-white line art / sketch on a white background. ' +
     'Use smooth, continuous outlines in an anime illustration line-drawing style. ' +
     'Remove all colors and shading. Keep all structural and detail lines.';
+}
+
+// 本地线稿（离线真实可用）：灰度 + Sobel 边缘检测 → 黑线白底线稿，无 AI Key/代理时的兜底真实路径
+function localLineartImage(dataUrl) {
+  return new Promise(function(resolve) {
+    const img = new Image();
+    img.onload = function() {
+      try {
+        const MAX = 1024;
+        const sc = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(2, Math.round(img.naturalWidth * sc));
+        const h = Math.max(2, Math.round(img.naturalHeight * sc));
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const cx = cv.getContext('2d', { willReadFrequently: true });
+        cx.drawImage(img, 0, 0, w, h);
+        const srcData = cx.getImageData(0, 0, w, h);
+        const g = new Float32Array(w * h);
+        for (let i = 0; i < w * h; i++) {
+          g[i] = 0.299 * srcData.data[i * 4] + 0.587 * srcData.data[i * 4 + 1] + 0.114 * srcData.data[i * 4 + 2];
+        }
+        const out = cx.createImageData(w, h);
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const i = y * w + x;
+            let mag = 0;
+            if (x > 0 && x < w - 1 && y > 0 && y < h - 1) {
+              const tl = g[i - w - 1], t = g[i - w], tr = g[i - w + 1];
+              const l = g[i - 1], r = g[i + 1];
+              const bl = g[i + w - 1], b = g[i + w], br = g[i + w + 1];
+              const gx = (-tl - 2 * l - bl + tr + 2 * r + br);
+              const gy = (-tl - 2 * t - tr + bl + 2 * b + br);
+              mag = Math.sqrt(gx * gx + gy * gy);
+            }
+            const v = Math.max(0, Math.min(255, 255 - mag)); // 边缘黑、背景白
+            const o = i * 4;
+            out.data[o] = out.data[o + 1] = out.data[o + 2] = v;
+            out.data[o + 3] = 255;
+          }
+        }
+        cx.putImageData(out, 0, 0);
+        resolve(cv.toDataURL('image/png'));
+      } catch (e) { resolve(null); }
+    };
+    img.onerror = function() { resolve(null); };
+    img.src = dataUrl;
+  });
 }
 
 // 本地算法超清（离线真实可用）：canvas 渐进 2x 放大 + 高质量平滑，无 AI Key/代理时的兜底真实路径

@@ -43,7 +43,8 @@
     "verify:composer-avoid": "node ../../脚本/verify-composer-avoid.mjs",
     "verify:upscale-local": "node ../../脚本/verify-upscale-local.mjs",
     "verify:pipeline-ui": "node test/verify-pipeline-ui.mjs",
-    "verify:run-mechanism": "node test/verify-run-mechanism.mjs"
+    "verify:run-mechanism": "node test/verify-run-mechanism.mjs",
+    "verify:lineart-local": "node test/verify-lineart-local.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2",
