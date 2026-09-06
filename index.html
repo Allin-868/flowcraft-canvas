@@ -997,8 +997,8 @@ body {
 .node-preview-area.clean-output .node-preview-img {
   width: 100%; height: auto; display: block; border-radius: var(--media-card-radius);
 }
-.ngm-edit { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
-.ngm-edit-row { display: flex; align-items: center; gap: 6px; }
+.ngm-edit { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; width: 100%; }
+.ngm-edit-row { display: flex; align-items: center; gap: 6px; width: 100%; }
 .ngm-edit-row > span { flex: 0 0 44px; font-size: 10px; color: var(--text-3); text-align: right; }
 .ngm-edit-row input,
 .ngm-edit-row textarea {
@@ -2092,6 +2092,8 @@ body {
 .node-gen-meta {
   display: flex;
   flex-wrap: wrap;
+  max-width: calc(100% - 20px);
+  box-sizing: border-box;
   align-items: center;
   gap: 6px;
   margin: 0 10px 8px;

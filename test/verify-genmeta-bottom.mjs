@@ -41,9 +41,14 @@ const r = await page.evaluate(async () => {
     inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
     paramWritten = up.params.model;
   }
+  // 横向不溢出节点框
+  const nr = up.el.getBoundingClientRect();
+  const allInputs = [...strip.querySelectorAll('.ngm-edit input, .ngm-edit textarea')];
+  const maxRight = allInputs.length ? Math.max(...allInputs.map(i => i.getBoundingClientRect().right)) : 0;
   return {
     hasStrip: !!strip, bottom, inputCount: inputs.length, hasTa: !!ta, hasRegen: !!regen, paramWritten,
     noCorner: !up.el.querySelector('.ngm-corner-retry'),
+    overflow: maxRight > nr.right + 1, maxRight: Math.round(maxRight), nodeRight: Math.round(nr.right),
   };
 });
 
@@ -54,6 +59,7 @@ check('详情含提示词编辑框', r.hasTa === true);
 check('含「应用参数并重新生成」按钮', r.hasRegen === true);
 check('编辑参数回写 node.params', r.paramWritten === 'test-model-X', String(r.paramWritten));
 check('角落重试特例已移除', r.noCorner === true);
+check('展开后编辑控件不横向溢出节点框', r.overflow === false, JSON.stringify({ maxRight: r.maxRight, nodeRight: r.nodeRight }));
 
 await browser.close(); server.close();
 const f = checks.filter(c => !c.p).length;
