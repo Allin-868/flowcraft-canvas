@@ -4188,19 +4188,7 @@ function renderGenMetaStrip(el, node) {
   chips.push(String(time.getHours()).padStart(2, '0') + ':' + String(time.getMinutes()).padStart(2, '0'));
   if (m.prompt) strip.title = '本次提示词：' + m.prompt;
 
-  // image-only：节点框内不显示任何生成详情，仅保留悬停浮现的角落「同参重试」按钮
-  if (node.type === 'aiImage' || node.type === 'imageEdit') {
-    const cornerRetry = document.createElement('button');
-    cornerRetry.type = 'button';
-    cornerRetry.className = 'ngm-corner-retry';
-    cornerRetry.textContent = '↻';
-    cornerRetry.title = '同参重试：用上次完全相同的参数重新生成' + (m.prompt ? '\n提示词：' + m.prompt : '');
-    cornerRetry.onclick = (e) => { e.stopPropagation(); retrySameParams(node); };
-    cornerRetry.onmousedown = (e) => e.stopPropagation();
-    strip.appendChild(cornerRetry);
-    el.appendChild(strip);
-    return;
-  }
+  // 角落重试特例已移除：统一在底部信息条提供同参重试与参数编辑
 
   // 摘要行（默认展示）：一行核心参数，点击展开/收起详情
   const summary = document.createElement('button');
@@ -4244,6 +4232,48 @@ function renderGenMetaStrip(el, node) {
   retryBtn.onclick = (e) => { e.stopPropagation(); retrySameParams(node); };
   retryBtn.onmousedown = (e) => e.stopPropagation();
   details.appendChild(retryBtn);
+
+  // 可编辑详细参数：调整后「应用参数并重新生成」
+  const edit = document.createElement('div');
+  edit.className = 'ngm-edit';
+  const mkField = (label, key) => {
+    const row = document.createElement('div');
+    row.className = 'ngm-edit-row';
+    const lb = document.createElement('span');
+    lb.textContent = label;
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = (node.params && node.params[key]) || m[key] || '';
+    inp.oninput = (e) => { e.stopPropagation(); node.params = node.params || {}; node.params[key] = e.target.value; scheduleAutosave(); };
+    inp.onmousedown = (e) => e.stopPropagation();
+    row.appendChild(lb); row.appendChild(inp);
+    edit.appendChild(row);
+  };
+  mkField('模型', 'model');
+  mkField('比例', 'aspect');
+  mkField('分辨率', 'resolution');
+  mkField('张数', 'count');
+  const pRow = document.createElement('div');
+  pRow.className = 'ngm-edit-row ngm-edit-row-top';
+  const pLb = document.createElement('span');
+  pLb.textContent = '提示词';
+  const pTa = document.createElement('textarea');
+  pTa.rows = 2;
+  pTa.value = (node.prompt != null && node.prompt !== '') ? node.prompt : (m.ownPrompt || m.prompt || '');
+  pTa.oninput = (e) => { e.stopPropagation(); node.prompt = e.target.value; if (node.params) node.params.prompt = e.target.value; scheduleAutosave(); };
+  pTa.onmousedown = (e) => e.stopPropagation();
+  pRow.appendChild(pLb); pRow.appendChild(pTa);
+  edit.appendChild(pRow);
+  const regen = document.createElement('button');
+  regen.type = 'button';
+  regen.className = 'ngm-retry ngm-regen';
+  regen.textContent = '⟳ 应用参数并重新生成';
+  regen.title = '用上方调整后的参数重新运行本节点';
+  regen.onclick = (e) => { e.stopPropagation(); runNode(node); };
+  regen.onmousedown = (e) => e.stopPropagation();
+  edit.appendChild(regen);
+  details.appendChild(edit);
+
   strip.appendChild(details);
 
   el.appendChild(strip);
@@ -8356,14 +8386,14 @@ function buildNodeBody(el, node) {
     probeFitNode(node);
   }
 
-  // —— #8 生成信息条（含一键同参重试）——
-  if (node.genMeta && ['aiImage', 'upscale', 'lineart', 'comfyui'].includes(node.type)) {
-    renderGenMetaStrip(el, node);
-  }
-
   // —— 底部图片预览区 ——
   if (node.type !== 'image' && node.type !== 'videoInput' && node.type !== 'aiImage' && node.type !== 'aiVideo') {
     renderImagePreviewSection(el, node);
+  }
+
+  // —— #8 生成信息条（置于底部参数区：展开后可编辑详细参数并重新生成）——
+  if (node.genMeta && ['aiImage', 'upscale', 'lineart', 'comfyui', 'imageEdit'].includes(node.type)) {
+    renderGenMetaStrip(el, node);
   }
 
   // —— 端口 ——

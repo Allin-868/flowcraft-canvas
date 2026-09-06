@@ -984,6 +984,17 @@ body {
 .node-preview-area.clean-output .node-preview-img {
   width: 100%; height: auto; display: block; border-radius: var(--media-card-radius);
 }
+.ngm-edit { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.ngm-edit-row { display: flex; align-items: center; gap: 6px; }
+.ngm-edit-row > span { flex: 0 0 44px; font-size: 10px; color: var(--text-3); text-align: right; }
+.ngm-edit-row input,
+.ngm-edit-row textarea {
+  flex: 1; min-width: 0; font-size: 11px; padding: 2px 6px;
+  background: var(--bg-input); color: var(--text-1);
+  border: 1px solid var(--border-subtle); border-radius: 6px; font-family: inherit;
+}
+.ngm-edit-row-top { align-items: flex-start; }
+.ngm-regen { margin-top: 2px; }
 .node-clean-empty {
   display: flex; align-items: center; justify-content: center; min-height: 96px;
   color: var(--text-3); opacity: .5;
