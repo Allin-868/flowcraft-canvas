@@ -45,7 +45,8 @@
     "verify:pipeline-ui": "node ../../脚本/verify-pipeline-ui.mjs"
   },
   "devDependencies": {
-    "esbuild": "0.24.2"
+    "esbuild": "0.24.2",
+    "playwright": "1.62.1"
   },
   "dependencies": {
     "jszip": "^3.10.1"
