@@ -981,8 +981,14 @@ body {
 .node-tool-btn svg { width: 13px; height: 13px; }
 /* 仅输出清爽预览（线稿/超清）：无标签/无占位文案/无上传块 */
 .node-preview-area.clean-output { padding: 0; gap: 0; }
+.node--image-only > .node-preview-area.clean-output {
+  overflow: hidden;
+  background: var(--bg-input);
+  border-radius: var(--media-card-radius);
+}
 .node-preview-area.clean-output .node-preview-img {
   width: 100%; height: auto; display: block; border-radius: var(--media-card-radius);
+  cursor: pointer;
 }
 .ngm-edit { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; width: 100%; }
 .ngm-edit-row { display: flex; align-items: center; gap: 6px; width: 100%; }
@@ -6544,7 +6550,14 @@ html, body { overflow-x: hidden; }
 /* 清爽模式：线稿/超清不显示参考图上传行（含 [+] 空占位），只留生成图预览 */
 .node-type-upscale .node-ref-uploader,
 .node-type-lineart .node-ref-uploader { display: none; }
-/* 取消节点框内 [+] 缩略行（超清/线稿） */
+/* 两个图片处理节点共用媒体节点的零内边距预览主体 */
+.node-type-upscale > .node-body,
+.node-type-lineart > .node-body {
+  flex: 0 0 0;
+  min-height: 0;
+  padding: 0;
+}
+/* 取消节点框内 [+] 缩略行（超清/线稿，兼容旧节点结构） */
 .node-type-upscale .node-thumb-row,
 .node-type-lineart .node-thumb-row { display: none; }
 /* 工具条并入顶部状态栏：去黑底/去定位/常显，靠 margin-left:auto 右对齐 */

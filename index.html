@@ -994,8 +994,14 @@ body {
 .node-tool-btn svg { width: 13px; height: 13px; }
 /* 仅输出清爽预览（线稿/超清）：无标签/无占位文案/无上传块 */
 .node-preview-area.clean-output { padding: 0; gap: 0; }
+.node--image-only > .node-preview-area.clean-output {
+  overflow: hidden;
+  background: var(--bg-input);
+  border-radius: var(--media-card-radius);
+}
 .node-preview-area.clean-output .node-preview-img {
   width: 100%; height: auto; display: block; border-radius: var(--media-card-radius);
+  cursor: pointer;
 }
 .ngm-edit { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; width: 100%; }
 .ngm-edit-row { display: flex; align-items: center; gap: 6px; width: 100%; }
@@ -6557,7 +6563,14 @@ html, body { overflow-x: hidden; }
 /* 清爽模式：线稿/超清不显示参考图上传行（含 [+] 空占位），只留生成图预览 */
 .node-type-upscale .node-ref-uploader,
 .node-type-lineart .node-ref-uploader { display: none; }
-/* 取消节点框内 [+] 缩略行（超清/线稿） */
+/* 两个图片处理节点共用媒体节点的零内边距预览主体 */
+.node-type-upscale > .node-body,
+.node-type-lineart > .node-body {
+  flex: 0 0 0;
+  min-height: 0;
+  padding: 0;
+}
+/* 取消节点框内 [+] 缩略行（超清/线稿，兼容旧节点结构） */
 .node-type-upscale .node-thumb-row,
 .node-type-lineart .node-thumb-row { display: none; }
 /* 工具条并入顶部状态栏：去黑底/去定位/常显，靠 margin-left:auto 右对齐 */
@@ -13169,7 +13182,7 @@ function createNodeElement(node) {
   row.className = 'node-header-row';
   // image-only 模式：节点框内只保留媒体内容；标题/语义/状态徽标浮在框外上方
   // 统一给媒体输入/预览节点采用同一套上方信息栏样式
-  if (['aiImage', 'imageEdit', 'aiVideo', 'image', 'videoInput', 'text', 'stateList'].includes(node.type)) el.classList.add('node--image-only');
+  if (['aiImage', 'imageEdit', 'aiVideo', 'image', 'videoInput', 'text', 'stateList', 'lineart', 'upscale'].includes(node.type)) el.classList.add('node--image-only');
 
   const titleText = document.createElement('div');
   titleText.className = 'node-title-text';
@@ -13569,8 +13582,9 @@ function renderImagePreviewSection(el, node) {
           gimg.className = 'node-preview-img ratio-fit';
           gimg.src = normalizeImageSrc(src) || '';
           gimg.alt = '生成 ' + (i + 1);
-          gimg.onmousedown = (e) => e.stopPropagation();
-          gimg.onclick = (e) => { e.stopPropagation(); }; // 查看大图走右键菜单
+          // 预览图不能截断节点事件：左键单击由节点统一打开下方 Composer，右键仍由画布菜单处理。
+          gimg.draggable = false;
+          gimg.ondragstart = (e) => e.preventDefault();
           cell.appendChild(gimg);
           grid.appendChild(cell);
         });
@@ -13580,8 +13594,9 @@ function renderImagePreviewSection(el, node) {
         simg.className = 'node-preview-img ratio-fit';
         simg.src = normalizeImageSrc(gen[0]) || '';
         simg.alt = '生成结果';
-        simg.onmousedown = (e) => e.stopPropagation();
-        simg.onclick = (e) => { e.stopPropagation(); }; // 查看大图走右键菜单
+        // 预览图不能截断节点事件：左键单击由节点统一打开下方 Composer，右键仍由画布菜单处理。
+        simg.draggable = false;
+        simg.ondragstart = (e) => e.preventDefault();
         cleanArea.appendChild(simg);
       }
     } else {
@@ -14693,9 +14708,9 @@ function buildNodeBody(el, node) {
   // 节点体保持纯净（仅内容 + 状态）。数据流不变，仍读写 node.prompt / node.params。
   const isComposerManaged = ['aiImage', 'imageEdit', 'aiVideo'].includes(node.type);
   const hasPrompt = false;
-  const hasThumb = ['image', 'aiImage', 'imageEdit', 'aiVideo', 'upscale', 'compare', 'videoInput'].includes(node.type);
+  const hasThumb = ['image', 'aiImage', 'imageEdit', 'aiVideo', 'upscale', 'lineart', 'compare', 'videoInput'].includes(node.type);
   const hasControls = false;
-  const hasToolbar = ['aiImage', 'aiVideo', 'upscale'].includes(node.type);
+  const hasToolbar = ['aiImage', 'aiVideo', 'lineart', 'upscale'].includes(node.type);
 
   // —— body: 缩略图 + 提示词 ——
   let body = null;

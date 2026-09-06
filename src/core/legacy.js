@@ -5878,7 +5878,7 @@ function createNodeElement(node) {
   row.className = 'node-header-row';
   // image-only 模式：节点框内只保留媒体内容；标题/语义/状态徽标浮在框外上方
   // 统一给媒体输入/预览节点采用同一套上方信息栏样式
-  if (['aiImage', 'imageEdit', 'aiVideo', 'image', 'videoInput', 'text', 'stateList'].includes(node.type)) el.classList.add('node--image-only');
+  if (['aiImage', 'imageEdit', 'aiVideo', 'image', 'videoInput', 'text', 'stateList', 'lineart', 'upscale'].includes(node.type)) el.classList.add('node--image-only');
 
   const titleText = document.createElement('div');
   titleText.className = 'node-title-text';
@@ -6278,8 +6278,9 @@ function renderImagePreviewSection(el, node) {
           gimg.className = 'node-preview-img ratio-fit';
           gimg.src = normalizeImageSrc(src) || '';
           gimg.alt = '生成 ' + (i + 1);
-          gimg.onmousedown = (e) => e.stopPropagation();
-          gimg.onclick = (e) => { e.stopPropagation(); }; // 查看大图走右键菜单
+          // 预览图不能截断节点事件：左键单击由节点统一打开下方 Composer，右键仍由画布菜单处理。
+          gimg.draggable = false;
+          gimg.ondragstart = (e) => e.preventDefault();
           cell.appendChild(gimg);
           grid.appendChild(cell);
         });
@@ -6289,8 +6290,9 @@ function renderImagePreviewSection(el, node) {
         simg.className = 'node-preview-img ratio-fit';
         simg.src = normalizeImageSrc(gen[0]) || '';
         simg.alt = '生成结果';
-        simg.onmousedown = (e) => e.stopPropagation();
-        simg.onclick = (e) => { e.stopPropagation(); }; // 查看大图走右键菜单
+        // 预览图不能截断节点事件：左键单击由节点统一打开下方 Composer，右键仍由画布菜单处理。
+        simg.draggable = false;
+        simg.ondragstart = (e) => e.preventDefault();
         cleanArea.appendChild(simg);
       }
     } else {
@@ -7402,9 +7404,9 @@ function buildNodeBody(el, node) {
   // 节点体保持纯净（仅内容 + 状态）。数据流不变，仍读写 node.prompt / node.params。
   const isComposerManaged = ['aiImage', 'imageEdit', 'aiVideo'].includes(node.type);
   const hasPrompt = false;
-  const hasThumb = ['image', 'aiImage', 'imageEdit', 'aiVideo', 'upscale', 'compare', 'videoInput'].includes(node.type);
+  const hasThumb = ['image', 'aiImage', 'imageEdit', 'aiVideo', 'upscale', 'lineart', 'compare', 'videoInput'].includes(node.type);
   const hasControls = false;
-  const hasToolbar = ['aiImage', 'aiVideo', 'upscale'].includes(node.type);
+  const hasToolbar = ['aiImage', 'aiVideo', 'lineart', 'upscale'].includes(node.type);
 
   // —— body: 缩略图 + 提示词 ——
   let body = null;
