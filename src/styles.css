@@ -6529,3 +6529,22 @@ html, body { overflow-x: hidden; }
 /* 清爽模式：线稿/超清不显示参考图上传行（含 [+] 空占位），只留生成图预览 */
 .node-type-upscale .node-ref-uploader,
 .node-type-lineart .node-ref-uploader { display: none; }
+/* 取消节点框内 [+] 缩略行（超清/线稿） */
+.node-type-upscale .node-thumb-row,
+.node-type-lineart .node-thumb-row { display: none; }
+/* 工具条并入顶部状态栏：去黑底/去定位/常显，靠 margin-left:auto 右对齐 */
+.node-header-row .node-toolbar {
+  position: static;
+  transform: none;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  gap: 2px;
+  opacity: 1;
+  pointer-events: auto;
+  margin-left: auto;
+}
+.node-header-row .node-toolbar:hover { transform: none; }
+.node-header-row .node-toolbar .tool-btn { color: var(--text-2); }
+.node-header-row .node-toolbar .tool-btn:hover { background: rgba(127, 127, 127, 0.16); color: var(--text-1); }

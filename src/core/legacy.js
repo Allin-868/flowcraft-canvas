@@ -5798,7 +5798,7 @@ function createNodeElement(node) {
   const el = document.createElement('div');
   el.className = 'node';
   if (node.previewOnly) el.classList.add('preview-only-node');
-  if (node.type === 'image') el.classList.add('node-type-image');
+  el.classList.add('node-type-' + node.type); // 类型化 CSS 钩子（image 仍得 node-type-image）
   el.dataset.id = node.id;
   el.dataset.type = node.type;
   el.style.left = node.x + 'px';
@@ -8235,7 +8235,7 @@ function buildNodeBody(el, node) {
     toolbarHit.className = 'node-toolbar-hit';
     toolbarHit.onmousedown = (e) => e.stopPropagation();
     toolbarHit.onmouseup = (e) => e.stopPropagation();
-    el.appendChild(toolbarHit);
+    // 工具条已并入顶部状态栏，不再挂载独立悬停热区（避免遮挡状态栏按钮）
 
     const toolbar = document.createElement('div');
     toolbar.className = 'node-toolbar';
@@ -8315,7 +8315,9 @@ function buildNodeBody(el, node) {
       btn.onmousedown = (e) => e.stopPropagation();
       toolbar.appendChild(btn);
     });
-    el.appendChild(toolbar);
+    // 工具条并入顶部状态工具栏（与标题/状态芯片同排），不再单独黑色悬浮
+    const hdrRow = el.querySelector('.node-header-row');
+    if (hdrRow) hdrRow.appendChild(toolbar); else el.appendChild(toolbar);
   }
 
   // —— C 懒迁移：已有缩略图但未做比例适配的节点（含旧存档）首次渲染时自动按原图比例适配 ——
