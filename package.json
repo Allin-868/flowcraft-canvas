@@ -11,7 +11,7 @@
     "verify:stage4": "node ../../脚本/verify-stage4-character-assets.mjs",
     "verify:provider-models": "node ../../脚本/verify-provider-models.mjs",
     "verify:genmeta-retry": "node ../../脚本/verify-genmeta-retry.mjs",
-    "verify:ratio-fit": "node ../../脚本/verify-ratio-fit.mjs",
+    "verify:ratio-fit": "node test/verify-ratio-fit.mjs",
     "verify:composer": "node ../../脚本/verify-composer.mjs",
     "verify:edge-delete": "node ../../脚本/verify-edge-delete.mjs",
     "verify:tool-confirm": "node ../../脚本/verify-tool-confirm.mjs",
@@ -19,8 +19,8 @@
     "verify:auto-connect": "node ../../脚本/verify-auto-connect.mjs",
     "verify:provenance-cancel": "node ../../脚本/verify-provenance-cancel.mjs",
     "verify:data-boundaries": "node ../../脚本/verify-data-boundaries.mjs",
-    "verify:node-semantics": "node ../../脚本/verify-node-semantics.mjs",
-    "verify:regression": "node ../../脚本/run-regression.mjs",
+    "verify:node-semantics": "node test/verify-node-semantics.mjs",
+    "verify:regression": "node test/run-regression.mjs",
     "verify:perf-baseline": "node ../../脚本/verify-perf-baseline.mjs",
     "verify:responsive": "node ../../脚本/verify-responsive.mjs",
     "verify:sidebar-icons": "node ../../脚本/verify-sidebar-icons.mjs",
@@ -42,7 +42,7 @@
     "verify:preset-collapse": "node ../../脚本/verify-preset-collapse.mjs",
     "verify:composer-avoid": "node ../../脚本/verify-composer-avoid.mjs",
     "verify:upscale-local": "node ../../脚本/verify-upscale-local.mjs",
-    "verify:pipeline-ui": "node ../../脚本/verify-pipeline-ui.mjs"
+    "verify:pipeline-ui": "node test/verify-pipeline-ui.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2",

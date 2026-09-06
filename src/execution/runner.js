@@ -40,11 +40,11 @@ function legacy(name) {
 }
 
 let _seq = 0;
-const _sem = new Semaphore(8);
+const _sem = new Semaphore(2); // D：真实生成并发上限 2，防代理/平台限流
 const _tasks = new Map();           // taskId -> task 记录（内存镜像）
 const _idem = new Map();            // nodeId:inputHash -> { state, outputs, thumb }
 const _cancel = new Set();          // 已请求取消的 nodeId
-let _maxConcurrent = 8;
+let _maxConcurrent = 2;
 let _testTimeout = 0;                // 测试钩子：>0 时覆盖所有节点超时（ms）
 
 function mkTaskId(node, attempt) { return 't:' + (node && node.id) + ':' + (++_seq) + ':a' + attempt; }
@@ -223,10 +223,13 @@ export const Runner = {
   setMaxConcurrent(n) { _maxConcurrent = Math.max(1, parseInt(n) || 8); _sem.n = _maxConcurrent; },
 
   // 核心委托入口：替代 legacy runInOrder
-  runInOrder(order, delay, skipSet) {
+  runInOrder(order, delay, skipSet, force) {
     skipSet = skipSet || new Set();
     const wf = legacy('workflow');
     const edges = (wf && wf.edges) ? wf.edges : new Map();
+    const cacheKey = legacy('fcRunCacheKey');
+    const hasOut = legacy('fcHasOutput');
+    const upd = legacy('updateNodeStatus');
     const done = new Map();
     for (const node of order) {
       if (skipSet.has(node)) { done.set(node, Promise.resolve()); continue; }
@@ -236,7 +239,28 @@ export const Runner = {
       });
       const p = (async () => {
         await Promise.all(upstream.map((u) => done.get(u) || Promise.resolve()));
-        return engineRunNode(node, delay);
+        // C 失败即断链：上游失败/跳过 → 本节点跳过，不发真实请求
+        const badUp = upstream.find((u) => u.status === 'error' || u.status === 'skipped');
+        if (badUp) {
+          node.status = 'skipped';
+          node._skipReason = '上游『' + (badUp.title || badUp.type) + '』未成功';
+          if (upd) upd(node);
+          return;
+        }
+        // B 增量：输入+参数未变且上次成功且有产出 → 跳过（force 强制全量但仍记录基线）
+        const k = (cacheKey && hasOut) ? cacheKey(node) : null;
+        if (!force && k && node._runCacheOk && node._runCacheKey === k && hasOut(node)) {
+          node.status = 'skipped';
+          node._skipReason = '输入未变更（Shift+运行 强制全量）';
+          if (upd) upd(node);
+          return;
+        }
+        node._pendingCacheKey = k;
+        await engineRunNode(node, delay);
+        if (node._pendingCacheKey && node.status === 'done') {
+          node._runCacheKey = node._pendingCacheKey; node._runCacheOk = true;
+        } else if (node.status === 'error') { node._runCacheOk = false; }
+        node._pendingCacheKey = null;
       })();
       done.set(node, p);
     }
