@@ -4236,23 +4236,30 @@ function renderGenMetaStrip(el, node) {
   // 可编辑详细参数：调整后「应用参数并重新生成」
   const edit = document.createElement('div');
   edit.className = 'ngm-edit';
-  const mkField = (label, key) => {
+  const mkSelect = (label, key, options) => {
     const row = document.createElement('div');
     row.className = 'ngm-edit-row';
     const lb = document.createElement('span');
     lb.textContent = label;
-    const inp = document.createElement('input');
-    inp.type = 'text';
-    inp.value = (node.params && node.params[key]) || m[key] || '';
-    inp.oninput = (e) => { e.stopPropagation(); node.params = node.params || {}; node.params[key] = e.target.value; scheduleAutosave(); };
-    inp.onmousedown = (e) => e.stopPropagation();
-    row.appendChild(lb); row.appendChild(inp);
+    const sel = document.createElement('select');
+    const cur = (node.params && node.params[key]) || m[key] || '';
+    const opts = options.slice();
+    if (cur && opts.indexOf(cur) < 0) opts.unshift(cur); // 保留当前非常规值
+    opts.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      if (v === cur) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.onchange = (e) => { e.stopPropagation(); node.params = node.params || {}; node.params[key] = e.target.value; scheduleAutosave(); };
+    sel.onmousedown = (e) => e.stopPropagation();
+    row.appendChild(lb); row.appendChild(sel);
     edit.appendChild(row);
   };
-  mkField('模型', 'model');
-  mkField('比例', 'aspect');
-  mkField('分辨率', 'resolution');
-  mkField('张数', 'count');
+  mkSelect('模型', 'model', ['nanoBananaPro', 'Nano Banana Pro', 'FLUX.1', 'Stable Diffusion XL', 'GPT Image 2']);
+  mkSelect('比例', 'aspect', AI_SPEC_ASPECTS.filter(a => a !== 'custom'));
+  mkSelect('分辨率', 'resolution', AI_SPEC_RESOLUTIONS);
+  mkSelect('张数', 'count', ['1张', '2张', '4张', '6张', '8张']);
   const pRow = document.createElement('div');
   pRow.className = 'ngm-edit-row ngm-edit-row-top';
   const pLb = document.createElement('span');

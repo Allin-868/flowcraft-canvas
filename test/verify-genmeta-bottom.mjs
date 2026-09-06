@@ -31,19 +31,19 @@ const r = await page.evaluate(async () => {
   // 展开详情
   const summary = strip && strip.querySelector('.ngm-summary');
   if (summary) summary.click();
-  const inputs = strip ? [...strip.querySelectorAll('.ngm-edit input')] : [];
+  const inputs = strip ? [...strip.querySelectorAll('.ngm-edit select')] : [];
   const ta = strip ? strip.querySelector('.ngm-edit textarea') : null;
   const regen = strip ? [...strip.querySelectorAll('button')].find(b => /应用参数并重新生成/.test(b.textContent)) : null;
-  // 编辑模型参数 → 回写 node.params
+  // 选择模型 → 回写 node.params
   let paramWritten = null;
   if (inputs.length) {
-    inputs[0].value = 'test-model-X';
-    inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+    inputs[0].value = 'GPT Image 2';
+    inputs[0].dispatchEvent(new Event('change', { bubbles: true }));
     paramWritten = up.params.model;
   }
   // 横向不溢出节点框
   const nr = up.el.getBoundingClientRect();
-  const allInputs = [...strip.querySelectorAll('.ngm-edit input, .ngm-edit textarea')];
+  const allInputs = [...strip.querySelectorAll('.ngm-edit input, .ngm-edit select, .ngm-edit textarea')];
   const maxRight = allInputs.length ? Math.max(...allInputs.map(i => i.getBoundingClientRect().right)) : 0;
   return {
     hasStrip: !!strip, bottom, inputCount: inputs.length, hasTa: !!ta, hasRegen: !!regen, paramWritten,
@@ -54,10 +54,10 @@ const r = await page.evaluate(async () => {
 
 check('生成信息条存在', r.hasStrip === true);
 check('信息条位于预览区之后(底部参数区)', r.bottom === true, JSON.stringify({ bottom: r.bottom }));
-check('详情含可编辑参数(模型/比例/分辨率/张数)', r.inputCount >= 4, 'inputs=' + r.inputCount);
+check('详情含下拉选择(模型/比例/分辨率/张数)', r.inputCount >= 4, 'selects=' + r.inputCount);
 check('详情含提示词编辑框', r.hasTa === true);
 check('含「应用参数并重新生成」按钮', r.hasRegen === true);
-check('编辑参数回写 node.params', r.paramWritten === 'test-model-X', String(r.paramWritten));
+check('选择参数回写 node.params', r.paramWritten === 'GPT Image 2', String(r.paramWritten));
 check('角落重试特例已移除', r.noCorner === true);
 check('展开后编辑控件不横向溢出节点框', r.overflow === false, JSON.stringify({ maxRight: r.maxRight, nodeRight: r.nodeRight }));
 
