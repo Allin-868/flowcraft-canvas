@@ -11835,7 +11835,7 @@ function makePromptExpandBtn(getText, setText, syncInline, title) {
 // 选中才显示 prompt + 模型 + 参数 + 生成键。不改数据流，纯 UI 重组。
 let __composerNode = null;
 // 图片/视频输入节点不使用节点下方 Composer，素材直接在节点内预览。
-const COMPOSER_TYPES = ['videoInput', 'aiImage', 'imageEdit', 'aiVideo'];
+const COMPOSER_TYPES = ['videoInput', 'aiImage', 'imageEdit', 'aiVideo', 'lineart', 'upscale'];
 
 function nodeComposerEl() { return document.getElementById('nodeComposer'); }
 function isComposerType(node) { return !!(node && COMPOSER_TYPES.includes(node.type)); }
@@ -11908,6 +11908,7 @@ function buildNodeComposerBody(node) {
   const isMediaInput = node.type === 'image' || node.type === 'videoInput';
   const isVideoInput = node.type === 'videoInput';
   const isAiImageLike = node.type === 'aiImage' || node.type === 'imageEdit';
+  const isProcessingNode = node.type === 'lineart' || node.type === 'upscale';
   const collapsed = isVideoInput && isVideoInputSettingsCollapsed(node);
 
   // 头部：类型标签 + 上游提示词标记 + 资产引用徽标 + 收起
@@ -11917,7 +11918,11 @@ function buildNodeComposerBody(node) {
   title.className = 'nc-title';
   title.textContent = isMediaInput
     ? (node.type === 'videoInput' ? '🎬 视频输入' : '🖼 图片输入') + ' · 详情'
-    : (isAiImageLike ? (node.type === 'imageEdit' ? '🖌 图片修正' : '🖼 图片') : '🎬 视频') + ' · 生成';
+    : (isAiImageLike
+      ? (node.type === 'imageEdit' ? '🖌 图片修正' : '🖼 图片') + ' · 生成'
+      : isProcessingNode
+        ? (node.type === 'lineart' ? '✏️ 提取线稿' : '✨ 智能高清') + ' · 处理'
+        : '🎬 视频 · 生成');
   head.appendChild(title);
   if (node.effectivePrompt && node.effectivePrompt !== (node.prompt || '').trim()) {
     const up = document.createElement('span');
@@ -11955,7 +11960,9 @@ function buildNodeComposerBody(node) {
   textarea.className = 'node-textarea nc-textarea';
   textarea.placeholder = isMediaInput
     ? '填写图片 / 视频说明…'
-    : '描述要' + (node.type === 'imageEdit' ? '修正' : '生成') + '的' + (isAiImageLike ? '图片' : '视频') + '内容…';
+    : isProcessingNode
+      ? (node.type === 'lineart' ? '可选：补充线稿处理要求…' : '可选：补充高清处理要求…')
+      : '描述要' + (node.type === 'imageEdit' ? '修正' : '生成') + '的' + (isAiImageLike ? '图片' : '视频') + '内容…';
   textarea.value = isMediaInput ? (node.charDesc || '') : (node.prompt || '');
   textarea.rows = 3;
   textarea.onmousedown = (e) => e.stopPropagation();
@@ -12044,6 +12051,15 @@ function buildNodeComposerBody(node) {
     refWrap.appendChild(refThumbs);
     el.appendChild(refWrap);
     renderRefThumbs();
+  }
+
+  if (isProcessingNode) {
+    const tip = document.createElement('div');
+    tip.className = 'nc-media-hint';
+    tip.textContent = node.type === 'lineart'
+      ? '使用上游图片提取线稿；未连接图片时无法处理。'
+      : '使用上游图片进行智能高清；未连接图片时无法处理。';
+    el.appendChild(tip);
   }
 
   if (node.type === 'aiVideo') {
@@ -12253,7 +12269,9 @@ function buildNodeComposerBody(node) {
     row.className = 'nc-params' + (node.type === 'aiVideo' ? ' nc-params-video' : '');
     const modelSel = document.createElement('select');
     modelSel.className = 'nc-select nc-model';
-    const models = node.type === 'imageEdit'
+    const models = isProcessingNode
+      ? ['GPT Image 2']
+      : node.type === 'imageEdit'
       ? ['GPT Image 2']
       : (node.type === 'aiImage' || node.type === 'image'
         ? ['Nano Banana Pro', 'FLUX.1', 'Stable Diffusion XL', 'GPT Image 2']
@@ -12273,10 +12291,10 @@ function buildNodeComposerBody(node) {
     row.appendChild(specSel);
 
     const isVideo = node.type === 'aiVideo';
-    const paramDefs = [
-      isVideo ? { key: 'duration', options: ['3秒', '5秒', '10秒', '15秒', '30秒'] } : { key: 'count', options: ['1张', '2张', '4张', '6张', '8张'] },
-      { key: 'mode', options: ['同步', '异步'] }
-    ];
+    const paramDefs = [];
+    if (isVideo) paramDefs.push({ key: 'duration', options: ['3秒', '5秒', '10秒', '15秒', '30秒'] });
+    else if (!isProcessingNode) paramDefs.push({ key: 'count', options: ['1张', '2张', '4张', '6张', '8张'] });
+    if (!isProcessingNode) paramDefs.push({ key: 'mode', options: ['同步', '异步'] });
     paramDefs.forEach(({ key, options }) => {
       const sel = document.createElement('select');
       sel.className = 'nc-select';
@@ -12290,52 +12308,54 @@ function buildNodeComposerBody(node) {
     });
     el.appendChild(row);
 
-    // 高级折叠：引用角色资产（仅 aiImage / aiVideo）
-    const advBtn = document.createElement('button');
-    advBtn.type = 'button';
-    advBtn.className = 'nc-adv-toggle';
-    advBtn.textContent = '⚙ 高级';
-    advBtn.title = '高级选项：引用已保存的角色资产';
-    advBtn.onmousedown = (e) => e.stopPropagation();
-    const advBox = document.createElement('div');
-    advBox.className = 'nc-adv';
-    advBox.hidden = true;
-    if (node.type === 'aiImage' || node.type === 'imageEdit') {
-      const refRow = document.createElement('div');
-      refRow.className = 'node-ref-asset-row';
-      const refBtn = document.createElement('button');
-      refBtn.type = 'button';
-      refBtn.className = 'node-ref-asset-btn';
-      refBtn.textContent = '🔗 引用角色资产';
-      refBtn.title = '从已保存的角色资产中选择，自动插入 <<<名称>>> 引用令牌';
-      refBtn.onmousedown = (e) => e.stopPropagation();
-      refRow.appendChild(refBtn);
-      const refSel = document.createElement('select');
-      refSel.className = 'node-ref-asset-select';
-      refSel.title = '选择已保存的角色资产，插入引用令牌到提示词';
-      const refItems = listCharacterAssets();
-      const ph = document.createElement('option');
-      ph.value = '';
-      ph.textContent = refItems.length ? '选择角色资产…' : '（暂无角色资产）';
-      refSel.appendChild(ph);
-      refItems.forEach(it => { const o = document.createElement('option'); o.value = it.name; o.textContent = it.name; refSel.appendChild(o); });
-      refSel.onmousedown = (e) => e.stopPropagation();
-      refSel.onchange = (e) => {
-        const nm = e.target.value;
-        if (!nm) return;
-        insertRefTokenIntoNodePrompt(textarea, nm);
-        node.prompt = textarea.value;
-        refreshRefBadge();
-        scheduleAutosave();
-        showToast('已插入引用令牌 <<<' + nm + '>>>', 'success');
-        refSel.value = '';
-      };
-      refRow.appendChild(refSel);
-      advBox.appendChild(refRow);
+    // 高级折叠：引用角色资产（图片/视频生成保留；处理节点不显示空的高级区）
+    if (!isProcessingNode) {
+      const advBtn = document.createElement('button');
+      advBtn.type = 'button';
+      advBtn.className = 'nc-adv-toggle';
+      advBtn.textContent = '⚙ 高级';
+      advBtn.title = '高级选项：引用已保存的角色资产';
+      advBtn.onmousedown = (e) => e.stopPropagation();
+      const advBox = document.createElement('div');
+      advBox.className = 'nc-adv';
+      advBox.hidden = true;
+      if (node.type === 'aiImage' || node.type === 'imageEdit') {
+        const refRow = document.createElement('div');
+        refRow.className = 'node-ref-asset-row';
+        const refBtn = document.createElement('button');
+        refBtn.type = 'button';
+        refBtn.className = 'node-ref-asset-btn';
+        refBtn.textContent = '🔗 引用角色资产';
+        refBtn.title = '从已保存的角色资产中选择，自动插入 <<<名称>>> 引用令牌';
+        refBtn.onmousedown = (e) => e.stopPropagation();
+        refRow.appendChild(refBtn);
+        const refSel = document.createElement('select');
+        refSel.className = 'node-ref-asset-select';
+        refSel.title = '选择已保存的角色资产，插入引用令牌到提示词';
+        const refItems = listCharacterAssets();
+        const ph = document.createElement('option');
+        ph.value = '';
+        ph.textContent = refItems.length ? '选择角色资产…' : '（暂无角色资产）';
+        refSel.appendChild(ph);
+        refItems.forEach(it => { const o = document.createElement('option'); o.value = it.name; o.textContent = it.name; refSel.appendChild(o); });
+        refSel.onmousedown = (e) => e.stopPropagation();
+        refSel.onchange = (e) => {
+          const nm = e.target.value;
+          if (!nm) return;
+          insertRefTokenIntoNodePrompt(textarea, nm);
+          node.prompt = textarea.value;
+          refreshRefBadge();
+          scheduleAutosave();
+          showToast('已插入引用令牌 <<<' + nm + '>>>', 'success');
+          refSel.value = '';
+        };
+        refRow.appendChild(refSel);
+        advBox.appendChild(refRow);
+      }
+      advBtn.onclick = (e) => { e.stopPropagation(); advBox.hidden = !advBox.hidden; advBtn.classList.toggle('open', !advBox.hidden); };
+      el.appendChild(advBtn);
+      el.appendChild(advBox);
     }
-    advBtn.onclick = (e) => { e.stopPropagation(); advBox.hidden = !advBox.hidden; advBtn.classList.toggle('open', !advBox.hidden); };
-    el.appendChild(advBtn);
-    el.appendChild(advBox);
 
     // 生成按钮
     const actions = document.createElement('div');
@@ -15685,7 +15705,7 @@ function buildNodeBody(el, node) {
   }
 
   // —— #8 生成信息条（置于底部参数区：展开后可编辑详细参数并重新生成）——
-  if (node.genMeta && ['aiImage', 'upscale', 'lineart', 'comfyui', 'imageEdit'].includes(node.type)) {
+  if (node.genMeta && ['aiImage', 'comfyui', 'imageEdit'].includes(node.type)) {
     renderGenMetaStrip(el, node);
   }
 
