@@ -11450,6 +11450,7 @@ function retrySameParams(node) {
 function renderGenMetaStrip(el, node) {
   const m = node.genMeta;
   if (!m) return;
+  el.querySelectorAll('.node-gen-meta').forEach(x => x.remove()); // 防 buildNodeBody 多次调用重复追加
   const strip = document.createElement('div');
   strip.className = 'node-gen-meta';
   const chips = [];
@@ -13744,7 +13745,33 @@ function collectSaveInputs(node) {
 }
 
 // 执行保存节点：把输入的图片/文本下载到本地
-function runSaveNode(node) {
+// 图片下载：data: 直接存；http(s) 先 fetch→blob 再存（跨域失败降级新标签页打开）
+function downloadImageAny(src, name) {
+  if (/^data:/i.test(src)) {
+    try { downloadDataURL(src, name); } catch (e) {}
+    return Promise.resolve(true);
+  }
+  return fetch(src).then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.blob();
+  }).then(function(b) {
+    const u = URL.createObjectURL(b);
+    const a = document.createElement('a');
+    a.href = u; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 2000);
+    return true;
+  }).catch(function() {
+    try {
+      const a = document.createElement('a');
+      a.href = src; a.download = name; a.target = '_blank'; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+      return true;
+    } catch (e) { return false; }
+  });
+}
+
+async function runSaveNode(node) {
   // 优先：上游 AI 绘图节点产出多张原图（_galleryImages）→ 逐张分开保存
   let galleryImgs = [];
   [...workflow.edges.values()].forEach(e => {
@@ -13761,11 +13788,7 @@ function runSaveNode(node) {
 
   // 多张原图：逐张下载（图1 / 图2 ...），避免把 4 张拼成一张
   if (galleryImgs.length > 1) {
-    galleryImgs.forEach((src, idx) => {
-      const m = String(src).match(/data:image\/(\w+);/i);
-      const ext = (m && m[1]) ? m[1] : 'png';
-      downloadDataURL(src, filename + '_' + (idx + 1) + '.' + ext);
-    });
+    await Promise.all(galleryImgs.map((src, idx) => downloadImageAny(src, filename + '_' + (idx + 1) + '.png')));
     showToast('已保存 ' + galleryImgs.length + ' 张图片（逐张分开）', 'success');
     node.status = 'done';
     return;
@@ -13776,10 +13799,10 @@ function runSaveNode(node) {
   const textIn = inData.find(d => d && d.type === 'text' && typeof d.value === 'string');
   const videoIn = inData.find(d => d && d.type === 'video' && typeof d.value === 'string');
 
-  if (imgIn && /^data:image\//i.test(imgIn.value)) {
-    const m = imgIn.value.match(/data:image\/(\w+);/i);
+  if (imgIn && typeof imgIn.value === 'string') {
+    const m = String(imgIn.value).match(/data:image\/(\w+);/i);
     const ext = (m && m[1]) ? m[1] : 'png';
-    downloadDataURL(imgIn.value, filename + '.' + ext);
+    await downloadImageAny(imgIn.value, filename + '.' + ext);
     showToast('已保存图片：' + filename + '.' + ext, 'success');
     node.status = 'done';
   } else if (textIn) {
@@ -21002,7 +21025,7 @@ function executeNodeAsync(node, delay) {
         // 保存节点：实际触发本地下载
         if (node.type === 'save') {
           setNodeResultMode(node, 'demo');
-          runSaveNode(node);
+          await runSaveNode(node);
           if (node.el) buildNodeBody(node.el, node);
           updateNodeStatus(node);
           markEdgesDirty();
