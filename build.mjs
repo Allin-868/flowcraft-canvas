@@ -70,11 +70,23 @@ async function bundleCompat() {
   throw new Error('无法找到当前平台可用的 esbuild。请安装当前平台依赖，或设置 ESBUILD_BINARY_PATH 指向同平台 CLI。' + detail + cliDetail);
 }
 
-const compat = await bundleCompat();
+// 打包依赖的许可证注释偶尔带行尾空格；清理后保证提交可通过 git diff --check。
+const compat = (await bundleCompat()).replace(/[\t ]+(?=\r?\n)/g, '');
 const out = template
   .replace('<!--BUILD_STYLE-->', () => css)
   .replace('<!--BUILD_APP-->', () => legacy)
   .replace('<!--BUILD_COMPAT-->', () => compat);
 
-writeFileSync(join(ROOT, 'index.html'), out);
-console.log('[build] index.html bytes =', out.length);
+const outputPath = join(ROOT, 'index.html');
+if (process.argv.includes('--check')) {
+  const current = existsSync(outputPath) ? readFileSync(outputPath, 'utf8') : '';
+  if (current !== out) {
+    console.error('[build] index.html 与当前 src 源码不一致。请先运行 node build.mjs。');
+    process.exitCode = 1;
+  } else {
+    console.log('[build] index.html 与当前 src 源码一致，bytes =', out.length);
+  }
+} else {
+  writeFileSync(outputPath, out);
+  console.log('[build] index.html bytes =', out.length);
+}
