@@ -6202,6 +6202,50 @@ function renderImagePreviewSection(el, node) {
   const def = node.def;
   const inData = node.inputsData || [];
 
+  // 仅输出模式（线稿/超清）：只显示运行后生成的图片，清爽无多余信息
+  const OUTPUT_ONLY_TYPES = ['lineart', 'upscale'];
+  if (OUTPUT_ONLY_TYPES.includes(node.type)) {
+    const gen = (Array.isArray(node._galleryImages) && node._galleryImages.length)
+      ? node._galleryImages
+      : ((node.outputsData || []).filter(p => p && p.type === 'image' && normalizeImageSrc(p.value)).map(p => p.value));
+    const cleanArea = document.createElement('div');
+    cleanArea.className = 'node-preview-area clean-output';
+    if (gen.length) {
+      if (gen.length > 1) {
+        const grid = document.createElement('div');
+        grid.className = 'node-preview-grid';
+        gen.forEach((src, i) => {
+          const cell = document.createElement('div');
+          cell.className = 'node-preview-cell';
+          const gimg = document.createElement('img');
+          gimg.className = 'node-preview-img ratio-fit';
+          gimg.src = normalizeImageSrc(src) || '';
+          gimg.alt = '生成 ' + (i + 1);
+          gimg.onmousedown = (e) => e.stopPropagation();
+          gimg.onclick = (e) => { e.stopPropagation(); openImageLightbox(src, gen, i); };
+          cell.appendChild(gimg);
+          grid.appendChild(cell);
+        });
+        cleanArea.appendChild(grid);
+      } else {
+        const simg = document.createElement('img');
+        simg.className = 'node-preview-img ratio-fit';
+        simg.src = normalizeImageSrc(gen[0]) || '';
+        simg.alt = '生成结果';
+        simg.onmousedown = (e) => e.stopPropagation();
+        simg.onclick = (e) => { e.stopPropagation(); openImageLightbox(gen[0]); };
+        cleanArea.appendChild(simg);
+      }
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'node-clean-empty';
+      empty.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" width="28" height="28"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>';
+      cleanArea.appendChild(empty);
+    }
+    el.appendChild(cleanArea);
+    return;
+  }
+
   // AI 绘图节点优先展示逐张生成的原图（带下载按钮）；单张时走下方单图比例适配
   const gallery = (node.type === 'aiImage' && Array.isArray(node._galleryImages) && node._galleryImages.length > 1)
     ? node._galleryImages
@@ -6295,7 +6339,8 @@ function renderImagePreviewSection(el, node) {
 
   // 其它节点（image / 上游参考图）：保留原有逻辑
   // 无上游输入图时，回退显示节点自身缩略图
-  const ownThumb = normalizeImageSrc(node.thumb);
+  // 原图优先（cropped > uploadedImage > thumb），修复 image 节点显示 720 缩略图造成的压缩
+  const ownThumb = getNodeDisplayImageSource(node);
   if (imgs.length === 0 && ownThumb) {
     imgs.push({ src: ownThumb, cap: '本图' });
   }

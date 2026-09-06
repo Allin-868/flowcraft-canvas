@@ -979,6 +979,16 @@ body {
   cursor: not-allowed;
 }
 .node-tool-btn svg { width: 13px; height: 13px; }
+/* 仅输出清爽预览（线稿/超清）：无标签/无占位文案/无上传块 */
+.node-preview-area.clean-output { padding: 0; gap: 0; }
+.node-preview-area.clean-output .node-preview-img {
+  width: 100%; height: auto; display: block; border-radius: var(--media-card-radius);
+}
+.node-clean-empty {
+  display: flex; align-items: center; justify-content: center; min-height: 96px;
+  color: var(--text-3); opacity: .5;
+  border: 1px dashed var(--border-subtle); border-radius: var(--media-card-radius);
+}
 .node-meta-line {
   position: absolute;
   left: 8px; right: 8px; bottom: 6px;
@@ -6516,3 +6526,6 @@ html, body { overflow-x: hidden; }
 /* 悬浮工具条上移到外置标题栏之上，避免与标题栏重叠 */
 .node-toolbar,
 .node-toolbar-hit { top: -76px; }
+/* 清爽模式：线稿/超清不显示参考图上传行（含 [+] 空占位），只留生成图预览 */
+.node-type-upscale .node-ref-uploader,
+.node-type-lineart .node-ref-uploader { display: none; }

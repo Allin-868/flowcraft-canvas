@@ -41,7 +41,8 @@
     "verify:panel-shadow": "node ../../脚本/verify-panel-shadow.mjs",
     "verify:preset-collapse": "node ../../脚本/verify-preset-collapse.mjs",
     "verify:composer-avoid": "node ../../脚本/verify-composer-avoid.mjs",
-    "verify:upscale-local": "node ../../脚本/verify-upscale-local.mjs"
+    "verify:upscale-local": "node ../../脚本/verify-upscale-local.mjs",
+    "verify:pipeline-ui": "node ../../脚本/verify-pipeline-ui.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2"
