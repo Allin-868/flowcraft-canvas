@@ -13230,21 +13230,17 @@ function createNodeElement(node) {
     if (e.button !== 0) return;
     // 已处于多选中的节点：保持多选，整体拖动（不再自动收敛为单选）
     if (!workflow.selection.has(node.id)) {
-      selectNode(node); // 未选中 → 先单选再拖动
+      selectNode(node, { showComposer: false }); // 未选中 → 先单选再拖动；点击完成后再显示参数
       if (node.type === 'videoInput') node.__settingsCollapsed = false;
-    } else if (node.type === 'videoInput' && node.__settingsCollapsed !== false) {
-      node.__settingsCollapsed = false;
-      showNodeComposer(node);
-    } else if (node.type === 'videoInput') {
-      showNodeComposer(node);
     }
     startNodeDrag(e, node);
   });
 
   el.addEventListener('click', (e) => {
     if (e.button && e.button !== 0) return;
-    const mediaClick = e.target.closest('.node-hero, .node-image-input-hero, .node-preview-area, .node-body');
-    if (node.type === 'videoInput' && mediaClick) {
+    if (e.target.closest('button, input, textarea, select, .node-port, .node-resize-handle')) return;
+    // 仅在左键点击完成后打开下方参数面板；拖拽不会触发 click。
+    if (isComposerType(node)) {
       e.stopPropagation();
       if (node.type === 'videoInput') node.__settingsCollapsed = false;
       showNodeComposer(node);
@@ -17161,7 +17157,7 @@ function deleteNode(id) {
   showToast('已移入回收站（可还原）', 'warn');
 }
 
-function selectNode(node) {
+function selectNode(node, options = {}) {
   clearEdgeSelection();
   workflow.selection.forEach(id => {
     const n = workflow.nodes.get(id);
@@ -17172,8 +17168,8 @@ function selectNode(node) {
   node.el.classList.add('selected');
   node.el.style.zIndex = (++workflow.nextZ).toString();
   if (node.type === 'videoInput') node.__settingsCollapsed = false;
-  // #5：选中生成节点 → 浮现下方 Composer
-  showNodeComposer(node);
+  // #5：普通程序选中可不立即打开；左键 click 或调用方显式要求时再显示。
+  if (options.showComposer !== false) showNodeComposer(node);
 }
 
 //================ 9. 节点拖拽 ================
@@ -23077,7 +23073,9 @@ canvasWrap.addEventListener('contextmenu', (e) => {
   const nodeEl = e.target.closest('.node');
   const node = nodeEl ? workflow.nodes.get(nodeEl.dataset.id) : null;
   if (node) {
-    selectNode(node);
+    // 右键只负责选中并打开上下文菜单，不带出左键下方 Composer。
+    selectNode(node, { showComposer: false });
+    hideNodeComposer();
     showContextMenu(e.clientX, e.clientY, node);
   }
   else showCanvasAddMenu(e);
