@@ -31,7 +31,7 @@ npm run verify:build
 FLOWCRAFT_NODE_MODULES=/path/to/node_modules npm run verify:regression
 ```
 
-`verify:regression` 默认运行 14 个不调用真实 AI 的本地 mock/浏览器 smoke test，其中包含真实 / 演示 / 未实现语义回归与图片比例适配回归，结果写入项目 `日志/`。旧测试脚本中仍有历史 Windows 路径，暂不直接执行；迁移完成前以 `脚本/run-regression.mjs` 为准。
+`verify:regression` 默认运行 19 个不调用真实 AI 的本地 mock/浏览器 smoke test，其中包含真实 / 演示 / 未实现语义、图片比例适配和 AI 流水线节点界面回归，结果写入项目 `日志/`。旧测试脚本中仍有历史 Windows 路径，暂不直接执行；迁移完成前以 `脚本/run-regression.mjs` 为准。
 
 如果回归输出 `EPERM` 且涉及 `listen`，或 Chrome 输出 `bootstrap_check_in ... Permission denied`，表示当前执行环境禁止本机回环端口或浏览器进程启动，统一记录为“环境阻塞”，不能当作业务测试失败。此时请在本机终端执行：
 
