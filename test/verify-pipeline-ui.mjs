@@ -42,11 +42,29 @@ const r = await page.evaluate(async () => {
   out.lineartImgs = laArea ? laArea.querySelectorAll('img').length : 0;
   out.lineartLabel = la.el.querySelector('.node-preview-label') ? la.el.querySelector('.node-preview-label').textContent : null;
 
-  // 3) upscale 未运行 → 仅 clean-empty，无占位文案/上传按钮
+  // 3) lineart/upscale 未运行 → 保留适度默认尺寸，但不创建空白预览区/占位文案/上传按钮
+  const la0 = addNode('lineart', 550, 100);
+  if (la0.el) buildNodeBody(la0.el, la0);
+  await new Promise(res => setTimeout(res, 200));
+  out.lineartNoEmpty = !la0.el.querySelector('.node-clean-empty');
+  out.lineartNoPreviewArea = !la0.el.querySelector('.node-preview-area.clean-output');
+  out.lineartHeight = parseFloat(getComputedStyle(la0.el).minHeight || '0');
+  const lineartDefaultSize = { width: la0.width, height: la0.height };
+  applyAiSpecSelection(la0, '16:9', '高清1K');
+  const lineartSpecSize = { width: la0.width, height: la0.height };
+  applyAiSpecSelection(la0, '16:9', '原画4K');
+  const lineart4kSize = { width: la0.width, height: la0.height };
+  out.lineartSpecResizes = lineartSpecSize.width !== lineartDefaultSize.width
+    || lineartSpecSize.height !== lineartDefaultSize.height;
+  out.lineartResolutionResizes = lineart4kSize.width > lineartSpecSize.width
+    || lineart4kSize.height > lineartSpecSize.height;
+
   const up0 = addNode('upscale', 700, 100);
   if (up0.el) buildNodeBody(up0.el, up0);
   await new Promise(res => setTimeout(res, 200));
-  out.upEmpty = !!up0.el.querySelector('.node-clean-empty');
+  out.upNoEmpty = !up0.el.querySelector('.node-clean-empty');
+  out.upNoPreviewArea = !up0.el.querySelector('.node-preview-area.clean-output');
+  out.upHeight = parseFloat(getComputedStyle(up0.el).minHeight || '0');
   out.upText = up0.el.textContent.includes('运行后生成图片预览');
   out.upUploadBtn = !!up0.el.querySelector('.node-empty-action');
 
@@ -71,7 +89,10 @@ const r = await page.evaluate(async () => {
 check('image 节点 hero 显示原图(4px 而非 1px 缩略)', r.imageHeroW === 4, 'naturalWidth=' + r.imageHeroW);
 check('lineart 为 clean-output 且显示全部 2 张生成图', r.lineartClean && r.lineartImgs === 2, JSON.stringify({ clean: r.lineartClean, imgs: r.lineartImgs }));
 check('lineart 无「图片预览」标签', r.lineartLabel === null, String(r.lineartLabel));
-check('upscale 未运行仅淡色图标占位', r.upEmpty && !r.upText && !r.upUploadBtn, JSON.stringify({ empty: r.upEmpty, text: r.upText, upload: r.upUploadBtn }));
+check('lineart 未运行保留适度默认尺寸且无空白预览区', r.lineartNoEmpty && r.lineartNoPreviewArea && r.lineartHeight >= 140, JSON.stringify({ noEmpty: r.lineartNoEmpty, noPreviewArea: r.lineartNoPreviewArea, height: r.lineartHeight }));
+check('lineart 选择比例后节点框跟随变化', r.lineartSpecResizes === true, 'resizes=' + r.lineartSpecResizes);
+check('lineart 切换到 4K 后节点框进一步放大', r.lineartResolutionResizes === true, 'resizes=' + r.lineartResolutionResizes);
+check('upscale 未运行保留适度默认尺寸且无空白预览区', r.upNoEmpty && r.upNoPreviewArea && r.upHeight >= 140 && !r.upText && !r.upUploadBtn, JSON.stringify({ noEmpty: r.upNoEmpty, noPreviewArea: r.upNoPreviewArea, height: r.upHeight, text: r.upText, upload: r.upUploadBtn }));
 check('upscale 运行后仅 1 张生成图且无标签', r.upClean && r.upImgs === 1 && r.upLabel === null, JSON.stringify({ clean: r.upClean, imgs: r.upImgs, label: r.upLabel }));
 check('upscale 参考图上传行隐藏(无 [+] 多余信息)', r.upRefHidden === true, 'refHidden=' + r.upRefHidden);
 check('upscale 节点框内 [+] 缩略行已取消', r.upThumbRowHidden === true, 'thumbRowHidden=' + r.upThumbRowHidden);

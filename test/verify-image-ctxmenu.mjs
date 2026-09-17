@@ -70,6 +70,8 @@ await page.waitForTimeout(200);
 const rect2 = await page.evaluate(() => {
   const { editor } = window.FlowCraft;
   const node = editor.addNode('aiImage', 800, 240);
+  // 先前的画布交互可能移动相机；对照节点必须回到视口内再执行真实右键。
+  if (typeof window.fitToContent === 'function') window.fitToContent();
   const r = node.el.getBoundingClientRect();
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 });

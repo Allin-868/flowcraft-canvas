@@ -40,15 +40,18 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(300);
 
-const titles = await page.evaluate(() =>
-  [...document.querySelectorAll('.node-header-row .node-tools .node-tool-btn')].map((b) => b.title.replace(/（.*$/, '')));
+const titles = await page.evaluate(() => {
+  const n = [...window.FlowCraft._legacy.workflow.nodes.values()].find((x) => x.type === 'aiImage' && x.prompt === '四色象限测试提示词');
+  return n ? [...n.el.querySelectorAll('.node-tools .node-tool-btn')].map((b) => b.title.replace(/（.*$/, '')) : [];
+});
 ok('aiImage 工具栏含 6 个按钮', titles.length === 6, titles);
 ok('归位按钮齐全（更换/查看/下载/存资产/复制/宫格）',
   ['更换图片', '查看大图', '下载图片', '存资产', '复制提示词', '宫格切分'].every((t) => titles.includes(t)), titles);
 
 // 复制提示词
 await page.evaluate(() => {
-  [...document.querySelectorAll('.node-header-row .node-tool-btn')].find((b) => b.title.startsWith('复制提示词')).click();
+  const n = [...window.FlowCraft._legacy.workflow.nodes.values()].find((x) => x.type === 'aiImage' && x.prompt === '四色象限测试提示词');
+  n.el.querySelector('.node-tool-btn[title^="复制提示词"]').click();
 });
 await page.waitForTimeout(300);
 const clip = await page.evaluate(() => navigator.clipboard.readText());
@@ -56,7 +59,8 @@ ok('复制提示词写入剪贴板', clip === '四色象限测试提示词', cli
 
 // 存资产
 await page.evaluate(() => {
-  [...document.querySelectorAll('.node-header-row .node-tool-btn')].find((b) => b.title.startsWith('存资产')).click();
+  const n = [...window.FlowCraft._legacy.workflow.nodes.values()].find((x) => x.type === 'aiImage' && x.prompt === '四色象限测试提示词');
+  n.el.querySelector('.node-tool-btn[title^="存资产"]').click();
 });
 await page.waitForTimeout(300);
 const asset = await page.evaluate(() => {
@@ -67,7 +71,8 @@ ok('存资产写入素材库', asset.length >= 1, asset);
 
 // 宫格切分：弹层 → 2x2 → 4 个节点 + 象限颜色校验
 await page.evaluate(() => {
-  [...document.querySelectorAll('.node-header-row .node-tool-btn')].find((b) => b.title.startsWith('宫格切分')).click();
+  const n = [...window.FlowCraft._legacy.workflow.nodes.values()].find((x) => x.type === 'aiImage' && x.prompt === '四色象限测试提示词');
+  n.el.querySelector('.node-tool-btn[title^="宫格切分"]').click();
 });
 await page.waitForTimeout(250);
 ok('宫格切分弹层打开', await page.evaluate(() => !!document.getElementById('gridSplitPop')));

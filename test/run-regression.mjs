@@ -20,6 +20,29 @@ const candidates = requested.length ? requested : [
   'verify-aivideo-spec-size.mjs', 'verify-text-header-above.mjs', 'verify-node-tools.mjs',
   'verify-ref-image-manage.mjs', 'verify-image-crop-rotate.mjs', 'verify-gen-feedback.mjs',
   'verify-error-recovery.mjs', 'verify-pipeline-ui.mjs', 'verify-run-mechanism.mjs',
+  'verify-image-response-parser.mjs',
+  'verify-refresh-recovery.cjs',
+  'verify-director-data.mjs', 'verify-story-beats.mjs', 'verify-director-linkage.mjs', 'verify-director-quality.mjs', 'verify-director-first-success.mjs', 'verify-director-path-hint.mjs', 'verify-storage-faults.mjs',
+  'verify-global-assets.mjs',
+  'verify-global-assets-large.mjs',
+  'verify-design-agent.mjs',
+  // 2026-09-17 接线：以下此前散落在 test/ 或仓库外 脚本/，从未进闸门
+  'verify-asset-model.mjs', 'verify-asset-reference-governance.mjs',
+  'verify-lineart-local.mjs', 'verify-save-genmeta.mjs',
+  'verify-provider-models.mjs',
+  'verify-edge-delete.mjs', 'verify-tool-confirm.mjs', 'verify-agent-drawer.mjs',
+  'verify-provenance-cancel.mjs', 'verify-data-boundaries.mjs', 'verify-responsive.mjs',
+  'verify-sidebar-icons.mjs', 'verify-image-quality.mjs', 'verify-zoom-reset.mjs',
+  'verify-reverse-prompt-structured.mjs', 'verify-error-calibration.mjs',
+  'verify-comfy-panel.mjs', 'verify-comfy-expand.mjs', 'verify-comfy-editor-cn.mjs',
+  'verify-node-blank.mjs', 'verify-hud-size.mjs', 'verify-toolbar-redesign.mjs',
+  'verify-panel-shadow.mjs', 'verify-preset-collapse.mjs', 'verify-composer-avoid.mjs',
+  'verify-upscale-local.mjs',
+  // 已知欠债（失败未修，暂不入闸门，见 过程笔记/测试欠债清单-2026-09-17.md）：
+  // verify-composer, verify-auto-connect, verify-genmeta-retry, verify-asset-dedup,
+  // verify-char-flow, verify-real-links, verify-ctxmenu-lightbox, verify-genmeta-bottom,
+  // verify-perf-baseline（性能基线单独跑）, reel-char-trial（物料生成，非断言闸门）,
+  // verify-stage4-character-assets（1 条断言 locator.click 超时，UI 文案已变）
 ];
 const localDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
 const resultLines = [
