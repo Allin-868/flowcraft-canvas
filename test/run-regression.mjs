@@ -38,7 +38,7 @@ const candidates = requested.length ? requested : [
   'verify-node-blank.mjs', 'verify-hud-size.mjs', 'verify-toolbar-redesign.mjs',
   'verify-panel-shadow.mjs', 'verify-preset-collapse.mjs', 'verify-composer-avoid.mjs',
   'verify-upscale-local.mjs',
-  // 已知欠债（失败未修，暂不入闸门，见 过程笔记/测试欠债清单-2026-09-17.md）：
+  // 已知欠债（失败未修，暂不入闸门，判定与证据见同目录 DEBT.md）：
   // verify-composer, verify-auto-connect, verify-genmeta-retry, verify-asset-dedup,
   // verify-char-flow, verify-real-links, verify-ctxmenu-lightbox, verify-genmeta-bottom,
   // verify-perf-baseline（性能基线单独跑）, reel-char-trial（物料生成，非断言闸门）,

@@ -21,3 +21,6 @@ _provtest.cjs
 
 # Vercel CLI 本地状态（含 projectId/orgId）
 .vercel/
+
+# macOS
+.DS_Store
