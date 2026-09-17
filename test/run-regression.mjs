@@ -38,11 +38,14 @@ const candidates = requested.length ? requested : [
   'verify-node-blank.mjs', 'verify-hud-size.mjs', 'verify-toolbar-redesign.mjs',
   'verify-panel-shadow.mjs', 'verify-preset-collapse.mjs', 'verify-composer-avoid.mjs',
   'verify-upscale-local.mjs',
+  // 2026-09-18 修好并入：资产异步写入需 await / 素材库页签 async 处理器需等待切换完成 /
+  // aiImage 已统一真实生成 → 用 page.route 打桩出图接口验真链路
+  'verify-asset-dedup.mjs', 'verify-char-flow.mjs', 'verify-genmeta-retry.mjs',
   // 已知欠债（失败未修，暂不入闸门，判定与证据见同目录 DEBT.md）：
-  // verify-composer, verify-auto-connect, verify-genmeta-retry, verify-asset-dedup,
-  // verify-char-flow, verify-real-links, verify-ctxmenu-lightbox, verify-genmeta-bottom,
-  // verify-perf-baseline（性能基线单独跑）, reel-char-trial（物料生成，非断言闸门）,
-  // verify-stage4-character-assets（1 条断言 locator.click 超时，UI 文案已变）
+  // verify-composer, verify-auto-connect, verify-ctxmenu-lightbox, verify-genmeta-bottom,
+  // verify-stage4-character-assets（1 条断言 locator.click 超时，UI 文案已变）,
+  // verify-real-links（需真实 Key）, verify-perf-baseline（性能基线单独跑）,
+  // reel-char-trial（物料生成，非断言闸门）
 ];
 const localDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
 const resultLines = [

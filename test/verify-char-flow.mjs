@@ -174,16 +174,34 @@ try {
 
   // ============ 幕五 · 素材库检索 + 宫格生产 ============
   console.log('\n—— 幕五 · 素材库检索（分类过滤/搜索）——');
-  const act5 = await page.evaluate(() => {
+  // 已归档的图按设计从「当前素材」页签移出（updateAssetPanel 视图分流），本幕要看角色资产本身，
+  // 所以先切「我的资产」。页签处理器是 async（内部 await IndexedDB 水合），click() 后必须等 .active 真落地。
+  await page.evaluate(async () => {
     toggleAssetPanel(true);
+    const savedTab = document.querySelector('[data-asset-view="saved"]');
+    if (savedTab) savedTab.click();
+  });
+  await page.waitForFunction(() => {
+    const tab = document.querySelector('.asset-view-tab.active');
+    return !!tab && tab.getAttribute('data-asset-view') === 'saved';
+  }, null, { timeout: 5000 });
+  const act5 = await page.evaluate(async () => {
+    if (window.ensureGlobalAssetImagesLoaded) await window.ensureGlobalAssetImagesLoaded();
     updateAssetPanel();
     const panel = document.getElementById('assetPanel');
     const search = panel.querySelector('input[type=text], input[type=search]');
     const catBtns = [...panel.querySelectorAll('button, .asset-cat, [class*=cat]')].map(b => (b.textContent || '').trim()).filter(t => t && t.length <= 8);
     const cards = panel.querySelectorAll('.asset-card').length;
-    return { open: panel.classList.contains('show'), hasSearch: !!search, cards, catBtns: [...new Set(catBtns)].slice(0, 12) };
+    const diag = {
+      view: (document.querySelector('.asset-view-tab.active') || { getAttribute: () => 'n/a' }).getAttribute('data-asset-view'),
+      globalEntries: globalAssetEntries().length,
+      collectAssets: collectAssets().length,
+      gridHtmlLen: document.getElementById('assetGrid').innerHTML.length,
+      emptyShown: (document.getElementById('assetEmpty') || {}).style ? document.getElementById('assetEmpty').style.display : 'n/a',
+    };
+    return { open: panel.classList.contains('show'), hasSearch: !!search, cards, diag, catBtns: [...new Set(catBtns)].slice(0, 12) };
   });
-  check('素材库面板可打开且显示资产卡片', act5.open && act5.cards >= 3, 'cards=' + act5.cards);
+  check('「我的资产」页签显示 3 张角色资产卡片', act5.open && act5.cards >= 3, 'cards=' + act5.cards + ' diag=' + JSON.stringify(act5.diag));
   if (!act5.hasSearch) gap('素材库面板无搜索框（资产多时找角色资产只能翻页/分类）');
   else {
     // 搜索过滤：输入「晚礼服」→ 只剩 1 张卡片
@@ -193,7 +211,7 @@ try {
       input.oninput && input.oninput();
       return document.querySelectorAll('#assetGrid .asset-card').length;
     });
-    check('搜索框过滤「晚礼服」命中 1 张卡片', act5search === 1, 'cards=' + act5search);
+    check('「我的资产」内搜索框过滤「晚礼服」命中 1 张卡片', act5search === 1, 'cards=' + act5search);
     // 清空搜索恢复
     await page.evaluate(() => {
       const input = document.getElementById('assetSearch');

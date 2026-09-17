@@ -40,6 +40,10 @@ function check(name, passed, detail = '') {
   console.log(`${passed ? '  ✅' : '  ❌'} ${name}${detail ? `：${detail}` : ''}`);
 }
 
+// aiImage 已统一走真实生成（legacy.js:16781），演示占位图按 P0-4 语义契约移除，
+// 所以「重试后完成」这条必须打桩 /images/generations 才能验真；不打桩只会得到「未配置 Key」的 error。
+const MOCK_IMG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
 const server = createServer();
 let browser;
 try {
@@ -92,6 +96,12 @@ try {
   check('信息条 title 携带本次提示词', /白色连衣裙/.test(meta1.stripTitle), meta1.stripTitle.slice(0, 40));
 
   // —— 场景 2：一键同参重试恢复参数并触发重新运行 ——
+  await page.evaluate(() => localStorage.setItem('flowcraft-openai-key', 'sk-mock-for-regression'));
+  await page.route('**/images/generations', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ data: [{ b64_json: MOCK_IMG.split(',')[1] }] }),
+  }));
   const meta2 = await page.evaluate(async () => {
     // 找到场景 1 的节点（最后一个 aiImage）
     const nodes = [...workflow.nodes.values()];
@@ -104,15 +114,16 @@ try {
     const before = { model: node.params.model, aspect: node.params.aspect, count: node.params.count, prompt: node.prompt };
     retrySameParams(node);
     const restored = { model: node.params.model, aspect: node.params.aspect, count: node.params.count, prompt: node.prompt };
-    // 等待运行完成（FLUX.1 演示模型 → computeNodeOutput 占位出图 → done）
-    await new Promise((done) => setTimeout(done, 2200));
-    return { before, restored, status: node.status, genMeta2: node.genMeta };
+    // 等待 mock 出图返回（真实调用路径：generateOpenAIImage → /images/generations）
+    await new Promise((done) => setTimeout(done, 2600));
+    return { before, restored, status: node.status, resultMode: node.resultMode, genMeta2: node.genMeta };
   });
   check('同参重试：提示词恢复为上次自身输入', meta2.restored.prompt === '测试提示词：穿白色连衣裙的女孩', meta2.restored.prompt);
   check('同参重试：模型恢复 FLUX.1', meta2.restored.model === 'FLUX.1', meta2.restored.model);
   check('同参重试：比例恢复 1:1', meta2.restored.aspect === '1:1', meta2.restored.aspect);
   check('同参重试：张数恢复 2张', meta2.restored.count === '2张', meta2.restored.count);
   check('同参重试后节点被触发重新运行（完成）', meta2.status === 'done', meta2.status);
+  check('重试出图为真实链路结果（resultMode=real，非占位）', meta2.resultMode === 'real', JSON.stringify(meta2.resultMode));
   check('重跑后 genMeta 刷新为同参快照', meta2.genMeta2 && meta2.genMeta2.model === 'FLUX.1' && meta2.genMeta2.aspect === '1:1',
     JSON.stringify(meta2.genMeta2 && { m: meta2.genMeta2.model, a: meta2.genMeta2.aspect }));
 

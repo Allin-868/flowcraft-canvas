@@ -6,9 +6,10 @@
 ## 口径
 
 - 闸门入口：`test/run-regression.mjs`（`npm run verify:regression`）。
-- 当前闸门条目 **58**，2026-09-17 全绿（`test-results/regression-2026-09-17.md`）。
-- `test/` 目录共 **72** 个脚本文件；未进闸门的 **11** 个 = 设计如此 **3** + 真欠债 **8**。
-- 本文件登记 8 条真欠债。`run-regression.mjs` 的注释只列文件名，判定与证据在这里。
+- 当前闸门条目 **61**，2026-09-18 全绿（`test-results/regression-2026-09-18.md`）。
+- `test/` 目录共 **72** 个脚本文件；未进闸门的 **8** 个 = 设计如此 **3** + 真欠债 **5**。
+- 本文件登记欠债的判定与证据；`run-regression.mjs` 的注释只列文件名。
+- 2026-09-18 已清 3 条（`verify-asset-dedup` / `verify-char-flow` / `verify-genmeta-retry`），修法与踩坑见文末「已关闭」。
 
 ## 设计如此（永久不入闸门，不算欠债）
 
@@ -18,7 +19,7 @@
 | `reel-char-trial.mjs` | 生成演示物料（逐幕截图），不是断言集 |
 | `verify-real-links.mjs` | 需要真实 AI Key（只从 env 读），CI/本地无凭据必红 |
 
-## 真欠债 8 条（今日逐个复跑取证的退出码与断言名）
+## 真欠债 5 条（2026-09-17 逐个复跑取证的退出码与断言名）
 
 ### A 类｜用例过期（产品行为已有意变更，断言写的是旧契约）
 
@@ -30,20 +31,30 @@
 | `verify-genmeta-bottom.mjs` | 崩溃 | 同上，`reading 'querySelectorAll'` | 同一批改版遗留，测试侧取 null 节点 |
 | `verify-stage4-character-assets.mjs` | 15/16 | 1 条 `locator.click` 超时，`element is not visible`（脚本 187 行） | UI 文案/层级已变，该按钮当前不在可见路径上 |
 
-### B 类｜测试实现与新异步模型不匹配（不是产品缺陷）
+### B/C 类｜已清空（见文末「已关闭」）
 
-| 脚本 | 现状 | 证据 | 判定依据 |
-|---|---|---|---|
-| `verify-asset-dedup.mjs` | 6/7 | 失败 1 条：`命名令牌保留（显示名=我的角色）`，实际 `displayName="AI 绘图"`、`gKey=""` | `saveNodeImageAsAsset` 现在是 **async**（`legacy.js:8187`，资产真源迁 IndexedDB），脚本调用**没有 await** → 紧接着 `globalAssetEntries()` 读到 0 条 → `setAssetMeta('')` 写空 key → 显示名回退节点标题 |
-| `verify-char-flow.mjs` | 13/15 | 失败 2 条：`素材库面板可打开且显示资产卡片：cards=0`、`搜索框过滤「晚礼服」命中 1 张卡片：cards=0` | 探针 `probe-asset-panel.mjs` 实测：存资产后 `globalEntries=1`（数据在库），但 `updateAssetPanel` 按页签分流（`legacy.js:2205-2206`），默认页签「当前素材」**会排除已入库的 src** → 不切到「我的资产」就是 0 张卡，属预期行为 |
-
-### C 类｜需要真判一次（今日未定级）
-
-| 脚本 | 现状 | 说明 |
-|---|---|---|
-| `verify-genmeta-retry.mjs` | 14/15 | 唯一失败「同参重试后节点被触发重新运行（完成）」实际状态 `error`，但**同权重跑 `重跑后 genMeta 刷新为同参快照` 通过**。未确定是 mock 出图路径被改（用例过期）还是重试链路真失败。开工时先看 `runNode` 在重试入口的 `resultMode` |
+原 B 类 2 条（`verify-asset-dedup`、`verify-char-flow`）与原 C 类 1 条（`verify-genmeta-retry`）已于 2026-09-18 全部修好并入闸门；判定与修法移到文末「已关闭」小节，这里不再占位。
 
 探针附带排除的一条嫌疑：无 Key 时点生成会拿到 `status=error`，一度以为是「报错无提示」的体验缺陷；核对后确认 `legacy.js:12051 / 12076` 有未配置 Key 的分类与提示，是**探针读错字段**（读了 `msg` 空值），不立案。
+
+## 已关闭（2026-09-18，全部只改测试，未改产品）
+
+| 脚本 | 原判定 | 实际修法 | 复跑 |
+|---|---|---|---|
+| `verify-asset-dedup.mjs` | 测试未 await 异步存资产 | evaluate 改 `async` + `await window.saveNodeImageAsAsset(node)`（两处） | 7/7 |
+| `verify-char-flow.mjs` | 页签视图口径变了 | 先切「我的资产」并 **`waitForFunction` 等 `.active` 落地**，再 await 水合，最后统计 | 15/15 |
+| `verify-genmeta-retry.mjs` | **不是待定级，是用例过期** | `page.route('**/images/generations')` 打桩出图 + 注入测试 Key，断言 `status=done` 且**新增** `resultMode=real` | 16/16 |
+
+判定补记（`verify-genmeta-retry` 定级结论）：`legacy.js:16781` 注释与 16798-16801 行表明
+「**AI 绘图节点统一走真实生成，节点上的模型名仅作 UI 标签**」，演示占位图已按 P0-4 语义契约移除
+（`legacy.js:4140`「不制造占位图」）。所以「FLUX.1 → 占位出图 → done」这条断言写的是废弃契约；
+无 Key 时 `status=error` + toast「未配置 OpenAI API Key」是**正确的当前行为**。同理
+`verify-composer.mjs` 的「生成按钮触发运行并完成（done）」也是这一条根因，A 类改写时一并处理。
+
+### 可复用的两个坑（写测试前先看）
+
+1. **资产相关写入基本都是 async**：`saveNodeImageAsAsset`、素材库页签 click 处理器内部都要 `await` IndexedDB 水合。`element.click()` 之后视图/数据不会同步变化，必须 `waitForFunction` 等状态落地，否则拿到的是旧视图。
+2. **aiImage 出图断言一律走 `page.route` 打桩**（参照 `verify-provider-models.mjs` 的既有写法）：不 mock 就只会得到「未配置 Key」的 error；直接放宽成 `['done','error'].includes(status)` 则是假绿。
 
 ## 处理原则
 
@@ -51,7 +62,7 @@
 2. A 类改写后必须回到闸门并留在里面——它们覆盖的是 Composer 定位、自动连线这类主干交互，弃跑等于裸奔。
 3. B 类是本次最便宜的红利：`await` + 切页签，预计 3 条断言直接转绿。
 4. 坐标写死的断言（`x=272 y=228` 一类）改成「相对目标端口的间隙/对齐」判定，否则每次布局调整都会误报。
-5. 建议顺序：**B（半天内）→ C（1 条，定向）→ A（composer / auto-connect 两批）**。前两步做完可把 58 提到 60 且把「已知欠债」从 8 压到 5。
+5. 剩余全是 A 类，建议顺序：**3 条选择器失效（最便宜）→ auto-connect → composer**（composer 一条与 genmeta-retry 同根因：出图需 `page.route` 打桩）。
 
 ## 复现命令
 

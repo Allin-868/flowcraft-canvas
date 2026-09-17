@@ -21,7 +21,7 @@ await page.goto(pathToFileURL(INDEX).href, { waitUntil: 'load' });
 await page.waitForFunction(() => !!(window.FlowCraft && window.FlowCraft.editor), null, { timeout: 30000 });
 await page.waitForTimeout(400);
 
-const res = await page.evaluate(() => {
+const res = await page.evaluate(async () => {
   const { editor } = window.FlowCraft;
   editor.clear();
   localStorage.removeItem('flowcraft:assetImages:v1');
@@ -39,7 +39,7 @@ const res = await page.evaluate(() => {
   const countX = all.filter(a => a.src === X).length;
 
   // 2) 存资产 → 全局条目 + 当前条目 同图 → 应仍 1 条
-  window.saveNodeImageAsAsset(node);
+  await window.saveNodeImageAsAsset(node); // 存资产已改异步（IndexedDB 真源），不等就会出现读到 0 条的假失败
   all = window.collectAssets();
   const countX2 = all.filter(a => a.src === X).length;
 
@@ -54,7 +54,7 @@ const res = await page.evaluate(() => {
   const displayName = entryX ? nameMap[window.assetKey(entryX)] : null;
 
   // 4) 再存一次同图（重复保存）→ 全局库内同图只取一条 → 仍 1 条
-  window.saveNodeImageAsAsset(node);
+  await window.saveNodeImageAsAsset(node); // 存资产已改异步（IndexedDB 真源），不等就会出现读到 0 条的假失败
   all = window.collectAssets();
   const countX4 = all.filter(a => a.src === X).length;
 
