@@ -1,6 +1,6 @@
 ﻿# FlowCraft · AI 工作流编辑器（无限画布）
 
-FlowCraft v2.1 —— 基于无限画布的 AI 生图工作流编辑器（单文件 HTML，零依赖）。
+FlowCraft —— 基于无限画布的 AI 生图工作流编辑器（单文件 HTML，零依赖）。版本口径见 `package.json`，产物由 `build.mjs` 从 `src/` 生成。
 
 ## 功能
 
@@ -13,7 +13,9 @@ FlowCraft v2.1 —— 基于无限画布的 AI 生图工作流编辑器（单文
 
 ## 使用
 
-打开 https://<你的用户名>.github.io/flowcraft-canvas/ 即可直接使用。
+本地直接使用：用浏览器打开仓库根目录的 `index.html`（单文件产物，无需服务器、无需安装）。数据存于浏览器 localStorage / IndexedDB，清站点数据会丢失画布。
+
+> 线上地址状态（2026-09-18 实测）：本仓库尚未发布，`https://<用户名>.github.io/flowcraft-canvas/` 当前返回 404，仓库内也没有任何 Pages / Netlify / Vercel 配置。若要发布：先 `git push`，再在 GitHub 仓库 Settings → Pages 选择 `main` 分支根目录（产物 `index.html` 已在仓库内，无需构建命令）；Netlify / Vercel 则直接把本目录作为静态站点目录上传。
 
 ## 部署
 
