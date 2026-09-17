@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-/** 查看大图走右键菜单 + 参数点击展开 防回退。 */
+/**
+ * 查看大图走右键菜单 + 参数点击展开 防回退。
+ * 大图相关走高清节点（有 clean-output 预览区），信息条折叠相关走 aiImage（唯一渲染信息条的类型）。
+ */
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -24,7 +27,17 @@ const r = await page.evaluate(async () => {
   connectNodes(im.id, 0, up.id, 0);
   await runWorkflow({ force: true, skipPreview: true });
   if (up.el) buildNodeBody(up.el, up);
-  const strip = up.el.querySelector('.node-gen-meta');
+  // 信息条只对生成类节点渲染（legacy.js:10875）：高清节点的参数入口在其专属下方面板，
+  // 故折叠/展开两条断言由 aiImage 承载；「单击生成图不弹大图」与右键菜单仍在高清节点上验。
+  const upscaleStrip = !!up.el.querySelector('.node-gen-meta');
+  const ai = addNode('aiImage', 400, 520);
+  ai.prompt = '信息条折叠用例';
+  ai.thumb = mk();
+  ai.outputsData = [{ type: 'image', value: ai.thumb }];
+  ai.status = 'done';
+  captureGenMeta(ai, 999);
+  buildNodeBody(ai.el, ai);
+  const strip = ai.el.querySelector('.node-gen-meta');
   const details = strip.querySelector('.ngm-details');
   const collapsedBefore = getComputedStyle(details).display === 'none';
   // 单击生成图 → 不应弹大图
@@ -35,11 +48,12 @@ const r = await page.evaluate(async () => {
   // 点击摘要 → 参数展开
   strip.querySelector('.ngm-summary').click();
   const expandedAfterClick = getComputedStyle(details).display !== 'none';
-  return { collapsedBefore, lightboxAfterClick, expandedAfterClick };
+  return { collapsedBefore, lightboxAfterClick, expandedAfterClick, upscaleStrip };
 });
 check('参数详情默认收起', r.collapsedBefore === true);
 check('点击摘要后参数展开', r.expandedAfterClick === true);
 check('单击生成图不弹大图', r.lightboxAfterClick === false, 'lightbox=' + r.lightboxAfterClick);
+check('高清节点不重复渲染生成信息条（参数走专属下方面板）', r.upscaleStrip === false);
 
 // 右键节点 → 上下文菜单含「查看大图」
 const menu = await page.evaluate(async () => {

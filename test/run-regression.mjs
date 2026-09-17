@@ -41,8 +41,11 @@ const candidates = requested.length ? requested : [
   // 2026-09-18 修好并入：资产异步写入需 await / 素材库页签 async 处理器需等待切换完成 /
   // aiImage 已统一真实生成 → 用 page.route 打桩出图接口验真链路
   'verify-asset-dedup.mjs', 'verify-char-flow.mjs', 'verify-genmeta-retry.mjs',
+  // 2026-09-18 换承载节点后并入：信息条只对 aiImage/comfyui/imageEdit 渲染（legacy.js:10875），
+  // 原先挂在 upscale 上属用例过期；大图/右键断言仍留在高清节点
+  'verify-ctxmenu-lightbox.mjs', 'verify-genmeta-bottom.mjs',
   // 已知欠债（失败未修，暂不入闸门，判定与证据见同目录 DEBT.md）：
-  // verify-composer, verify-auto-connect, verify-ctxmenu-lightbox, verify-genmeta-bottom,
+  // verify-composer, verify-auto-connect,
   // verify-stage4-character-assets（1 条断言 locator.click 超时，UI 文案已变）,
   // verify-real-links（需真实 Key）, verify-perf-baseline（性能基线单独跑）,
   // reel-char-trial（物料生成，非断言闸门）

@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-/** 生成信息条入底部参数区防回退：位于预览区之后、详情可编辑参数回写、含重新生成按钮。 */
+/**
+ * 生成信息条入底部参数区防回退：位于出图区之后、详情可编辑参数回写、含重新生成按钮。
+ * 承载节点必须是 aiImage —— 信息条只对生成类节点渲染（legacy.js:10875），
+ * 高清/线稿节点走自己的下方面板，不在本用例范围内。
+ */
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -19,14 +23,21 @@ await page.waitForFunction(() => window.FlowCraft && workflow && typeof addNode 
 const r = await page.evaluate(async () => {
   const mk = () => { const cv = document.createElement('canvas'); cv.width = 8; cv.height = 8; const x = cv.getContext('2d'); x.fillStyle = '#cc9933'; x.fillRect(0, 0, 8, 8); return cv.toDataURL('image/png'); };
   clearGraph();
-  const im = addNode('image', 100, 100);
-  im.uploadedImage = mk(); im.outputsData = [{ type: 'image', value: im.uploadedImage }];
-  const up = addNode('upscale', 400, 100);
-  connectNodes(im.id, 0, up.id, 0);
-  await runWorkflow({ force: true, skipPreview: true });   // 产生 genMeta
-  if (up.el) buildNodeBody(up.el, up);
+  // 生成信息条按类型渲染（legacy.js:10875 只认 aiImage/comfyui/imageEdit）；高清/线稿的参数
+  // 入口已移入各自下方面板，因此本用例的承载节点必须是 aiImage，且不需要真出图（信息条只读 genMeta）。
+  const up = addNode('aiImage', 400, 100);
+  up.prompt = '信息条用例：穿白色连衣裙的女孩';
+  up.params.model = 'FLUX.1';
+  up.params.aspect = '1:1';
+  up.params.resolution = '高清1K';
+  up.params.count = '2张';
+  up.thumb = mk();
+  up.outputsData = [{ type: 'image', value: up.thumb }];
+  up.status = 'done';
+  captureGenMeta(up, 1234);
+  buildNodeBody(up.el, up);
   const strip = up.el.querySelector('.node-gen-meta');
-  const preview = up.el.querySelector('.node-preview-area');
+  const preview = up.el.querySelector('.node-preview-area') || up.el.querySelector('.node-hero');
   const bottom = strip && preview ? (strip.getBoundingClientRect().top >= preview.getBoundingClientRect().top) : false;
   // 展开详情
   const summary = strip && strip.querySelector('.ngm-summary');
