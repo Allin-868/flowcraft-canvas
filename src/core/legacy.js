@@ -1198,6 +1198,17 @@ function restoreFromStorage() {
       return 0;
     }
 
+    // 幂等清理：本函数会被调两次（init() 直接调 + compat 层 restoreWithIDB 再调），
+    // 不清场的话第一遍的节点元素会作为孤儿留在 #nodeLayer 里 —— 表现为每个节点两张卡、
+    // 工具条按钮翻倍、命中测试命中的是被删引用的旧元素。与 applyWorkflowData 同一套做法。
+    workflow.nodes.forEach(n => { if (n.el) n.el.remove(); });
+    workflow.nodes.clear();
+    workflow.edges.clear();
+    workflow.order = [];
+    workflow.selection.clear();
+    // 回收站是按项 push 的，重复恢复会累积，先清再灌
+    recycleBin.length = 0;
+
     // 恢复 ID 序列号
     if (parsed.nodeIdSeq) nodeIdSeq = parsed.nodeIdSeq;
     if (parsed.edgeIdSeq) edgeIdSeq = parsed.edgeIdSeq;

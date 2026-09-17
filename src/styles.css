@@ -946,6 +946,11 @@ body {
 /* image-only：隐藏顶部 4 个悬浮工具按钮，卡片只保留图片 */
 .node--image-only .node-toolbar,
 .node--image-only .node-toolbar-hit { display: none; }
+/* 例外：角色状态节点的高频操作（单状态重试/复制/取消/删除）必须留在节点内
+   （legacy.js:10790 的设计意图是「避免用户必须打开右键菜单」）。
+   所有 aiImage 都会带 node--image-only（legacy.js:7967），不放开这条时状态按钮恒为
+   display:none、尺寸 0×0，鼠标完全点不到。 */
+.node--image-only .node-toolbar:has(.state-node-action) { display: flex; }
 .node-header button,
 .node-header select { pointer-events: auto; }
 .node-header-row {

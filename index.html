@@ -959,6 +959,11 @@ body {
 /* image-only：隐藏顶部 4 个悬浮工具按钮，卡片只保留图片 */
 .node--image-only .node-toolbar,
 .node--image-only .node-toolbar-hit { display: none; }
+/* 例外：角色状态节点的高频操作（单状态重试/复制/取消/删除）必须留在节点内
+   （legacy.js:10790 的设计意图是「避免用户必须打开右键菜单」）。
+   所有 aiImage 都会带 node--image-only（legacy.js:7967），不放开这条时状态按钮恒为
+   display:none、尺寸 0×0，鼠标完全点不到。 */
+.node--image-only .node-toolbar:has(.state-node-action) { display: flex; }
 .node-header button,
 .node-header select { pointer-events: auto; }
 .node-header-row {
@@ -9366,6 +9371,17 @@ function restoreFromStorage() {
       try { localStorage.removeItem(AUTOSAVE_KEY); } catch (_) {}
       return 0;
     }
+
+    // 幂等清理：本函数会被调两次（init() 直接调 + compat 层 restoreWithIDB 再调），
+    // 不清场的话第一遍的节点元素会作为孤儿留在 #nodeLayer 里 —— 表现为每个节点两张卡、
+    // 工具条按钮翻倍、命中测试命中的是被删引用的旧元素。与 applyWorkflowData 同一套做法。
+    workflow.nodes.forEach(n => { if (n.el) n.el.remove(); });
+    workflow.nodes.clear();
+    workflow.edges.clear();
+    workflow.order = [];
+    workflow.selection.clear();
+    // 回收站是按项 push 的，重复恢复会累积，先清再灌
+    recycleBin.length = 0;
 
     // 恢复 ID 序列号
     if (parsed.nodeIdSeq) nodeIdSeq = parsed.nodeIdSeq;
