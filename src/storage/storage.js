@@ -340,6 +340,66 @@ export const StorageAdapter = {
   },
 
   // —— 孤儿清理：删除无引用的资产 ——
+  // 只读预览：与 pruneOrphans 使用同一套引用判定，但绝不删除数据。
+  // 返回值只含资产元数据，不返回 dataUrl，避免把大图带入 UI / 日志。
+  async previewOrphans() {
+    const ok = await this._ensureIDB();
+    if (!ok) return { ok: false, candidates: [], total: 0, errorCode: 'IDB_UNAVAILABLE' };
+    const proj = await this.loadFromIDB();
+    const referenced = new Set();
+    if (proj && Array.isArray(proj.nodes)) {
+      for (const n of proj.nodes) {
+        const scan = (v) => { if (typeof v === 'string' && v.startsWith('data:')) referenced.add(v); };
+        if (n.thumb) scan(n.thumb);
+        if (n.uploadedImage) scan(n.uploadedImage);
+        if (n.params) Object.keys(n.params).forEach((k) => scan(n.params[k]));
+        if (Array.isArray(n.refImages)) n.refImages.forEach((r) => r && scan(r.src));
+        if (Array.isArray(n.inputsData)) n.inputsData.forEach((d) => d && scan(d.value));
+        if (Array.isArray(n.outputsData)) n.outputsData.forEach((d) => d && scan(d.value));
+      }
+    }
+    const all = await db.idbGetAll('assets');
+    const candidates = all.filter(a => !(a.dataUrl && referenced.has(a.dataUrl))).map(a => ({
+      id: String(a.id || ''),
+      kind: String(a.kind || 'unknown'),
+      size: Number(a.dataUrl && a.dataUrl.length || 0),
+      createdAt: a.createdAt || null,
+    }));
+    return { ok: true, candidates, total: candidates.length };
+  },
+
+  // 用户确认后的安全清理：重新计算候选，避免使用过期预览；清理前将项目和资产本体一起快照。
+  async cleanupOrphans(ids) {
+    const preview = await this.previewOrphans();
+    if (!preview.ok) return { ok: false, removed: 0, errorCode: preview.errorCode || 'IDB_UNAVAILABLE' };
+    const requested = new Set(Array.isArray(ids) ? ids.map(String) : []);
+    const candidates = preview.candidates.filter(a => requested.has(String(a.id)));
+    if (!candidates.length) return { ok: true, removed: 0, snapshotId: null };
+    const ok = await this._ensureIDB();
+    if (!ok) return { ok: false, removed: 0, errorCode: 'IDB_UNAVAILABLE' };
+    const project = await this.loadFromIDB();
+    const all = await db.idbGetAll('assets');
+    const candidateIds = new Set(candidates.map(a => String(a.id)));
+    const backupAssets = all.filter(a => candidateIds.has(String(a.id)));
+    const snapshotId = 'snap-cleanup-' + Date.now();
+    const snapshotData = {
+      kind: 'asset-cleanup',
+      project,
+      assets: backupAssets,
+      assetIds: backupAssets.map(a => String(a.id)),
+    };
+    await db.idbPut('snapshots', {
+      id: snapshotId,
+      label: '[资产清理] ' + backupAssets.length + ' 项',
+      data: snapshotData,
+      createdAt: new Date().toISOString(),
+      size: JSON.stringify(snapshotData).length,
+    });
+    await this._enforceSnapshotPolicy();
+    await db.idbBulkDeleteMulti([{ store: 'assets', keys: backupAssets.map(a => a.id) }]);
+    return { ok: true, removed: backupAssets.length, snapshotId };
+  },
+
   async pruneOrphans() {
     const ok = await this._ensureIDB();
     if (!ok) return 0;
@@ -386,6 +446,17 @@ export const StorageAdapter = {
     if (!ok) return null;
     const row = await db.idbGet('snapshots', id);
     if (!row) return null;
+    if (row.data && row.data.kind === 'asset-cleanup') {
+      const project = row.data.project || null;
+      const assets = Array.isArray(row.data.assets) ? row.data.assets : [];
+      if (project) {
+        await db.idbBulkPutMulti([
+          { store: 'projects', values: [{ id: CURRENT_PROJECT_ID, data: project, savedAt: new Date().toISOString(), size: JSON.stringify(project).length, restoredFrom: id }] },
+          { store: 'assets', values: assets },
+        ]);
+      } else if (assets.length) await db.idbBulkPut('assets', assets);
+      return project;
+    }
     await db.idbPut('projects', { id: CURRENT_PROJECT_ID, data: row.data, savedAt: new Date().toISOString(), size: JSON.stringify(row.data).length, restoredFrom: id });
     return row.data;
   },
@@ -429,7 +500,14 @@ export const StorageAdapter = {
 
   // —— restoreWithIDB：优先 IndexedDB 真源刷新 localStorage 桥，再调 legacy 重建 ——
   async restoreWithIDB(legacyRestoreFn) {
-    const proj = await this.loadFromIDB();
+    let proj = await this.loadFromIDB();
+    // 旧版本首次启动会把 6 节点演示工作流写入 IndexedDB。升级后它不再是
+    // 用户内容：先转为空项目，再回写当前项目，避免每次刷新又把默认组合拉回来。
+    const isLegacyExample = typeof window !== 'undefined' && window.__FC_IS_LEGACY_EXAMPLE_PROJECT__;
+    const legacyExample = !!(proj && isLegacyExample && isLegacyExample(proj));
+    if (legacyExample) {
+      proj = { ...proj, nodes: [], edges: [], order: [], recycleBin: [], shots: [], scenes: [], assets: [] };
+    }
     if (proj && typeof localStorage !== 'undefined') {
       try {
         const full = JSON.stringify(proj);
@@ -449,7 +527,13 @@ export const StorageAdapter = {
         // 大项目超 5MB：桥写失败，降级 legacy 读旧桥；完整项目仍保留在 IndexedDB。
       }
     }
-    if (typeof legacyRestoreFn === 'function') return legacyRestoreFn();
+    if (typeof legacyRestoreFn === 'function') {
+      const restored = legacyRestoreFn();
+      if (legacyExample) {
+        try { await this.autosaveToIDB(); } catch (_) {}
+      }
+      return restored;
+    }
     return proj;
   },
 

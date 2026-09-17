@@ -43,6 +43,10 @@ let _seq = 0;
 const _sem = new Semaphore(2); // D：真实生成并发上限 2，防代理/平台限流
 const _tasks = new Map();           // taskId -> task 记录（内存镜像）
 const _idem = new Map();            // nodeId:inputHash -> { state, outputs, thumb }
+// 增量运行缓存的会话内镜像。节点字段会随项目序列化保存，但在测试替身、
+// 外部扩展或节点对象被重新包装时，字段可能没有被保留下来；内存镜像保证
+// 同一会话内第二次运行仍然遵守“输入未变更则跳过”的契约。
+const _runCache = new Map();         // nodeId -> { key, ok }
 const _cancel = new Set();          // 已请求取消的 nodeId
 let _maxConcurrent = 2;
 let _testTimeout = 0;                // 测试钩子：>0 时覆盖所有节点超时（ms）
@@ -249,17 +253,39 @@ export const Runner = {
         }
         // B 增量：输入+参数未变且上次成功且有产出 → 跳过（force 强制全量但仍记录基线）
         const k = (cacheKey && hasOut) ? cacheKey(node) : null;
-        if (!force && k && node._runCacheOk && node._runCacheKey === k && hasOut(node)) {
+        const sessionCache = k ? _runCache.get(node.id) : null;
+        const hasRunCache = !!(k && hasOut && hasOut(node) && (
+          (node._runCacheOk && node._runCacheKey === k) ||
+          (sessionCache && sessionCache.ok && sessionCache.key === k)
+        ));
+        if (!force && hasRunCache) {
           node.status = 'skipped';
           node._skipReason = '输入未变更（Shift+运行 强制全量）';
           if (upd) upd(node);
+          // 增量跳过也必须留下审计任务，否则执行历史会把第二次运行误判为未发生。
+          await putTask({
+            id: mkTaskId(node, 0),
+            nodeId: node.id,
+            type: node.type,
+            state: 'success',
+            cached: true,
+            attempt: 0,
+            inputHash: computeInputHash(node),
+            startedAt: Date.now(),
+            endedAt: Date.now(),
+          });
           return;
         }
         node._pendingCacheKey = k;
         await engineRunNode(node, delay);
         if (node._pendingCacheKey && node.status === 'done') {
-          node._runCacheKey = node._pendingCacheKey; node._runCacheOk = true;
-        } else if (node.status === 'error') { node._runCacheOk = false; }
+          node._runCacheKey = node._pendingCacheKey;
+          node._runCacheOk = true;
+          _runCache.set(node.id, { key: node._pendingCacheKey, ok: true });
+        } else if (node.status === 'error' || node.status === 'failure') {
+          node._runCacheOk = false;
+          _runCache.delete(node.id);
+        }
         node._pendingCacheKey = null;
       })();
       done.set(node, p);
@@ -336,7 +362,7 @@ export const Runner = {
 
   // 仅清内存镜像（不动 IDB），用于测试隔离
   reset() {
-    _tasks.clear(); _idem.clear(); _cancel.clear(); _seq = 0;
+    _tasks.clear(); _idem.clear(); _runCache.clear(); _cancel.clear(); _seq = 0;
     _sem.n = _maxConcurrent; _sem.q.length = 0;
   },
 };

@@ -23,7 +23,7 @@ export const NodeContract = {
   },
 
   // —— T2-2：全部节点元数据契约 ——
-  // tier: 'input'（输入类，不运行）| 'production'（真实接入）| 'demo'（演示/模拟）| 'stub'（未实现）
+  // tier: 'input'（输入类，不运行）| 'production'（真实接入）| 'local'（本地能力）| 'demo'（演示/模拟）| 'stub'（未实现）
   // runnable: 是否真正执行（输入节点=false；其余可运行节点=true）
   CONTRACT: {
     image: {
@@ -48,12 +48,21 @@ export const NodeContract = {
     },
     aiImage: {
       label: 'AI 绘图', tier: 'production', runnable: true,
-      note: 'GPT Image 2 真实接入（文生图/图生图）',
+      note: 'GPT Image 2 / 2.5 真实接入（文生图/图生图；2.5 需当前提供方支持）',
       inputs: [
         { type: 'image', label: '图片', required: false },
         { type: 'text', label: '提示词', required: false },
       ],
       outputs: [{ type: 'image', label: '图片' }],
+    },
+    designAgent: {
+      label: '设计智能体', tier: 'local', runnable: true,
+      note: '将文本需求和参考素材整理为结构化设计方案，可连接下游提示词/脚本节点',
+      inputs: [
+        { type: 'image', label: '参考图', required: false },
+        { type: 'text', label: '需求', required: false },
+      ],
+      outputs: [{ type: 'text', label: '设计方案' }],
     },
     imageEdit: {
       label: '图片修正', tier: 'production', runnable: true,
@@ -164,8 +173,8 @@ export const NodeContract = {
       outputs: [{ type: 'image', label: '图片' }],
     },
     script: {
-      label: '脚本', tier: 'demo', runnable: true,
-      note: 'AI 写稿',
+      label: '脚本', tier: 'local', runnable: true,
+      note: '本地结构化脚本生成，可编辑、可保存、可连接下游（不调用外部 AI）',
       inputs: [{ type: 'text', label: '主题', required: true }],
       outputs: [{ type: 'text', label: '脚本' }],
       validate(params) {
@@ -200,7 +209,7 @@ export const NodeContract = {
     },
     bgm: {
       label: '配乐', tier: 'demo', runnable: true,
-      note: 'BGM 库（演示数据）',
+      note: '本地音频输入与播放',
       inputs: [],
       outputs: [{ type: 'audio', label: '音频' }],
     },
@@ -284,7 +293,7 @@ export const NodeContract = {
     for (const [type, meta] of Object.entries(this.CONTRACT)) {
       if (!Array.isArray(meta.inputs)) issues.push(`${type}: inputs 非数组`);
       if (!Array.isArray(meta.outputs)) issues.push(`${type}: outputs 非数组`);
-      if (!['input', 'production', 'demo', 'stub'].includes(meta.tier)) issues.push(`${type}: 非法 tier=${meta.tier}`);
+      if (!['input', 'production', 'local', 'demo', 'stub'].includes(meta.tier)) issues.push(`${type}: 非法 tier=${meta.tier}`);
       if (typeof meta.runnable !== 'boolean') issues.push(`${type}: runnable 非布尔`);
       (meta.inputs || []).forEach((p, i) => {
         if (!this.DATA_TYPES.includes(p.type)) issues.push(`${type}: input#${i} 非法类型 ${p.type}`);

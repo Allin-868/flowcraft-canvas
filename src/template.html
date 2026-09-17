@@ -63,6 +63,7 @@
           </optgroup>
           <optgroup label="特殊">
             <option value="gpt-image-2">GPT Image 2（生图）</option>
+            <option value="gpt-image-2.5">GPT Image 2.5（生图，需提供方支持）</option>
             <option value="deepseek-v4-flash">DeepSeek V4 Flash（自有 Key）</option>
           </optgroup>
         </select>
@@ -445,6 +446,11 @@
           <path d="M3 6V3h3M10 3h3v3M13 10v3h-3M6 13H3v-3"/>
         </svg>
       </button>
+      <button class="zoom-btn canvas-pan-toggle" id="canvasPanToggle" type="button" title="左键移动画布" aria-pressed="false">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5.2 7.2V3.6a1 1 0 0 1 2 0v3M7.2 6V2.8a1 1 0 0 1 2 0V6M9.2 6V3.6a1 1 0 0 1 2 0v4.1M11.2 7.2V5.6a1 1 0 0 1 2 0v4.1c0 2.7-1.8 4.8-4.5 4.8h-.9c-1.7 0-2.8-.8-3.7-2.1L2.6 9.9a1.1 1.1 0 0 1 1.8-1.2l.8 1.1V7.2a1 1 0 0 1 2 0"/>
+        </svg>
+      </button>
     </div>
   </main>
 </div>
@@ -560,8 +566,13 @@
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 8a5 5 0 11-1.5-3.5M13 3v3h-3"/></svg>
       刷新素材
     </button>
+    <button class="ra-btn" id="btnPreviewOrphans" title="只检查，不删除资产">检查可清理资产</button>
   </div>
   <div class="recycle-list" id="assetList">
+  <div class="asset-view-tabs" role="tablist" aria-label="素材库视图">
+    <button class="asset-view-tab active" data-asset-view="current" type="button" role="tab" aria-selected="true">当前素材</button>
+    <button class="asset-view-tab" data-asset-view="saved" type="button" role="tab" aria-selected="false">我的资产</button>
+  </div>
   <div class="asset-search-row"><input type="text" id="assetSearch" placeholder="搜索资产名称…" autocomplete="off" /></div>
   <div class="asset-filters" id="assetFilters">
     <button class="asset-filter-chip active" data-cat="" type="button">全部</button>
@@ -570,6 +581,7 @@
     <button class="asset-filter-chip" data-cat="场景" type="button">场景</button>
     <button class="asset-filter-chip" data-cat="通用" type="button">通用</button>
   </div>
+  <div class="asset-governance-summary" id="assetGovernanceSummary" hidden></div>
     <div class="asset-grid" id="assetGrid"></div>
     <div class="recycle-empty" id="assetEmpty">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>
@@ -601,6 +613,7 @@
       全部生成
     </button>
   </div>
+  <div class="director-path-hint" id="directorPathHint" aria-live="polite"></div>
   <div class="shot-list" id="shotList"></div>
 </div>
 

@@ -165,9 +165,51 @@ function applyStorageSaveResult(result, legacyResult) {
   if (typeof console !== 'undefined') console.log('[FlowCraft] 存储层：IndexedDB 模式启用');
 
   // 启动：localStorage -> IndexedDB 迁移（首次）
+  // 兼容层在 legacy 初始化之后才挂载；因此不能只重绑 restoreFromStorage，
+  // 否则首次启动已经走完 legacy 的“示例节点”分支，刷新时不会主动读取 projects 真源。
+  // 先完成迁移，再用当前 activeProjectId 从 IndexedDB 回灌一次，避免刷新后回到初始画布。
+  const startupCanvasSignature = () => {
+    const wf = window.FlowCraft && window.FlowCraft._legacy && window.FlowCraft._legacy.workflow;
+    if (!wf || !wf.nodes || !wf.edges) return '';
+    // 不把完整图片 dataURL 放入签名；但要覆盖位置、尺寸、标题、提示词、
+    // 参数和媒体长度，避免用户只改参数时仍被延迟恢复覆盖。
+    const compact = [...wf.nodes.values()].map(n => ({
+      id: n.id, type: n.type, x: n.x, y: n.y, width: n.width, height: n.height,
+      title: n.title, prompt: n.prompt, status: n.status,
+      params: n.params || {}, thumb: typeof n.thumb === 'string' ? n.thumb.length : 0,
+    })).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    return JSON.stringify({ nodes: compact, edges: [...wf.edges.values()].map(e => [e.id, e.fromNodeId, e.toNodeId, e.fromPort, e.toPort]).sort() });
+  };
+  const initialCanvasSignature = startupCanvasSignature();
   S.migrateFromLocalStorage()
-    .then((r) => { if (r && r.migrated) console.log('[FlowCraft] 已从 localStorage 迁移项目到 IndexedDB'); })
-    .catch(() => {});
+    .then((r) => {
+      if (r && r.migrated) console.log('[FlowCraft] 已从 localStorage 迁移项目到 IndexedDB');
+      // 异步恢复期间若用户已经编辑，保留当前现场，避免旧结果覆盖新操作。
+      if (startupCanvasSignature() !== initialCanvasSignature) {
+        console.warn('[FlowCraft] 启动恢复跳过：画布已在恢复完成前被改动');
+        return null;
+      }
+      return S.restoreWithIDB(() => {
+        // loadFromIDB 仍是异步的，必须在真正 apply 前再次检查，防止测试或用户
+        // 在读取期间已经清空/编辑画布。
+        if (startupCanvasSignature() !== initialCanvasSignature) {
+          console.warn('[FlowCraft] 启动恢复跳过：数据读取期间画布已被改动');
+          return false;
+        }
+        return _legacyRestore();
+      });
+    })
+    .then((restoredProject) => {
+      if (!restoredProject) return;
+      // restoreWithIDB 已完成数据回灌；这里仅补齐启动后的视图状态，不改任何节点视觉。
+      if (typeof window.updateStatusbar === 'function') window.updateStatusbar();
+      if (typeof window.updateRecycleUI === 'function') window.updateRecycleUI();
+      if (typeof window.updateUndoRedoButtons === 'function') window.updateUndoRedoButtons();
+      if (typeof window.applyTransform === 'function') window.applyTransform();
+      if (typeof window.markEdgesDirty === 'function') window.markEdgesDirty();
+      console.log('[FlowCraft] 已从 IndexedDB 恢复当前画布');
+    })
+    .catch((error) => console.warn('[FlowCraft] 启动恢复失败：', error && error.message || error));
   // 申请持久化存储（降低浏览器自动清理概率）
   S.requestPersist().catch(() => {});
 

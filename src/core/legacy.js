@@ -13,14 +13,15 @@ const NODE_TYPES = {
   text:     { label: '文本输入', desc: '输入提示词文本',     color: 'var(--node-text)',     colorRaw: '#5BC07A', inputs: [], outputs: [{type:'text',label:'文本'}] },
   stateList: { label: '状态列表', desc: '角色 + 自定义状态，一键生成状态节点', color: 'var(--node-text)', colorRaw: '#4ECDC4', inputs: [], outputs: [{type:'text',label:'文本'}], defaultParams: { states: '日常着装\n华丽晚礼服\n东方古风汉服\n雨中撑伞街头' } },
   aiImage:  { label: 'AI 绘图',  desc: '文生图 / 图生图',    color: 'var(--node-ai-image)', colorRaw: '#9B59F0', inputs: [{type:'image',label:'图片'},{type:'text',label:'提示词'}], outputs: [{type:'image',label:'图片'}] },
+  designAgent: { label: '设计智能体', desc: '把创意需求整理为可执行设计方案', color: 'var(--node-design-agent)', colorRaw: '#2FA7A0', inputs: [{type:'image',label:'参考图'},{type:'text',label:'需求'}], outputs: [{type:'text',label:'设计方案'}], defaultParams: { model: '当前模型', role: '视觉设计师', task: '图片生成提示词', outputFormat: '结构化设计方案', brief: '', result: '', agentMessages: [], resultCards: [], agentQueue: [], agentStatus: 'idle' } },
   imageEdit: { label: '图片修正', desc: '基于图片进行修正',    color: 'var(--node-ai-image)', colorRaw: '#8E4FD8', inputs: [{type:'image',label:'图片'},{type:'text',label:'修正说明'}], outputs: [{type:'image',label:'图片'}], defaultParams: { aspect: '1:1', resolution: '高清1K', model: 'GPT Image 2' } },
   aiVideo:  { label: 'AI 视频',  desc: '图生视频 / 文生视频', color: 'var(--node-ai-video)', colorRaw: '#C76BF7', inputs: [{type:'image',label:'图片'},{type:'text',label:'提示词'}], outputs: [{type:'video',label:'视频'}], defaultParams: { model: '可灵 2.0', aspect: '9:16', duration: '5秒', resolution: '高清1K', mode: '异步' } },
-  upscale:  { label: '智能超清', desc: '图片无损放大',       color: 'var(--node-upscale)',  colorRaw: '#F2C66B', inputs: [{type:'image',label:'图片'}], outputs: [{type:'image',label:'图片'}] },
+  upscale:  { label: '智能超清', desc: '图片无损放大',       color: 'var(--node-upscale)',  colorRaw: '#F2C66B', inputs: [{type:'image',label:'图片'}], outputs: [{type:'image',label:'图片'}], defaultParams: { aspect: '1:1', resolution: '高清1K' } },
   compare:  { label: '对比',     desc: '左右对比展示',       color: 'var(--node-compare)',  colorRaw: '#E15353', inputs: [{type:'image',label:'原图'},{type:'image',label:'结果'}], outputs: [{type:'image',label:'对比图'}] },
   videoBreak: { label: '视频拆解', desc: '拆解视频为关键帧/片段', color: 'var(--node-video-break)', colorRaw: '#3DA5E0', inputs: [{type:'video',label:'视频'}], outputs: [{type:'image',label:'关键帧'},{type:'video',label:'片段'}], defaultParams: { frames: 6, segments: 3 } },
   reversePrompt: { label: '反推提示词', desc: '视频反推中文电影级提示词', color: 'var(--node-video-break)', colorRaw: '#7C5CFF', inputs: [], outputs: [{type:'text',label:'提示词'}], defaultParams: { frameCount: 5, frameMode: 'content', history: [], visionModel: 'gpt-4o-mini' } },
   save:     { label: '保存',     desc: '下载到本地',         color: 'var(--node-save)',     colorRaw: '#9AA0A8', inputs: [{type:'image',label:'图片'},{type:'text',label:'文本'}], outputs: [], defaultParams: { filename: '' } },
-  lineart:  { label: '线稿',     desc: '提取/上传线稿图',    color: 'var(--node-lineart)',  colorRaw: '#F2A0E0', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'线稿'}] },
+  lineart:  { label: '线稿',     desc: '提取/上传线稿图',    color: 'var(--node-lineart)',  colorRaw: '#F2A0E0', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'线稿'}], defaultParams: { aspect: '1:1', resolution: '高清1K' } },
   aiSet:    { label: 'AI 图集',  desc: '批量生成图片集',     color: 'var(--node-ai-set)',   colorRaw: '#FF8A65', inputs: [{type:'image',label:'参考图'},{type:'text',label:'提示词'}], outputs: [{type:'image',label:'图集'}] },
   material: { label: '材质',     desc: '材质贴图与参数',     color: 'var(--node-material)', colorRaw: '#8D6E63', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'材质'}] },
   light:    { label: '灯光',     desc: '灯光效果与氛围',     color: 'var(--node-light)',    colorRaw: '#FFD54F', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'效果图'}] },
@@ -29,11 +30,11 @@ const NODE_TYPES = {
   comfyui:  { label: 'ComfyUI',  desc: '本地 ComfyUI 文生图 / 图生图', color: 'var(--node-comfyui)', colorRaw: '#6C5CE7', inputs: [{type:'image',label:'输入图'}], outputs: [{type:'image',label:'图片'}], defaultParams: { addr: 'http://127.0.0.1:8188', wf: 'txt2img', fields: {}, customJson: '' } },
 
   // —— 视频生成管线节点 (MoneyPrinterTurbo 画布化) ——
-  script:    { label: '脚本',  desc: 'AI 写稿',        color: 'var(--node-script)',    colorRaw: '#7F77DD', inputs: [{type:'text',label:'主题'}], outputs: [{type:'text',label:'脚本'}], defaultParams: { script: '在这个 AI 改变一切的时代，有一种职业正在悄然消失。它曾是人类最古老的技艺之一，如今正面临着前所未有的挑战。从清晨到日暮，那些熟悉的声音和画面，正在被一行行代码所替代。但也许，这正是重新定义创造力的开始。', wordCount: 234 } },
+  script:    { label: '脚本',  desc: '本地结构化写稿',        color: 'var(--node-script)',   colorRaw: '#7F77DD', inputs: [{type:'text',label:'主题'}], outputs: [{type:'text',label:'脚本'}], defaultParams: { topic: '', requirements: '', script: '', wordCount: 0 } },
   footage:   { label: '素材',  desc: 'Pexels 匹配',    color: 'var(--node-footage)',   colorRaw: '#378ADD', inputs: [{type:'text',label:'脚本'}], outputs: [{type:'video',label:'素材集'}], defaultParams: { items: [{ seed: 101, duration: '3s' }, { seed: 102, duration: '5s' }, { seed: 103, duration: '4s' }, { seed: 104, duration: '6s' }] } },
   voiceover: { label: '配音',  desc: 'Edge TTS',       color: 'var(--node-voiceover)', colorRaw: '#1D9E75', inputs: [{type:'text',label:'脚本'}], outputs: [{type:'audio',label:'音频'}], defaultParams: { text: '在这个AI改变一切的时代，有一种职业正在悄然消失...', lang: 'zh-CN', speed: '1.0', voice: '晓晓', duration: '45s' } },
   subtitle:  { label: '字幕',  desc: '自动生成',       color: 'var(--node-subtitle)',  colorRaw: '#888780', inputs: [{type:'audio',label:'音频'}], outputs: [{type:'text',label:'字幕'}], defaultParams: { lines: [{ time: '00:00', text: '在这个AI改变一切的时代...' }, { time: '00:05', text: '改变一切的时代...' }, { time: '00:10', text: '有一种职业...' }, { time: '00:15', text: '正在悄然消失...' }], style: '白色 · 底部居中 · 24px' } },
-  bgm:       { label: '配乐',  desc: 'BGM 库',         color: 'var(--node-bgm)',       colorRaw: '#BA7517', inputs: [], outputs: [{type:'audio',label:'音频'}], defaultParams: { name: 'Inspiring Future', duration: '120s', volume: 30, mood: '激励/科技' } },
+  bgm:       { label: '配乐',  desc: '本地音频',       color: 'var(--node-bgm)',       colorRaw: '#BA7517', inputs: [], outputs: [{type:'audio',label:'音频'}], defaultParams: { name: '', duration: '', volume: 100, mood: '本地音频' } },
   compose:   { label: '合成',  desc: 'MoviePy',        color: 'var(--node-compose)',   colorRaw: '#D85A30', inputs: [{type:'video',label:'素材'},{type:'audio',label:'配音'},{type:'text',label:'字幕'},{type:'audio',label:'配乐'}], outputs: [{type:'video',label:'视频'}], defaultParams: { progress: 100, resolution: '1080×1920', duration: '45s', size: '12.3MB' } },
   publish:   { label: '发布',  desc: '多平台',         color: 'var(--node-publish)',   colorRaw: '#639922', inputs: [{type:'video',label:'视频'}], outputs: [], defaultParams: { platforms: [{ name: 'TikTok', status: 'published' }, { name: 'YouTube', status: 'published' }, { name: 'Instagram', status: 'pending' }, { name: '小红书', status: 'pending' }] } }
 };
@@ -47,6 +48,7 @@ const NODE_ICONS = {
   text:    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10M3 7h10M3 11h6"/></svg>',
   stateList: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h10"/><circle cx="2" cy="4" r="0.8" fill="currentColor"/><circle cx="2" cy="8" r="0.8" fill="currentColor"/><circle cx="2" cy="12" r="0.8" fill="currentColor"/></svg>',
   aiImage: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6l1.5 2 1.5-1.5L11 10M6 5.5h.01"/></svg>',
+  designAgent: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5h10M3 8h7M3 11.5h5"/><circle cx="12" cy="10.5" r="2.5"/><path d="M12 7v1M12 13v1M8.5 10.5h1M14.5 10.5h-1"/></svg>',
   imageEdit: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5.2 11.2l5.8-5.8 1.3 1.3-5.8 5.8H5.2v-1.3z"/><path d="M9.6 4.6l1.8 1.8"/></svg>',
   aiVideo: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="9" height="10" rx="1.5"/><path d="M11 7l3-2v6l-3-2"/></svg>',
   upscale: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v5M5.5 4.5L8 2l2.5 2.5M3 11h10M4 14V9M12 14V9M4 9h8"/></svg>',
@@ -156,9 +158,18 @@ class WorkflowNode {
     this.y = y;
     this.width = 280;
     this.height = 200;
-    if (type === 'aiImage' || type === 'imageEdit') {
-      this.width = 220;
-      this.height = 160;
+  if (type === 'aiImage' || type === 'imageEdit') {
+    this.width = 220;
+    this.height = 160;
+  }
+    if (type === 'designAgent') {
+      this.width = 300;
+      this.height = 180;
+    }
+    // 线稿/智能高清使用独立的处理画板；生成结果后仍由图片比例逻辑接管尺寸。
+    if (type === 'lineart' || type === 'upscale') {
+      this.width = 420;
+      this.height = 320;
     }
     this.title = this.def.label;
     this.thumb = null;
@@ -166,6 +177,7 @@ class WorkflowNode {
     this.croppedImage = '';  // 仅 image：裁剪后的当前生效图（保留原图 uploadedImage）
     this.cropMeta = null;    // 仅 image：最近一次裁剪元数据（便于恢复/追踪）
     this.uploadedVideo = ''; // 仅 videoInput：完整存档中的原始视频 dataURL，轻量存档会剥离
+    this.uploadedAudio = ''; // 仅 bgm：完整存档中的本地音频 dataURL，轻量存档会剥离
     this.prompt = '';
     this.params = this.def.defaultParams
       ? JSON.parse(JSON.stringify(this.def.defaultParams))
@@ -281,6 +293,93 @@ class Edge {
   }
 }
 
+//================ 3b. 编导数据契约 ================
+// 节拍是项目级事实记录，不直接覆盖脚本节点原文，也不把模型返回值默认视为可信结果。
+function normalizeStoryBeat(raw) {
+  const b = raw && typeof raw === 'object' ? raw : {};
+  const status = ['draft', 'validated', 'error'].includes(b.status) ? b.status : 'draft';
+  const source = b.source && typeof b.source === 'object' ? b.source : {};
+  return {
+    id: String(b.id || ('beat_' + Math.random().toString(36).slice(2, 10))),
+    order: Number.isFinite(Number(b.order)) ? Number(b.order) : 1,
+    sceneAssetId: String(b.sceneAssetId || ''),
+    sourceText: String(b.sourceText || ''),
+    action: String(b.action || ''),
+    dialogue: String(b.dialogue || ''),
+    emotion: String(b.emotion || ''),
+    cause: String(b.cause || ''),
+    effect: String(b.effect || ''),
+    status,
+    source: {
+      nodeId: String(source.nodeId || ''),
+      kind: String(source.kind || ''),
+    },
+    updatedAt: Number(b.updatedAt) || Date.now(),
+  };
+}
+
+// P1-4：分镜骨架是节拍与镜头清单之间的稳定中间层。
+// 导入旧项目时只保留可追溯字段，避免缺字段导致编辑或回流节点时出现半成品记录。
+function normalizeShotSkeleton(raw) {
+  const s = raw && typeof raw === 'object' ? raw : {};
+  const source = s.source && typeof s.source === 'object' ? s.source : {};
+  const status = ['draft', 'edited', 'canvas-linked', 'done', 'error'].includes(s.status) ? s.status : 'draft';
+  return {
+    id: String(s.id || ('shot_skeleton_' + Math.random().toString(36).slice(2, 10))),
+    beatId: String(s.beatId || ''),
+    order: Number.isFinite(Number(s.order)) ? Number(s.order) : 1,
+    sceneAssetId: String(s.sceneAssetId || ''),
+    name: String(s.name || ''),
+    description: String(s.description || ''),
+    shotType: String(s.shotType || '中景'),
+    camera: String(s.camera || '固定机位'),
+    movement: String(s.movement || '无'),
+    prompt: String(s.prompt || ''),
+    status,
+    source: { nodeId: String(source.nodeId || ''), kind: String(source.kind || '') },
+    nodeIds: Array.isArray(s.nodeIds) ? s.nodeIds.map(id => String(id)).filter(Boolean) : [],
+    updatedAt: Number(s.updatedAt) || Date.now(),
+  };
+}
+
+function normalizeDirectorData(raw) {
+  const d = raw && typeof raw === 'object' ? raw : {};
+  return {
+    schema: 'flowcraft.director.v1',
+    storyBeats: Array.isArray(d.storyBeats) ? d.storyBeats.map(normalizeStoryBeat) : [],
+    // 后续 P0 阶段使用；当前只建立稳定容器，不擅自生成演示数据。
+    shotSkeleton: Array.isArray(d.shotSkeleton) ? d.shotSkeleton.map(normalizeShotSkeleton) : [],
+    assetBindings: Array.isArray(d.assetBindings) ? JSON.parse(JSON.stringify(d.assetBindings)) : [],
+    shotDetails: Array.isArray(d.shotDetails) ? JSON.parse(JSON.stringify(d.shotDetails)) : [],
+    sceneSlates: Array.isArray(d.sceneSlates) ? JSON.parse(JSON.stringify(d.sceneSlates)) : [],
+  };
+}
+
+// P1-4：节点、镜头和分镜骨架删除后统一修复引用，避免面板继续显示已不存在的节点组。
+function repairDirectorLinks() {
+  const nodeIds = new Set(workflow.nodes ? workflow.nodes.keys() : []);
+  const sceneIds = new Set((workflow.scenes || []).map(scene => scene.id));
+  workflow.director = normalizeDirectorData(workflow.director);
+  workflow.director.shotSkeleton = workflow.director.shotSkeleton.map(skeleton => {
+    const nodeIdsForSkeleton = skeleton.nodeIds.filter(id => nodeIds.has(id));
+    const next = { ...skeleton, nodeIds: nodeIdsForSkeleton };
+    if (skeleton.status === 'canvas-linked' && nodeIdsForSkeleton.length < 3) {
+      next.status = 'draft';
+      next.updatedAt = Date.now();
+    }
+    return next;
+  });
+  workflow.shots = (workflow.shots || []).map(shot => {
+    const nodeIdsForShot = Array.isArray(shot.nodeIds) ? shot.nodeIds.filter(id => nodeIds.has(id)) : [];
+    const hasGroup = nodeIdsForShot.length === 3 && shot.groupSceneId && sceneIds.has(shot.groupSceneId);
+    if (hasGroup) return { ...shot, nodeIds: nodeIdsForShot };
+    if (shot.groupSceneId || nodeIdsForShot.length) {
+      return { ...shot, nodeIds: nodeIdsForShot, groupSceneId: '', status: shot.status === 'grouped' ? 'idle' : shot.status };
+    }
+    return shot;
+  });
+}
+
 //================ 4. 工作流状态 ================
 const workflow = {
   camera: new Camera(),
@@ -291,6 +390,9 @@ const workflow = {
   selection: new Set(),
   shots: [], // 镜头清单：{ id, name, scene, shotNo, desc, prompt, status, nodeId }
   scenes: [], // 场景分组：{ id, name, color, nodeIds:[] }
+  // 项目级统一资产记录。旧版仍从 localStorage 读取元数据，导入/导出后统一资产以此为准。
+  assets: [], // { id, type, name, description, preview, tags, fields, token, source, createdAt, updatedAt }
+  director: normalizeDirectorData(),
   hoveredPort: null,
   pendingConnection: null,
 };
@@ -324,11 +426,13 @@ let bgMode = 'dot';
 
 // 深拷贝可序列化的工作流状态（不包含 DOM 引用和 selection）
 function snapshotWorkflow() {
+  syncProjectAssets();
   const nodesData = [];
   workflow.nodes.forEach(n => {
     nodesData.push({
       id: n.id,
       type: n.type,
+      templateId: n.templateId || '',
       x: n.x,
       y: n.y,
       width: n.width,
@@ -339,7 +443,7 @@ function snapshotWorkflow() {
       croppedImage: n.croppedImage || '',
       cropMeta: n.cropMeta ? JSON.parse(JSON.stringify(n.cropMeta)) : null,
       prompt: n.prompt,
-      params: { ...n.params },
+      params: n.params ? JSON.parse(JSON.stringify(n.params)) : {},
       status: n.status,
       refImages: n.refImages ? JSON.parse(JSON.stringify(n.refImages)) : [],
       charDesc: n.charDesc || '',
@@ -348,6 +452,7 @@ function snapshotWorkflow() {
       genMeta: copyGenMeta(n.genMeta),
       semanticMode: n.semanticMode || getNodeSemanticTier(n.type),
       resultMode: n.resultMode || 'pending',
+      directorMeta: n.directorMeta ? JSON.parse(JSON.stringify(n.directorMeta)) : null,
       inputsData: n.inputsData ? JSON.parse(JSON.stringify(n.inputsData)) : [],
       outputsData: n.outputsData ? JSON.parse(JSON.stringify(n.outputsData)) : [],
     });
@@ -375,6 +480,8 @@ function snapshotWorkflow() {
     })),
     shots: (workflow.shots || []).map(s => Object.assign({}, s)),
     scenes: (workflow.scenes || []).map(s => Object.assign({}, s)),
+    assets: (workflow.assets || []).map(normalizeAssetRecord),
+    director: normalizeDirectorData(workflow.director),
   };
 }
 
@@ -404,6 +511,7 @@ function restoreFromSnapshot(snap) {
     snap.nodes.forEach(nd => {
       const node = new WorkflowNode(nd.type, nd.x, nd.y);
       node.id = nd.id;
+      node.templateId = nd.templateId || '';
       node.width = nd.width;
       node.height = nd.height;
       node.title = nd.title;
@@ -412,15 +520,19 @@ function restoreFromSnapshot(snap) {
       node.croppedImage = typeof nd.croppedImage === 'string' ? nd.croppedImage : '';
       node.cropMeta = nd.cropMeta ? JSON.parse(JSON.stringify(nd.cropMeta)) : null;
       node.prompt = nd.prompt;
-      node.params = { ...nd.params };
+      node.params = node.type === 'script'
+        ? normalizeScriptParams(nd.params, nd)
+        : { ...nd.params };
       node.refImages = normalizeRefImages(nd.refImages);
       node.charDesc = typeof nd.charDesc === 'string' ? nd.charDesc : '';
       node.stateMeta = copyStateMeta(nd.stateMeta);
       node.failureReason = nd.failureReason || (node.stateMeta && node.stateMeta.failureReason) || nd._lastError || '';
       node._lastError = node.failureReason;
       node.genMeta = copyGenMeta(nd.genMeta);
+      node.directorMeta = nd.directorMeta ? JSON.parse(JSON.stringify(nd.directorMeta)) : null;
       node.semanticMode = nd.semanticMode || getNodeSemanticTier(nd.type);
       node.resultMode = nd.resultMode || 'pending';
+      node.directorMeta = nd.directorMeta ? JSON.parse(JSON.stringify(nd.directorMeta)) : null;
       node.status = nd.status;
       node.inputsData = nd.inputsData ? JSON.parse(JSON.stringify(nd.inputsData)) : (node.def.inputs || []).map(() => null);
       node.outputsData = nd.outputsData ? JSON.parse(JSON.stringify(nd.outputsData)) : (node.def.outputs || []).map(() => null);
@@ -463,6 +575,9 @@ function restoreFromSnapshot(snap) {
     // 恢复镜头清单与场景分组（阶段7：撤销/重做须覆盖 shot/scene 两类操作）
     workflow.shots = snap.shots ? snap.shots.map(s => Object.assign({}, s)) : [];
     workflow.scenes = snap.scenes ? snap.scenes.map(s => Object.assign({}, s)) : [];
+    workflow.assets = Array.isArray(snap.assets) ? snap.assets.map(normalizeAssetRecord) : [];
+    workflow.director = normalizeDirectorData(snap.director);
+    repairDirectorLinks();
     if (typeof renderShotPanel === 'function') renderShotPanel();
     if (typeof renderScenePanel === 'function') renderScenePanel();
 
@@ -594,6 +709,8 @@ function bindEditHistory(elm) {
     _comfyExecTarget: _comfyExecTarget,
     getNode: function (id) { return workflow.nodes.get(id); },
     renderComfyNodeBody: renderComfyNodeBody,
+    getDirectorFirstSuccessPathState,
+    buildAssetReferenceIndex,
   };
 })();
 
@@ -601,7 +718,7 @@ function bindEditHistory(elm) {
 const AUTOSAVE_KEY = 'flowcraft:autosave:v1';
 // 自动保存数据结构版本。每次改变节点/工作流存储结构时 +1，
 // 旧版本数据在 restoreFromStorage 中经 migrateAutosave 平滑迁移，避免整页崩溃或用户数据丢失。
-const CURRENT_AUTOSAVE_VERSION = 4;
+const CURRENT_AUTOSAVE_VERSION = 5;
 let autosaveTimer = null;
 // 自动保存体积安全上限（localStorage 约 5MB，预留余量在超限前主动剥离大图）
 const SAFE_AUTOSAVE_LIMIT = 4_500_000;
@@ -766,6 +883,21 @@ function canvasSignature() {
   return nodes.length + ':' + workflow.edges.size + ':' + nodes.map(n => n.id).sort().join(',');
 }
 
+// 识别旧版本首次启动自动生成的 6 节点示例图。
+// 只按完整的节点类型 + 标题集合判断，避免误删用户自己的普通工作流。
+function isLegacyExampleProject(data) {
+  if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.edges)) return false;
+  if (data.nodes.length !== 6 || data.edges.length !== 5) return false;
+  const expected = [
+    ['image', '参考图'], ['lineart', '线稿提取'], ['aiSet', 'AI 图集生成'],
+    ['material', '材质贴图'], ['light', '灯光氛围'], ['layout', '布局方案'],
+  ];
+  const actual = data.nodes.map(n => [n && n.type, n && n.title]);
+  return expected.every(pair => actual.some(item => item[0] === pair[0] && item[1] === pair[1]));
+}
+// 兼容层启动时也要能识别这份历史默认数据，避免 IndexedDB 回灌后再次出现。
+window.__FC_IS_LEGACY_EXAMPLE_PROJECT__ = isLegacyExampleProject;
+
 // 后台从 IndexedDB 拉取当前工作台完整版，替换剥离版显示（仅当明显更完整时，避免无谓重建）
 // onlyIfUntouched=true（init 用）：若画布已被用户/脚本改动（签名变化）则跳过，避免覆盖现场
 function restoreFullAutosaveFromIDB(onlyIfUntouched) {
@@ -783,6 +915,11 @@ function restoreFullAutosaveFromIDB(onlyIfUntouched) {
       try {
         const parsed = JSON.parse(full);
         if (!parsed || !parsed.nodes) { console.warn('[FlowCraft] 完整大图恢复：数据无 nodes，跳过'); return; }
+        if (isLegacyExampleProject(parsed)) {
+          console.info('[FlowCraft] 完整大图恢复：忽略并清理历史默认示例画布');
+          idbDel(wbKey(activeId));
+          return;
+        }
         const curLen = liteRaw.length;
         if (curLen > 0 && full.length <= curLen + 1000) { console.log('[FlowCraft] 完整大图恢复：无大图差异（' + full.length + ' vs ' + curLen + '），跳过'); return; }
         console.log('[FlowCraft] 完整大图恢复：载入完整版（' + full.length + ' 字符，' + parsed.nodes.length + ' 个节点）');
@@ -815,6 +952,7 @@ function _stripHeavyDataUrls(nodesData) {
     if (nd.uploadedImage) nd.uploadedImage = scrub(nd.uploadedImage);
     if (nd.croppedImage) nd.croppedImage = scrub(nd.croppedImage);
     if (nd.uploadedVideo) nd.uploadedVideo = scrub(nd.uploadedVideo);
+    if (nd.uploadedAudio) nd.uploadedAudio = scrub(nd.uploadedAudio);
     if (Array.isArray(nd.refVideos)) nd.refVideos = deepScrub(nd.refVideos);
     if (nd.params) nd.params = deepScrub(nd.params);
     if (Array.isArray(nd.inputsData)) nd.inputsData = deepScrub(nd.inputsData);
@@ -824,24 +962,28 @@ function _stripHeavyDataUrls(nodesData) {
 
 // 序列化当前工作流为 JSON
 function serializeWorkflow(stripHeavy = false) {
+  syncProjectAssets();
   const nodesData = [];
   workflow.nodes.forEach(n => {
     nodesData.push({
       id: n.id, type: n.type, x: n.x, y: n.y,
+      templateId: n.templateId || '',
       width: n.width, height: n.height, title: n.title,
       thumb: n.thumb, uploadedImage: n.uploadedImage || '', croppedImage: n.croppedImage || '', cropMeta: n.cropMeta ? JSON.parse(JSON.stringify(n.cropMeta)) : null, prompt: n.prompt,
       uploadedVideo: n.uploadedVideo || '',
+      uploadedAudio: n.uploadedAudio || '',
       refImages: n.refImages ? JSON.parse(JSON.stringify(n.refImages)) : [],
       refVideos: n.refVideos ? JSON.parse(JSON.stringify(n.refVideos)) : [],
       charDesc: n.charDesc || '',
       stateMeta: copyStateMeta(n.stateMeta),
       failureReason: n.failureReason || n._lastError || '',
       genMeta: copyGenMeta(n.genMeta),
-      params: { ...n.params }, status: n.status,
+      params: n.params ? JSON.parse(JSON.stringify(n.params)) : {}, status: n.status,
       previewOnly: !!n.previewOnly,
       previewSourceId: n.previewSourceId || '',
       inputsData: n.inputsData ? JSON.parse(JSON.stringify(n.inputsData)) : [],
       outputsData: n.outputsData ? JSON.parse(JSON.stringify(n.outputsData)) : [],
+      directorMeta: n.directorMeta ? JSON.parse(JSON.stringify(n.directorMeta)) : null,
     });
   });
   const edgesData = [];
@@ -864,6 +1006,8 @@ function serializeWorkflow(stripHeavy = false) {
     edgeIdSeq,
     shots: (workflow.shots || []).map(s => ({ ...s })),
     scenes: (workflow.scenes || []).map(s => ({ id: s.id, name: s.name, color: s.color, nodeIds: [...(s.nodeIds || [])] })),
+    assets: (workflow.assets || []).map(normalizeAssetRecord),
+    director: normalizeDirectorData(workflow.director),
     recycleBin: recycleBin.map(item => ({
       node: { ...item.node, params: { ...item.node.params } },
       edges: item.edges.map(e => ({ ...e })),
@@ -974,6 +1118,10 @@ function migrateAutosave(parsed, fromVersion) {
     });
   }
   if (!Array.isArray(parsed.scenes)) parsed.scenes = [];
+  if (!Array.isArray(parsed.assets)) parsed.assets = [];
+  parsed.assets = parsed.assets.map(normalizeAssetRecord);
+  // 编导容器是向后兼容字段：旧项目没有它时保持空，不覆盖原有脚本内容。
+  parsed.director = normalizeDirectorData(parsed.director);
   parsed.version = CURRENT_AUTOSAVE_VERSION;
   return parsed;
 }
@@ -1042,6 +1190,14 @@ function restoreFromStorage() {
   try {
     if (!parsed.nodes) return false;
 
+    // 历史版本曾把示例节点/连线写入自动保存。升级后将它视为“无保存内容”，
+    // 不把这组演示数据继续恢复到画布；示例模板仍可由用户手动加载。
+    if (isLegacyExampleProject(parsed)) {
+      console.info('[FlowCraft] 检测到历史默认示例画布，已按空白画布处理');
+      try { localStorage.removeItem(AUTOSAVE_KEY); } catch (_) {}
+      return 0;
+    }
+
     // 恢复 ID 序列号
     if (parsed.nodeIdSeq) nodeIdSeq = parsed.nodeIdSeq;
     if (parsed.edgeIdSeq) edgeIdSeq = parsed.edgeIdSeq;
@@ -1051,11 +1207,13 @@ function restoreFromStorage() {
     parsed.nodes.forEach(nd => {
       const node = new WorkflowNode(nd.type, nd.x, nd.y);
       node.id = nd.id;
+      node.templateId = nd.templateId || '';
       node.width = nd.width || 280;
       node.height = nd.height || 200;
       node.title = nd.title || node.def.label;
       node.thumb = nd.thumb || null;
       node.uploadedVideo = typeof nd.uploadedVideo === 'string' ? nd.uploadedVideo : '';
+      node.uploadedAudio = typeof nd.uploadedAudio === 'string' ? nd.uploadedAudio : '';
       node.prompt = nd.prompt || '';
       node.refImages = normalizeRefImages(nd.refImages);
       node.refVideos = Array.isArray(nd.refVideos) ? nd.refVideos : [];
@@ -1064,7 +1222,9 @@ function restoreFromStorage() {
       node.failureReason = nd.failureReason || (node.stateMeta && node.stateMeta.failureReason) || nd._lastError || '';
       node._lastError = node.failureReason;
       node.genMeta = copyGenMeta(nd.genMeta);
-      node.params = { ...DEFAULT_NODE_PARAMS, ...(nd.params || {}) };
+      node.params = node.type === 'script'
+        ? normalizeScriptParams(nd.params, nd)
+        : { ...DEFAULT_NODE_PARAMS, ...(nd.params || {}) };
       node.status = nd.status || 'idle';
       node.previewOnly = !!nd.previewOnly;
       node.previewSourceId = typeof nd.previewSourceId === 'string' ? nd.previewSourceId : '';
@@ -1123,8 +1283,17 @@ function restoreFromStorage() {
         shotNo: s.shotNo || '',
         desc: s.desc || '',
         prompt: s.prompt || '',
+        shotType: s.shotType || '中景',
+        camera: s.camera || '固定机位',
+        movement: s.movement || '无',
         status: s.status || 'idle',
         nodeId: s.nodeId || null,
+        sourceBeatId: s.sourceBeatId || '', skeletonId: s.skeletonId || '',
+        groupSceneId: s.groupSceneId || '',
+        nodeIds: Array.isArray(s.nodeIds) ? s.nodeIds.map(id => String(id)) : [],
+        resultNodeId: s.resultNodeId || '',
+        resultPreview: s.resultPreview || '',
+        resultType: s.resultType || '',
       }));
     }
 
@@ -1140,6 +1309,9 @@ function restoreFromStorage() {
     } else {
       workflow.scenes = [];
     }
+    workflow.assets = Array.isArray(parsed.assets) ? parsed.assets.map(normalizeAssetRecord) : [];
+    workflow.director = normalizeDirectorData(parsed.director);
+    repairDirectorLinks();
 
     applySceneTints();
     return parsed.nodes.length;
@@ -1496,12 +1668,14 @@ function applyWorkflowData(parsed) {
   const idMap = {};
   parsed.nodes.forEach(nd => {
     const node = new WorkflowNode(nd.type, nd.x, nd.y);
-    node.id = nd.id;
+      node.id = nd.id;
+      node.templateId = nd.templateId || '';
     node.width = nd.width || 280;
     node.height = nd.height || 200;
     node.title = nd.title || node.def.label;
     node.thumb = nd.thumb || null;
     node.uploadedVideo = typeof nd.uploadedVideo === 'string' ? nd.uploadedVideo : '';
+    node.uploadedAudio = typeof nd.uploadedAudio === 'string' ? nd.uploadedAudio : '';
     node.prompt = nd.prompt || '';
     node.refImages = normalizeRefImages(nd.refImages);
     node.refVideos = Array.isArray(nd.refVideos) ? JSON.parse(JSON.stringify(nd.refVideos)) : [];
@@ -1510,7 +1684,10 @@ function applyWorkflowData(parsed) {
     node.failureReason = nd.failureReason || (node.stateMeta && node.stateMeta.failureReason) || nd._lastError || '';
     node._lastError = node.failureReason;
     node.genMeta = copyGenMeta(nd.genMeta);
-    node.params = { ...DEFAULT_NODE_PARAMS, ...(nd.params || {}) };
+    node.directorMeta = nd.directorMeta ? JSON.parse(JSON.stringify(nd.directorMeta)) : null;
+    node.params = node.type === 'script'
+      ? normalizeScriptParams(nd.params, nd)
+      : { ...DEFAULT_NODE_PARAMS, ...(nd.params || {}) };
     node.status = nd.status || 'idle';
     node.previewOnly = !!nd.previewOnly;
     node.previewSourceId = typeof nd.previewSourceId === 'string' ? nd.previewSourceId : '';
@@ -1556,9 +1733,16 @@ function applyWorkflowData(parsed) {
     workflow.shots = parsed.shots.map(s => ({
       id: s.id || ('shot_' + Math.random().toString(36).slice(2, 9)),
       name: s.name || '', scene: s.scene || '', shotNo: s.shotNo || '',
-      desc: s.desc || '', prompt: s.prompt || '', status: s.status || 'idle', nodeId: s.nodeId || null,
+      desc: s.desc || '', prompt: s.prompt || '', shotType: s.shotType || '中景', camera: s.camera || '固定机位', movement: s.movement || '无', status: s.status || 'idle', nodeId: s.nodeId || null,
+      sourceBeatId: s.sourceBeatId || '', skeletonId: s.skeletonId || '',
+      groupSceneId: s.groupSceneId || '',
+      nodeIds: Array.isArray(s.nodeIds) ? s.nodeIds.map(id => String(id)) : [],
+      resultNodeId: s.resultNodeId || '',
+      resultPreview: s.resultPreview || '',
+      resultType: s.resultType || '',
     }));
   }
+  workflow.assets = Array.isArray(parsed.assets) ? parsed.assets.map(normalizeAssetRecord) : [];
   if (Array.isArray(parsed.scenes)) {
     const validIds = new Set(workflow.nodes.keys());
     workflow.scenes = parsed.scenes.map(s => ({
@@ -1569,6 +1753,8 @@ function applyWorkflowData(parsed) {
   } else {
     workflow.scenes = [];
   }
+  workflow.director = normalizeDirectorData(parsed.director);
+  repairDirectorLinks();
   applySceneTints();
   applyTransform();
   updateStatusbar();
@@ -1852,12 +2038,104 @@ function toggleWorkbenchPanel(show) {
 //================ 4h. 资产管理 (素材库) ================
 const ASSET_IMAGE_TYPES = ['image', 'aiImage', 'imageEdit', 'aiVideo', 'upscale', 'compare', 'aiSet', 'material', 'light', 'layout', 'lineart', 'comfyui'];
 
+const ASSET_FIELD_KEYS = ['composition', 'features', 'pose', 'camera', 'lighting', 'background', 'material', 'color', 'negative'];
+const ASSET_TYPE_BY_CAT = { '角色': 'character', '道具': 'prop', '场景': 'scene', '风格': 'style', '音频': 'audio' };
+const ASSET_CAT_BY_TYPE = { character: '角色', prop: '道具', scene: '场景', style: '风格', audio: '音频' };
+
+function emptyAssetFields() {
+  return ASSET_FIELD_KEYS.reduce((out, key) => { out[key] = ''; return out; }, {});
+}
+
+// 影视资产变体：角色服装/状态、场景时段/区域、道具损坏/使用状态都通过变体表达。
+function normalizeAssetVariant(raw) {
+  const v = raw && typeof raw === 'object' ? raw : {};
+  return {
+    id: String(v.id || ('variant_' + Math.random().toString(36).slice(2, 10))),
+    name: String(v.name || '').trim(),
+    description: String(v.description || '').trim(),
+    preview: typeof v.preview === 'string' ? v.preview : '',
+    isDefault: !!v.isDefault,
+    latest: v.latest !== false,
+    state: String(v.state || '').trim(),
+    prompt: String(v.prompt || '').trim(),
+  };
+}
+
+// 统一资产记录：兼容旧版 {name,cat,lock}，但项目内只使用结构化 fields。
+function normalizeAssetRecord(raw) {
+  const a = raw && typeof raw === 'object' ? raw : {};
+  const fields = { ...emptyAssetFields(), ...(a.fields && typeof a.fields === 'object' ? a.fields : {}) };
+  if (!fields.negative && a.lock) fields.negative = String(a.lock);
+  const type = String(a.type || ASSET_TYPE_BY_CAT[a.cat] || 'asset');
+  const name = String(a.name || '').trim();
+  const canonicalName = String(a.canonicalName || name).trim();
+  const variants = Array.isArray(a.variants) ? a.variants.map(normalizeAssetVariant) : [];
+  const now = Date.now();
+  return {
+    id: String(a.id || ('asset_' + Math.random().toString(36).slice(2, 10))),
+    type, name, canonicalName, description: String(a.description || ''),
+    preview: typeof a.preview === 'string' ? a.preview : '',
+    tags: Array.isArray(a.tags) ? a.tags.map(x => String(x).trim()).filter(Boolean) : [],
+    fields,
+    variants,
+    token: String(a.token || (name ? '<<<' + name + '>>>' : '')),
+    source: a.source && typeof a.source === 'object' ? { nodeId: String(a.source.nodeId || ''), kind: String(a.source.kind || ''), label: String(a.source.label || '') } : { nodeId: '', kind: '', label: '' },
+    createdAt: Number(a.createdAt) || now,
+    updatedAt: Number(a.updatedAt) || now,
+  };
+}
+
+function projectAssetFromEntry(entry) {
+  if (!entry || typeof entry.src !== 'string' || !normalizeImageSrc(entry.src)) return null;
+  const key = assetKey(entry);
+  const meta = getAssetMeta(key);
+  const name = meta.name || '';
+  const type = ASSET_TYPE_BY_CAT[meta.cat] || 'asset';
+  const existing = (workflow.assets || []).find(a => a.source && assetKey({ nodeId: a.source.nodeId, kind: a.source.kind, label: a.source.label }) === key);
+  const fields = existing && existing.fields ? existing.fields : emptyAssetFields();
+  if (!fields.negative && meta.lock) fields.negative = meta.lock;
+  return normalizeAssetRecord({
+    ...(existing || {}), id: existing && existing.id, type, name, canonicalName: (existing && existing.canonicalName) || name,
+    preview: entry.src, tags: existing && existing.tags,
+    fields, token: name ? '<<<' + name + '>>>' : '',
+    source: { nodeId: entry.nodeId, kind: entry.kind, label: entry.label },
+  });
+}
+
+// 将当前节点资产与旧版 localStorage 元数据同步到项目级资产表；不删除离线导入的资产。
+function syncProjectAssets() {
+  const current = Array.from(collectAssets ? collectAssets() : []).map(projectAssetFromEntry).filter(Boolean);
+  const bySource = new Map((workflow.assets || []).map(a => [a.source && assetKey({ nodeId: a.source.nodeId, kind: a.source.kind, label: a.source.label }), normalizeAssetRecord(a)]));
+  current.forEach(a => {
+    const key = assetKey({ nodeId: a.source.nodeId, kind: a.source.kind, label: a.source.label });
+    const old = bySource.get(key);
+    bySource.set(key, normalizeAssetRecord({ ...(old || {}), ...a, id: old && old.id || a.id, createdAt: old && old.createdAt || a.createdAt, updatedAt: Date.now() }));
+  });
+  workflow.assets = [...bySource.values()];
+  return workflow.assets;
+}
+
+function projectAssetEntries() {
+  syncProjectAssets();
+  return (workflow.assets || []).filter(a => a.preview).map(a => ({
+    src: a.preview, nodeId: a.source && a.source.nodeId || 'project',
+    nodeTitle: a.name || '资产', label: a.source && a.source.label || '资产', kind: a.source && a.source.kind || 'project',
+    projectAsset: a,
+  }));
+}
+
 function collectAssets() {
   const assets = [];
   workflow.nodes.forEach(node => {
     const def = node.def || {};
+    // 图片输入节点上传后会同时持有压缩缩略图（thumb）和实际输出图（outputsData）。
+    // 两者内容来源相同但 dataURL 不同，不能只靠 src 字符串去重；优先保留输出图，
+    // 避免素材库把同一张上传图片显示成两张。没有有效输出时仍保留 thumb 作为回退。
+    const hasImageOutput = node.type === 'image' && (node.outputsData || []).some(pl => {
+      return pl && pl.type === 'image' && normalizeImageSrc(pl.value);
+    });
     // 节点自身缩略图（产出图类型）
-    if (ASSET_IMAGE_TYPES.includes(node.type) && normalizeImageSrc(node.thumb)) {
+    if (!hasImageOutput && ASSET_IMAGE_TYPES.includes(node.type) && normalizeImageSrc(node.thumb)) {
       assets.push({ src: node.thumb, label: '节点图', nodeId: node.id, nodeTitle: node.title, kind: 'thumb' });
     }
     // 输入图片（按端口语义名）
@@ -1907,28 +2185,62 @@ function updateAssetPanel() {
   const empty = document.getElementById('assetEmpty');
   const count = document.getElementById('assetCount');
   if (!grid) return;
+  syncProjectAssets();
   const metaMap = loadAssetMeta();
   const catsMap = loadAssetCats();
   const all = collectAssets();
-  const nameMap = assetNameMap(all);
+  // “我的资产”来自全局图库；“当前素材”只保留当前画布中尚未归档的图片。
+  // 同时按 src 和来源 key 判断，兼容旧版只写入图片本体、尚未写入完整元数据的资产。
+  const savedEntries = globalAssetEntries();
+  const savedSrc = new Set(savedEntries.map(a => a.src));
+  const savedKeys = new Set(savedEntries.map(a => a.globalKey || assetKey(a)));
+  const savedAssets = [];
+  const savedSeen = new Set();
+  savedEntries.forEach(a => {
+    const key = a.globalKey || assetKey(a);
+    if (savedSeen.has(key)) return;
+    savedSeen.add(key);
+    savedAssets.push(a);
+  });
+  const currentAssets = all.filter(a => !savedSrc.has(a.src) && !savedKeys.has(assetKey(a)));
+  const viewAssets = _assetView === 'saved' ? savedAssets : currentAssets;
+  const governance = buildAssetReferenceIndex();
+  const refIndex = governance.byKey;
+  const governanceSummary = document.getElementById('assetGovernanceSummary');
+  if (governanceSummary) {
+    const invalid = governance.invalidRefs.length;
+    const missing = governance.missingTokens.length;
+    governanceSummary.hidden = !(invalid || missing);
+    governanceSummary.innerHTML = (invalid || missing)
+      ? '<strong>引用检查</strong>：' + (invalid ? '失效参考图 ' + invalid + ' 处' : '') + (invalid && missing ? ' · ' : '') + (missing ? '找不到资产令牌 ' + missing + ' 处' : '') + '<div class="asset-governance-detail">请展开相关资产卡片查看；这里只提示，不会自动删除或改写节点。</div>'
+      : '';
+  }
+  const nameMap = assetNameMap(viewAssets);
   // 搜索框：按资产名称（含引用令牌名/节点标题/标签）过滤，与分类过滤叠加
   const searchEl = document.getElementById('assetSearch');
   if (searchEl && !searchEl._fcBound) { searchEl._fcBound = true; searchEl.oninput = () => updateAssetPanel(); }
   const q = String((searchEl && searchEl.value) || '').trim().toLowerCase();
-  let assets = _assetCatFilter ? all.filter(a => catsMap[assetKey(a)] === _assetCatFilter) : all;
+  let assets = _assetCatFilter ? viewAssets.filter(a => catsMap[assetKey(a)] === _assetCatFilter) : viewAssets;
   if (q) assets = assets.filter(a => String(nameMap[assetKey(a)] || a.nodeTitle || a.label || '').toLowerCase().indexOf(q) >= 0);
-  if (count) count.textContent = assets.length + ((_assetCatFilter || q) ? ' / ' + all.length : '');
+  if (count) count.textContent = assets.length + ((_assetCatFilter || q) ? ' / ' + viewAssets.length : '');
   grid.innerHTML = '';
   if (assets.length === 0) {
     if (empty) empty.style.display = '';
   } else {
     if (empty) empty.style.display = 'none';
     assets.forEach((a, idx) => {
-      const safeTitle = escapeHtml(a.nodeTitle || '节点');
-      const safeLabel = escapeHtml(a.label);
       const key = assetKey(a);
       const meta = metaMap[key] || { name: '', cat: '', lock: '' };
+      // “我的资产”必须以用户命名的资产名为主标题，而不是回退成节点标题。
+      const safeTitle = escapeHtml(meta.name || a.nodeTitle || '节点');
+      const safeLabel = escapeHtml(a.label);
+      const projectAsset = (workflow.assets || []).find(asset => asset.source && assetKey({ nodeId: asset.source.nodeId, kind: asset.source.kind, label: asset.source.label }) === key);
+      const fields = projectAsset ? { ...emptyAssetFields(), ...(projectAsset.fields || {}) } : emptyAssetFields();
       const refName = nameMap[key] || (a.nodeTitle || a.label || '资产');
+      const refInfo = refIndex[key] || { refCount: 0, references: [] };
+      const refDetails = (refInfo.references || []).length
+        ? refInfo.references.map(r => '<div class="asset-ref-detail-row"><span>' + escapeHtml(r.nodeTitle || '节点') + '</span><em>' + escapeHtml(r.field || '字段') + '</em></div>').join('')
+        : '<div class="asset-ref-detail-empty">暂无可定位引用</div>';
       const isAsset = !!(meta.name || meta.cat === '角色' || meta.cat === '道具');
       const cell = document.createElement('div');
       cell.className = 'asset-card' + (isAsset ? ' is-asset' : '');
@@ -1940,6 +2252,8 @@ function updateAssetPanel() {
           '<div class="asset-title" title="' + safeTitle + '">' + safeTitle +
             (isAsset ? '<span class="asset-badge">资产</span>' : '') + '</div>' +
           '<div class="asset-cap">' + safeLabel + ' · 令牌 &lt;&lt;&lt;' + escapeHtml(refName) + '&gt;&gt;&gt;</div>' +
+          '<button class="asset-ref-summary" data-act="refs" type="button">' + (refInfo.refCount ? '引用 ' + refInfo.refCount + ' 处' : '暂无引用') + '</button>' +
+          '<div class="asset-ref-details" data-role="asset-refs" hidden>' + refDetails + '</div>' +
           '<input class="asset-name-input" type="text" placeholder="资产名称（即引用令牌）" />' +
           '<select class="asset-cat-select" title="分类（角色/道具/场景/通用）">' +
             '<option value="">通用</option>' +
@@ -1951,15 +2265,36 @@ function updateAssetPanel() {
         '</div>' +
         '<div class="asset-actions">' +
           '<button class="asset-set-btn" data-act="setasset" title="保存名称 + 分类 + 锁定描述，成为可引用资产">设为资产</button>' +
+          '<button class="asset-btn" data-act="editfields" title="编辑结构化资产字段">编辑字段</button>' +
+        '</div>' +
+        '<div class="asset-fields-editor" data-role="asset-fields" hidden>' +
+          '<div class="asset-fields-title">生成约束字段</div>' +
+          '<div class="asset-fields-grid">' +
+            '<label>构图<input data-field="composition" placeholder="如：半身、居中"></label>' +
+            '<label>特征<input data-field="features" placeholder="外观与关键特征"></label>' +
+            '<label>姿态/位置<input data-field="pose" placeholder="动作、站位"></label>' +
+            '<label>摄影器材<input data-field="camera" placeholder="镜头、景别、机位"></label>' +
+            '<label>光照<input data-field="lighting" placeholder="光线与氛围"></label>' +
+            '<label>背景<input data-field="background" placeholder="环境与背景"></label>' +
+            '<label>材质<input data-field="material" placeholder="面料、质感"></label>' +
+            '<label>调色<input data-field="color" placeholder="主色与色调"></label>' +
+            '<label>负面词<input data-field="negative" placeholder="不希望出现的内容"></label>' +
+          '</div>' +
+          '<button class="asset-fields-save" data-act="savefields" type="button">保存字段</button>' +
         '</div>' +
         '<div class="asset-actions">' +
           '<button class="asset-btn" data-act="view">查看</button>' +
           '<button class="asset-btn" data-act="locate">定位</button>' +
           '<button class="asset-btn" data-act="download">下载</button>' +
           '<button class="asset-ref-btn" data-act="ref" title="复制 <<<名称>>> 引用令牌到提示词">引用</button>' +
+          (_assetView === 'saved' ? '<button class="asset-btn asset-remove-btn" data-act="remove-saved" title="仅移出我的资产，不删除节点图片">移出</button>' : '') +
         '</div>';
       cell.querySelector('.asset-thumb').onclick = () => openImageLightbox(a.src);
       cell.querySelector('[data-act="view"]').onclick = () => openImageLightbox(a.src);
+      cell.querySelector('[data-act="refs"]').onclick = () => {
+        const details = cell.querySelector('[data-role="asset-refs"]');
+        if (details) details.hidden = !details.hidden;
+      };
       cell.querySelector('[data-act="locate"]').onclick = () => {
         if (!workflow.nodes.has(a.nodeId)) { showToast('该资产来自其他画布，无法在本画布定位（仍可引用）', 'warn'); return; }
         locateNode(a.nodeId); toggleAssetPanel(false);
@@ -1967,17 +2302,48 @@ function updateAssetPanel() {
       cell.querySelector('[data-act="download"]').onclick = () => downloadDataUrl(a.src, 'asset_' + (idx + 1) + '.png');
       const nameInput = cell.querySelector('.asset-name-input');
       const lockInput = cell.querySelector('.asset-lock-input');
+      const removeSavedBtn = cell.querySelector('[data-act="remove-saved"]');
+      if (removeSavedBtn) removeSavedBtn.onclick = () => {
+        const displayName = (nameInput && nameInput.value || '').trim() || refName;
+        if (!confirm('移出“' + displayName + '”？\n只移除我的资产管理记录，不删除节点图片。')) return;
+        removeGlobalAssetImage(key);
+        setAssetMeta(key, { name: '', cat: '', lock: '' });
+        showToast('已移出我的资产，节点图片未删除', 'success');
+        updateAssetPanel();
+      };
       nameInput.value = meta.name || '';
       lockInput.value = meta.lock || '';
       const sel = cell.querySelector('.asset-cat-select');
       sel.value = catsMap[key] || '';
       sel.onchange = () => { saveAssetCat(key, sel.value); updateAssetPanel(); };
-      cell.querySelector('[data-act="setasset"]').onclick = () => {
+      const fieldEditor = cell.querySelector('[data-role="asset-fields"]');
+      cell.querySelector('[data-act="editfields"]').onclick = () => {
+        fieldEditor.hidden = !fieldEditor.hidden;
+        if (!fieldEditor.hidden) fieldEditor.querySelector('[data-field="composition"]').focus();
+      };
+      fieldEditor.querySelectorAll('[data-field]').forEach(input => { input.value = fields[input.dataset.field] || ''; });
+      cell.querySelector('[data-act="savefields"]').onclick = () => {
+        const patch = {};
+        fieldEditor.querySelectorAll('[data-field]').forEach(input => { patch[input.dataset.field] = input.value; });
+        const saved = updateProjectAssetFields(projectAsset ? projectAsset.id : key, patch);
+        if (!saved) { showToast('请先保存为资产，再编辑结构化字段', 'warn'); return; }
+        showToast('资产字段已保存，后续引用会带入生成提示词', 'success');
+        updateAssetPanel();
+      };
+      cell.querySelector('[data-act="setasset"]').onclick = async () => {
+        await ensureGlobalAssetImagesLoaded();
         const nm = (nameInput.value || '').trim();
         setAssetMeta(key, { name: nm, cat: sel.value, lock: (lockInput.value || '').trim() });
         // #11 跨画布复用：任一资产设为资产时，图片本体也写入全局库
-        saveGlobalAssetImage(key, { src: a.src, nodeTitle: a.nodeTitle, label: a.label, kind: a.kind });
+        saveGlobalAssetImage(key, { src: a.src, nodeTitle: nm || a.nodeTitle, label: a.label, kind: a.kind, name: nm });
         showToast('已设为全局资产 <<<' + (nm || refName) + '>>>' + (sel.value ? ' · ' + sel.value : '') + '（跨画布可复用）', 'success');
+        // 用户预期：设置完成后立刻能在“我的资产”中看到，不要求手动切页签。
+        _assetView = 'saved';
+        document.querySelectorAll('[data-asset-view]').forEach(t => {
+          const active = t.getAttribute('data-asset-view') === 'saved';
+          t.classList.toggle('active', active);
+          t.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
         updateAssetPanel();
       };
       cell.querySelector('[data-act="ref"]').onclick = () => copyRefToken((nameInput.value || '').trim() || refName);
@@ -2001,13 +2367,64 @@ function locateNode(nodeId) {
   setTimeout(() => { if (node.el) node.el.classList.remove('flash'); }, 1300);
 }
 
-function downloadDataUrl(dataUrl, filename) {
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+// 图片保存：优先使用系统“另存为”对话框，让用户选择目录和文件名。
+// File System Access API 仅在支持的桌面浏览器/安全上下文可用；其它浏览器保留原下载回退。
+async function saveBlobWithPicker(blob, filename) {
+  if (!blob || typeof window.showSaveFilePicker !== 'function') return false;
+  try {
+    const safeName = String(filename || 'flowcraft-image.png').replace(/[\\/:*?"<>|]/g, '_');
+    const ext = (safeName.match(/\.([a-z0-9]+)$/i) || [,'png'])[1].toLowerCase();
+    const mime = blob.type || (ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png');
+    const handle = await window.showSaveFilePicker({
+      suggestedName: safeName,
+      types: [{ description: '图片文件', accept: { [mime]: ['.' + ext] } }],
+      excludeAcceptAllOption: false,
+    });
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    // Chrome/Edge 会按站点记住上次选择的目录；这里不保存文件句柄，
+    // 避免持久化本地文件权限，只记住浏览器原生的选择结果。
+    return true;
+  } catch (e) {
+    // 用户主动取消保存时不再触发隐式下载，也不提示错误。
+    if (e && e.name === 'AbortError') return null;
+    return false;
+  }
+}
+
+function dataUrlToBlob(dataUrl) {
+  const match = String(dataUrl || '').match(/^data:([^;,]+)?(;base64)?,(.*)$/is);
+  if (!match) return null;
+  const mime = match[1] || 'application/octet-stream';
+  const raw = match[2]
+    ? atob(match[3])
+    : decodeURIComponent(match[3]);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+async function downloadDataUrl(dataUrl, filename) {
+  try {
+    const blob = /^data:/i.test(String(dataUrl || ''))
+      ? dataUrlToBlob(dataUrl)
+      : await fetch(dataUrl).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); });
+    const picked = await saveBlobWithPicker(blob, filename);
+    if (picked !== false) return picked;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    return true;
+  } catch (e) {
+    showToast('下载失败：' + (e && e.message || e), 'danger');
+    return false;
+  }
 }
 
 function toggleAssetPanel(show) {
@@ -2023,6 +2440,51 @@ function toggleAssetPanel(show) {
 function refreshAssetPanelIfOpen() {
   const panel = document.getElementById('assetPanel');
   if (panel && panel.classList.contains('show')) updateAssetPanel();
+}
+
+// P1-2 第三轮：只读检查 IndexedDB 中的孤儿资产，不执行删除。
+async function previewOrphanAssets() {
+  const summary = document.getElementById('assetGovernanceSummary');
+  const storage = window.FlowCraft && window.FlowCraft.storage;
+  if (!storage || typeof storage.previewOrphans !== 'function') {
+    if (summary) { summary.hidden = false; summary.textContent = '当前存储模式不支持孤儿资产预览；未执行任何清理。'; }
+    return null;
+  }
+  if (summary) { summary.hidden = false; summary.textContent = '正在检查可清理资产…'; }
+  try {
+    const result = await storage.previewOrphans();
+    if (!summary) return result;
+    if (!result || !result.ok) {
+      summary.hidden = false;
+      summary.textContent = '检查失败：' + ((result && result.errorCode) || '存储不可用') + '；未执行任何清理。';
+      return result;
+    }
+    const list = (result.candidates || []).slice(0, 8).map(item =>
+      '<div class="asset-orphan-row"><span>' + escapeHtml(item.kind || '资产') + '</span><em>' + escapeHtml(String(item.size || 0)) + ' 字符</em></div>'
+    ).join('');
+    summary.hidden = false;
+    summary.innerHTML = result.total
+      ? '<strong>待确认清理 ' + result.total + ' 项</strong>：仅为预览，未删除。' + (result.total > 8 ? '<div class="asset-governance-detail">仅展示前 8 项。</div>' : '') + '<div class="asset-orphan-list">' + list + '</div><div class="asset-cleanup-actions"><button type="button" data-act="confirm-cleanup">确认清理全部</button><button type="button" data-act="cancel-cleanup">取消</button></div>'
+      : '<strong>没有发现可清理资产</strong>：未执行任何删除。';
+    const confirmBtn = summary.querySelector('[data-act="confirm-cleanup"]');
+    const cancelBtn = summary.querySelector('[data-act="cancel-cleanup"]');
+    if (confirmBtn) confirmBtn.onclick = async () => {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = '正在创建快照…';
+      const cleanup = await storage.cleanupOrphans((result.candidates || []).map(item => item.id));
+      if (cleanup && cleanup.ok) {
+        summary.innerHTML = '<strong>已安全清理 ' + cleanup.removed + ' 项</strong>：清理前已创建恢复点。';
+        updateAssetPanel();
+      } else {
+        summary.textContent = '清理失败：' + ((cleanup && cleanup.errorCode) || '未知错误') + '；未确认删除。';
+      }
+    };
+    if (cancelBtn) cancelBtn.onclick = () => { summary.hidden = true; summary.innerHTML = ''; };
+    return result;
+  } catch (error) {
+    if (summary) { summary.hidden = false; summary.textContent = '检查失败：' + escapeHtml(error && error.message || String(error)) + '；未执行任何清理。'; }
+    return null;
+  }
 }
 
 // —— 镜头清单（场景表 / 分镜管理）—— v3.0 第 3 项
@@ -2070,8 +2532,27 @@ function createScene(name, color) {
 function deleteScene(id) {
   pushHistory();
   workflow.scenes = workflow.scenes.filter(s => s.id !== id);
+  // 节点仍保留在画布上，但镜头不再指向已删除的节点组；下次可重新生成节点组。
+  let unlinked = false;
+  (workflow.shots || []).forEach(shot => {
+    if (shot.groupSceneId !== id) return;
+    shot.groupSceneId = '';
+    shot.nodeIds = [];
+    if (shot.status === 'grouped') shot.status = 'idle';
+    if (shot.skeletonId) {
+      const skeleton = (workflow.director && workflow.director.shotSkeleton || []).find(item => item.id === shot.skeletonId);
+      if (skeleton) {
+        skeleton.status = 'draft';
+        skeleton.nodeIds = [];
+        skeleton.updatedAt = Date.now();
+      }
+    }
+    unlinked = true;
+  });
+  if (unlinked) workflow.director = normalizeDirectorData(workflow.director);
   scheduleAutosave();
   renderScenePanel();
+  refreshShotPanelIfOpen();
   applySceneTints();
 }
 
@@ -2675,6 +3156,7 @@ function generateStateNodes(node) {
   const originX = node.x, originY = node.y;
   const batchId = newCharacterBatchId(node.id);
   const created = [];
+  const createdEdges = [];
   lines.forEach((state, i) => {
     const imgNode = addNode('aiImage', originX + 380, originY + i * 150);
     imgNode.title = '状态' + cnNum(i + 1) + '：' + state;
@@ -2859,6 +3341,26 @@ function renderTemplateList() {
       const def = NODE_TYPES[n.type] || NODE_TYPES.image;
       return '<span class="template-chip">' + esc(def.label) + '</span>';
     }).join('');
+    const batchControls = t.id === 'dress-25grid'
+      ? '<div class="template-batch-spec" data-template-batch="dress-25grid">' +
+        '<div class="template-batch-head"><strong>批量设置图片规格</strong><span>提示词与连线不变</span></div>' +
+        '<div class="template-batch-row">' +
+          '<label>比例<select class="template-batch-select" data-batch-field="aspect">' +
+            AI_SPEC_ASPECTS.filter(a => a !== 'custom').map(a => '<option value="' + esc(a) + '">' + esc(a) + '</option>').join('') +
+          '</select></label>' +
+          '<label>分辨率<select class="template-batch-select" data-batch-field="resolution">' +
+            AI_SPEC_RESOLUTIONS.map(r => '<option value="' + esc(r) + '">' + esc(r) + '</option>').join('') +
+          '</select></label>' +
+        '</div>' +
+        '<div class="template-batch-row template-batch-apply-row">' +
+          '<label>应用范围<select class="template-batch-select" data-batch-field="scope">' +
+            '<option value="template">25 宫格节点</option><option value="selected">当前选中节点</option>' +
+          '</select></label>' +
+          '<button class="ai-btn small primary" data-act="batch-spec" data-id="dress-25grid">应用</button>' +
+        '</div>' +
+        '<div class="template-batch-hint">节点框会按新比例同步调整；分辨率只影响规格标记，不会改变提示词或连线。</div>' +
+      '</div>'
+      : '';
     return '<div class="template-card">' +
       '<div class="template-card-head">' +
         '<span class="template-badge" style="background:' + t.color + '">' + t.icon + '</span>' +
@@ -2866,6 +3368,7 @@ function renderTemplateList() {
       '</div>' +
       '<div class="template-desc">' + esc(t.desc) + '</div>' +
       '<div class="template-flow">' + chips + '</div>' +
+      batchControls +
       '<div class="template-actions">' +
         (t.id === 'dress-25grid' ? '<button class="ai-btn small" data-act="generate25" data-id="' + t.id + '">直接生成</button>' : '') +
         '<button class="ai-btn small" data-act="append" data-id="' + t.id + '">追加</button>' +
@@ -2880,10 +3383,15 @@ function cloneTemplateSpec(t) {
 }
 
 function loadTemplateSpec(t, mode) {
-  if (!t) return;
+  const validation = validateTemplateSpec(t);
+  if (!validation.ok) {
+    showToast('模板无法添加：' + validation.errors.slice(0, 2).join('；'), 'danger');
+    return false;
+  }
   if (mode === 'replace') clearGraph();
   pushHistory();
   const created = [];
+  const createdEdges = [];
   // 追加模式：自动错开前一个模板的位置（整体放在现有节点右侧，避免重叠）
   let offX = 0, offY = 0;
   if (mode === 'append') {
@@ -2900,37 +3408,66 @@ function loadTemplateSpec(t, mode) {
     const x = spec.x + offX, y = spec.y + offY;
     const node = new WorkflowNode(spec.type, x, y);
     node.title = spec.title || node.def.label;
+    if (t.id === 'dress-25grid-generated' || t.id === 'dress-25grid') {
+      node.templateId = 'dress-25grid';
+    }
     if (spec.params) {
       node.params = Object.assign({}, node.params, spec.params);
+      if (node.type === 'script') node.params = normalizeScriptParams(node.params, spec);
       if (typeof spec.params.prompt === 'string') node.prompt = spec.params.prompt;
       else if (spec.type === 'text' && typeof spec.params.text === 'string') node.prompt = spec.params.text;
-      if (typeof spec.params.script === 'string') node.script = spec.params.script;
+      if (typeof spec.params.script === 'string') node.params.script = spec.params.script;
       if (typeof spec.params.charDesc === 'string') node.charDesc = spec.params.charDesc;
     }
     const el = createNodeElement(node);
     nodeLayer.appendChild(el);
     workflow.nodes.set(node.id, node);
     workflow.order.push(node.id);
-    if (node.el) node.el.classList.add('selected');
     buildNodeBody(node.el, node);
     created.push(node);
   });
   workflow.selection.clear();
   created.forEach(n => workflow.selection.add(n.id));
-  (t.edges || []).forEach(([a, b]) => {
+  (t.edges || []).forEach(([a, b, fromPort = 0, toPort = 0]) => {
     const from = created[a], to = created[b];
     if (from && to) {
-      const e = new Edge(from, 0, to, 0);
-      workflow.edges.set(e.id, e);
+      const edge = connectNodes(from.id, fromPort, to.id, toPort);
+      if (edge) createdEdges.push(edge);
     }
   });
+  if (created.length !== t.nodes.length || createdEdges.length !== t.edges.length || workflow.order.length < created.length) {
+    showToast('模板添加失败：节点没有完整写入画布', 'danger');
+    return false;
+  }
   markEdgesDirty();
   updateStatusbar();
   renderMinimap();
   scheduleAutosave();
   setTimeout(() => fitToContent(), 60);
-  showToast('已加载模板「' + t.name + '」· ' + created.length + ' 个节点', 'success');
+  showToast('已添加「' + t.name + '」· ' + created.length + ' 个节点 · ' + createdEdges.length + ' 条连线', 'success');
   closeTemplatePanel();
+  return true;
+}
+
+function validateTemplateSpec(t) {
+  const errors = [];
+  if (!t || typeof t !== 'object') return { ok: false, errors: ['模板数据为空'] };
+  if (!Array.isArray(t.nodes) || !t.nodes.length) errors.push('没有节点数据');
+  if (!Array.isArray(t.edges)) errors.push('没有连线数据');
+  const nodes = Array.isArray(t.nodes) ? t.nodes : [];
+  const edges = Array.isArray(t.edges) ? t.edges : [];
+  nodes.forEach((n, i) => {
+    if (!n || !NODE_TYPES[n.type]) errors.push('第 ' + (i + 1) + ' 个节点类型无效');
+  });
+  edges.forEach((edge, i) => {
+    if (!Array.isArray(edge) || edge.length < 2) { errors.push('第 ' + (i + 1) + ' 条连线格式无效'); return; }
+    const [a, b, fromPort = 0, toPort = 0] = edge;
+    const from = nodes[a], to = nodes[b];
+    if (!from || !to) { errors.push('第 ' + (i + 1) + ' 条连线节点不存在'); return; }
+    if (!Number.isInteger(fromPort) || fromPort < 0 || fromPort >= (NODE_TYPES[from.type].outputs || []).length) errors.push('第 ' + (i + 1) + ' 条连线输出端口无效');
+    if (!Number.isInteger(toPort) || toPort < 0 || toPort >= (NODE_TYPES[to.type].inputs || []).length) errors.push('第 ' + (i + 1) + ' 条连线输入端口无效');
+  });
+  return { ok: errors.length === 0, errors };
 }
 
 function clearGraph() {
@@ -2945,7 +3482,9 @@ function clearGraph() {
 }
 
 function loadTemplate(id, mode) {
-  const t = TEMPLATES.find(x => x.id === id);
+  const t = id === 'dress-25grid'
+    ? buildDress25GridTemplate()
+    : TEMPLATES.find(x => x.id === id);
   if (!t) return;
   loadTemplateSpec(t, mode);
 }
@@ -3007,8 +3546,196 @@ function buildDress25GridTemplate() {
     color: '#FF4D6D',
     desc: '一键生成 5×5 25 宫格：按统一锚点自动铺开 25 个 AI 绘图节点，并可继续追加/导出。',
     nodes,
-    edges: [[0,1]]
+    // 统一锚点文本节点的文本输出 → 每个 AI 绘图节点的提示词输入（第 2 个输入端口）。
+    edges: Array.from({ length: 25 }, (_, i) => [0, i + 1, 0, 1])
   };
+}
+
+function getDress25GridNodes() {
+  return [...workflow.nodes.values()].filter(node => node && node.type === 'aiImage' && (
+    node.templateId === 'dress-25grid' || /^\d{2}｜/.test(String(node.title || ''))
+  ));
+}
+
+// 批量改变规格后，节点宽高会一起变化。按原有的上→下、左→右顺序
+// 重新排开选中节点，避免新尺寸把同一行的节点挤到一起或互相覆盖。
+function keepBatchNodesSpaced(nodes, gap = 24) {
+  const list = (nodes || []).filter(n => n && n.el && workflow.nodes.has(n.id));
+  if (list.length < 2) return;
+  list.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  const placed = [];
+  list.forEach(node => {
+    const w = Math.max(1, Number(node.width) || node.el.offsetWidth || 280);
+    // buildNodeBody 可能因比例/分辨率重新计算真实高度，优先使用当前 DOM 尺寸。
+    const h = Math.max(1, node.el.offsetHeight || Number(node.height) || 180);
+    let x = Number(node.x) || 0;
+    let y = Number(node.y) || 0;
+    // 只在两个框的纵向投影相交时横向推开，保留原有的行列关系。
+    // 反复检查是为了处理一个节点被推开后与更早节点产生的新冲突。
+    let changed = true;
+    let guard = 0;
+    while (changed && guard++ < list.length + 2) {
+      changed = false;
+      for (const prev of placed) {
+        const verticalOverlap = y < prev.y + prev.h && y + h > prev.y;
+        const horizontalOverlap = x < prev.x + prev.w + gap && x + w + gap > prev.x;
+        if (verticalOverlap && horizontalOverlap) {
+          x = prev.x + prev.w + gap;
+          changed = true;
+        }
+      }
+    }
+    if (x !== node.x || y !== node.y) {
+      node.x = x;
+      node.y = y;
+      node.el.style.left = Math.round(x) + 'px';
+      node.el.style.top = Math.round(y) + 'px';
+    }
+    placed.push({ x, y, w, h });
+  });
+}
+
+// 25 宫格必须保持固定的 5×5 结构。规格变成横幅（例如 16:9）后，
+// 不能再按当前 y 坐标逐个碰撞推移，否则相邻行会被误判为同一行，
+// 最终出现截图中的「阶梯状」错位。这里按编号重新计算列宽、行高。
+function layoutDress25GridNodes(nodes, gap = 32) {
+  const list = (nodes || []).filter(n => n && n.el && workflow.nodes.has(n.id));
+  if (list.length !== 25) return false;
+  const numbered = list.map(node => {
+    const m = String(node.title || '').match(/^(\d{2})｜/);
+    return { node, index: m ? Number(m[1]) : 0 };
+  }).sort((a, b) => a.index - b.index);
+  if (numbered.some(item => !item.index)) return false;
+  const zoom = (workflow.camera && workflow.camera.zoom) || 1;
+  const widths = Array(5).fill(0);
+  const heights = Array(5).fill(0);
+  numbered.forEach(({ node, index }) => {
+    const col = (index - 1) % 5;
+    const row = Math.floor((index - 1) / 5);
+    const w = Math.max(1, Number(node.width) || Math.round(node.el.offsetWidth / zoom));
+    const h = Math.max(1, Number(node.height) || Math.round(node.el.offsetHeight / zoom));
+    widths[col] = Math.max(widths[col], w);
+    heights[row] = Math.max(heights[row], h);
+  });
+  const minX = Math.min(...numbered.map(({ node }) => Number(node.x) || 0));
+  const minY = Math.min(...numbered.map(({ node }) => Number(node.y) || 0));
+  const colX = [];
+  const rowY = [];
+  let cursor = minX;
+  widths.forEach((w, i) => { colX[i] = cursor; cursor += w + gap; });
+  cursor = minY;
+  heights.forEach((h, i) => { rowY[i] = cursor; cursor += h + gap; });
+  numbered.forEach(({ node, index }) => {
+    const col = (index - 1) % 5;
+    const row = Math.floor((index - 1) / 5);
+    node.x = colX[col];
+    node.y = rowY[row];
+    node.el.style.left = Math.round(node.x) + 'px';
+    node.el.style.top = Math.round(node.y) + 'px';
+  });
+  return true;
+}
+
+function applyDress25GridBatchSpec(aspect, resolution, scope) {
+  const nextAspect = AI_SPEC_ASPECTS.includes(aspect) && aspect !== 'custom' ? aspect : '9:16';
+  const nextResolution = AI_SPEC_RESOLUTIONS.includes(resolution) ? resolution : '超清2K';
+  const selected = [...workflow.selection]
+    .map(id => workflow.nodes.get(id))
+    .filter(node => node && node.type === 'aiImage');
+  const nodes = scope === 'selected' ? selected : getDress25GridNodes();
+  if (!nodes.length) {
+    showToast(scope === 'selected' ? '请先选中至少一个 AI 绘图节点' : '当前画布没有可设置的 25 宫格节点', 'warn');
+    return false;
+  }
+
+  pushHistory();
+  nodes.forEach(node => {
+    node.params = node.params || {};
+    node.params.aspect = nextAspect;
+    node.params.resolution = nextResolution;
+    if (node.params.customAspect) delete node.params.customAspect;
+    normalizeAiSpecParams(node);
+    applySpecSizeToAiImageNode(node);
+    if (node.el) buildNodeBody(node.el, node);
+  });
+  // 25 宫格使用严格的 5×5 排版；普通多选则使用通用避碰逻辑。
+  if (!layoutDress25GridNodes(nodes, 32)) keepBatchNodesSpaced(nodes, 24);
+  markEdgesDirty();
+  updateStatusbar();
+  renderMinimap();
+  scheduleAutosave();
+  showToast('已统一设置 ' + nodes.length + ' 个节点：' + nextAspect + ' · ' + nextResolution, 'success');
+  return true;
+}
+
+// 节点工具栏的快捷入口：不再要求用户先打开「开箱模板」面板。
+function getBatchSpecSelection(node) {
+  const selected = [...workflow.selection]
+    .map(id => workflow.nodes.get(id))
+    .filter(n => n && n.type === 'aiImage');
+  if (selected.length) return selected;
+  return node && node.type === 'aiImage' ? [node] : [];
+}
+
+function closeBatchSpecPopover() {
+  const pop = document.getElementById('aiBatchSpecPopover');
+  if (pop) pop.classList.remove('show');
+}
+
+function openBatchSpecPopover(anchor, node) {
+  const selected = getBatchSpecSelection(node);
+  const gridNodes = getDress25GridNodes();
+  if (!selected.length && !gridNodes.length) {
+    showToast('请先选中 AI 绘图节点', 'warn');
+    return;
+  }
+  let pop = document.getElementById('aiBatchSpecPopover');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'aiBatchSpecPopover';
+    pop.className = 'ai-spec-popover ai-batch-spec-popover';
+    document.body.appendChild(pop);
+    pop.addEventListener('mousedown', e => e.stopPropagation());
+    document.addEventListener('mousedown', e => {
+      const el = document.getElementById('aiBatchSpecPopover');
+      if (el && el.classList.contains('show') && !el.contains(e.target) && !(e.target.closest && e.target.closest('.node-batch-spec-btn'))) closeBatchSpecPopover();
+    }, true);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBatchSpecPopover(); });
+  }
+  // 只要当前画布确实存在 25 宫格节点，就显示「全部 25 个」；
+  // 默认仍按当前选中范围执行，避免用户误操作批量覆盖。
+  const canApplyWholeGrid = gridNodes.length > 0;
+  const defaultScope = 'selected';
+  pop.innerHTML = '<div class="ai-batch-spec-title">批量设置规格</div>' +
+    '<div class="ai-batch-spec-summary">' + (selected.length > 1 ? '已选 ' + selected.length + ' 个 AI 绘图节点' : '当前节点') + '</div>' +
+    '<label class="ai-batch-spec-field">比例<select data-batch-field="aspect" class="template-batch-select">' +
+      AI_SPEC_ASPECTS.filter(a => a !== 'custom').map(a => '<option value="' + esc(a) + '">' + esc(a) + '</option>').join('') +
+    '</select></label>' +
+    '<label class="ai-batch-spec-field">分辨率<select data-batch-field="resolution" class="template-batch-select">' +
+      AI_SPEC_RESOLUTIONS.map(r => '<option value="' + esc(r) + '">' + esc(r) + '</option>').join('') +
+    '</select></label>' +
+    '<div class="ai-batch-spec-scope">' +
+      '<button type="button" class="ai-batch-scope-btn' + (defaultScope === 'selected' ? ' active' : '') + '" data-scope="selected">当前选中 ' + selected.length + ' 个</button>' +
+      (canApplyWholeGrid ? '<button type="button" class="ai-batch-scope-btn' + (defaultScope === 'template' ? ' active' : '') + '" data-scope="template">全部 25 个</button>' : '') +
+    '</div>' +
+    '<button type="button" class="ai-btn small primary ai-batch-apply">应用规格</button>';
+  pop.querySelectorAll('.ai-batch-scope-btn').forEach(btn => {
+    btn.onclick = () => {
+      pop.querySelectorAll('.ai-batch-scope-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+  });
+  pop.querySelector('.ai-batch-apply').onclick = () => {
+    const scopeBtn = pop.querySelector('.ai-batch-scope-btn.active');
+    applyDress25GridBatchSpec(
+      pop.querySelector('[data-batch-field="aspect"]').value,
+      pop.querySelector('[data-batch-field="resolution"]').value,
+      scopeBtn ? scopeBtn.dataset.scope : 'selected'
+    );
+    closeBatchSpecPopover();
+  };
+  pop.classList.add('show');
+  positionAiSpecPopover(pop, anchor);
 }
 
 // 计算当前所有节点在画布坐标系中的包围盒（用于模板追加时自动错开）
@@ -3025,6 +3752,25 @@ function getNodesBBox() {
   return { minX, minY, maxX, maxY };
 }
 
+// 节点组定位专用包围盒。与 getNodesBBox（全画布）分开，避免定位时把未选中的节点算进去。
+// 保留空集合的安全返回值，防止旧项目或已删除节点触发定位异常。
+function getNodesBounds(nodes) {
+  const list = Array.isArray(nodes) ? nodes.filter(Boolean) : [];
+  if (!list.length) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  list.forEach(n => {
+    const x = Number.isFinite(Number(n.x)) ? Number(n.x) : 0;
+    const y = Number.isFinite(Number(n.y)) ? Number(n.y) : 0;
+    const w = Math.max(Number(n.width) || 280, 1);
+    const h = Math.max(Number(n.height) || 200, 1);
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + w);
+    maxY = Math.max(maxY, y + h);
+  });
+  return { minX, minY, maxX, maxY };
+}
+
 // 模板列表事件委托
 function bindTemplateEvents() {
   const list = document.getElementById('templateList');
@@ -3034,7 +3780,19 @@ function bindTemplateEvents() {
     if (!btn) return;
     const act = btn.getAttribute('data-act');
     if (act === 'generate25') {
-      loadTemplateSpec(cloneTemplateSpec(buildDress25GridTemplate()), 'replace');
+      loadTemplateSpec(buildDress25GridTemplate(), 'replace');
+      return;
+    }
+    if (act === 'batch-spec') {
+      const root = btn.closest('[data-template-batch]');
+      const aspectEl = root && root.querySelector('[data-batch-field="aspect"]');
+      const resolutionEl = root && root.querySelector('[data-batch-field="resolution"]');
+      const scopeEl = root && root.querySelector('[data-batch-field="scope"]');
+      applyDress25GridBatchSpec(
+        aspectEl && aspectEl.value,
+        resolutionEl && resolutionEl.value,
+        scopeEl && scopeEl.value
+      );
       return;
     }
     loadTemplate(btn.getAttribute('data-id'), act);
@@ -3084,9 +3842,19 @@ function assignSelectedToScenePrompt() {
 function renderShotPanel() {
   const list = document.getElementById('shotList');
   const count = document.getElementById('shotCount');
+  const pathHint = document.getElementById('directorPathHint');
   if (!list) return;
   const shots = workflow.shots || [];
   count.textContent = shots.length;
+  if (pathHint) {
+    const path = getDirectorFirstSuccessPathState();
+    const labels = { script: '先填写脚本', beats: '提取并确认节拍', skeleton: '生成分镜骨架', shot: '打开镜头清单', nodeGroup: '生成镜头节点组', result: '运行图片或视频节点' };
+    const done = Object.values(path.steps).filter(Boolean).length;
+    pathHint.className = 'director-path-hint ' + (path.complete ? 'complete' : 'active');
+    pathHint.innerHTML = path.complete
+      ? '<span class="director-path-dot">✓</span><span><strong>首次成功路径已完成</strong><small>分镜节点组与生成结果已建立关联</small></span>'
+      : '<span class="director-path-dot">' + done + '/6</span><span><strong>编导首次成功路径</strong><small>下一步：' + labels[path.next] + '</small></span>';
+  }
   if (shots.length === 0) {
     list.innerHTML = '<div class="shot-empty">暂无镜头<br>点击「新增镜头」建立你的第一组分镜</div>';
     return;
@@ -3094,7 +3862,7 @@ function renderShotPanel() {
   const labelMap = { idle: '待生成', running: '生成中', done: '已完成', error: '失败' };
   list.innerHTML = shots.map(s => {
     const canGen = s.status !== 'running';
-    const locate = s.nodeId ? '<button class="mini-btn" data-act="locate" data-id="' + s.id + '">定位</button>' : '';
+    const locate = (s.nodeId || (Array.isArray(s.nodeIds) && s.nodeIds.length)) ? '<button class="mini-btn" data-act="locate" data-id="' + s.id + '">定位</button>' : '';
     return '<div class="shot-card">' +
       '<div class="shot-card-head">' +
         '<span class="shot-no">' + esc(s.shotNo || '—') + '</span>' +
@@ -3103,7 +3871,9 @@ function renderShotPanel() {
       '</div>' +
       (s.scene ? '<div class="shot-scene"><span class="tag">场景</span>' + esc(s.scene) + '</div>' : '') +
       (s.desc ? '<div class="shot-desc">' + esc(s.desc) + '</div>' : '') +
+      ((s.shotType || s.camera || s.movement) ? '<div class="shot-scene"><span class="tag">镜头</span>' + esc([s.shotType, s.camera, s.movement].filter(Boolean).join(' · ')) + '</div>' : '') +
       (s.prompt ? '<div class="shot-prompt">' + esc(s.prompt) + '</div>' : '') +
+      (s.resultPreview ? '<div class="shot-result"><span class="tag">结果</span><img src="' + esc(s.resultPreview) + '" alt="生成结果预览" loading="lazy"></div>' : '') +
       '<div class="shot-card-actions">' +
         '<button class="mini-btn primary" data-act="gen" data-id="' + s.id + '"' + (canGen ? '' : ' disabled') + '>' + (s.status === 'running' ? '生成中…' : '生成') + '</button>' +
         '<button class="mini-btn" data-act="group" data-id="' + s.id + '">' + (s.groupSceneId ? '定位组' : '🎬 节点组') + '</button>' +
@@ -3126,7 +3896,7 @@ function addShot() { openShotModal(null); }
 function openShotModal(shot) {
   _shotModalOpen = true;
   const isEdit = !!shot;
-  const cur = shot || { id: '', name: '', scene: '', shotNo: '', desc: '', prompt: '' };
+  const cur = shot || { id: '', name: '', scene: '', shotNo: '', desc: '', prompt: '', shotType: '中景', camera: '固定机位', movement: '无' };
   let overlay = document.getElementById('shotModalOverlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -3143,6 +3913,11 @@ function openShotModal(shot) {
       '</div>' +
       '<div class="shot-form-row"><label>镜头名称</label><input id="smName" value="' + esc(cur.name) + '" placeholder="镜头标题"></div>' +
       '<div class="shot-form-row"><label>画面描述</label><textarea id="smDesc" placeholder="镜头内容 / 动作 / 构图">' + esc(cur.desc) + '</textarea></div>' +
+      '<div class="shot-form-row g3">' +
+        '<div><label>景别</label><select id="smShotType"><option>特写</option><option>近景</option><option>中景</option><option>全景</option><option>远景</option></select></div>' +
+        '<div><label>机位</label><select id="smCamera"><option>固定机位</option><option>平视</option><option>俯拍</option><option>仰拍</option><option>主观视角</option></select></div>' +
+        '<div><label>运动</label><select id="smMovement"><option>无</option><option>推</option><option>拉</option><option>摇</option><option>移</option><option>跟</option><option>环绕</option></select></div>' +
+      '</div>' +
       '<div class="shot-form-row"><label>生成提示词（Prompt）</label><textarea id="smPrompt" placeholder="送给 AI 生图的完整提示词，支持 <<<资产>> 引用令牌">' + esc(cur.prompt) + '</textarea></div>' +
       '<div class="shot-modal-actions">' +
         '<button class="wf-btn" id="smCancel">取消</button>' +
@@ -3150,6 +3925,9 @@ function openShotModal(shot) {
       '</div>' +
     '</div>';
   overlay.classList.add('show');
+  overlay.querySelector('#smShotType').value = cur.shotType || '中景';
+  overlay.querySelector('#smCamera').value = cur.camera || '固定机位';
+  overlay.querySelector('#smMovement').value = cur.movement || '无';
   const close = () => { overlay.classList.remove('show'); _shotModalOpen = false; };
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
   overlay.querySelector('#smCancel').onclick = close;
@@ -3160,12 +3938,16 @@ function openShotModal(shot) {
       name: overlay.querySelector('#smName').value.trim(),
       desc: overlay.querySelector('#smDesc').value.trim(),
       prompt: overlay.querySelector('#smPrompt').value.trim(),
+      shotType: overlay.querySelector('#smShotType').value,
+      camera: overlay.querySelector('#smCamera').value,
+      movement: overlay.querySelector('#smMovement').value,
     };
     if (!data.name && !data.prompt) { showToast('请至少填写镜头名称或提示词', 'info'); return; }
     if (!data.name) data.name = (data.shotNo ? data.shotNo + ' ' : '') + (data.scene || '镜头');
     pushHistory();
     if (isEdit) {
       Object.assign(shot, data);
+      syncShotSkeletonFromShot(shot);
     } else {
       workflow.shots.push({ id: 'shot_' + (++_shotSeq) + '_' + Date.now().toString(36), status: 'idle', nodeId: null, ...data });
     }
@@ -3174,6 +3956,21 @@ function openShotModal(shot) {
     renderShotPanel();
     showToast(isEdit ? '镜头已更新' : '镜头已添加', 'success');
   };
+}
+
+function syncShotSkeletonFromShot(shot) {
+  if (!shot || !shot.skeletonId) return;
+  workflow.director = normalizeDirectorData(workflow.director);
+  const skeleton = workflow.director.shotSkeleton.find(item => item.id === shot.skeletonId);
+  if (!skeleton) return;
+  skeleton.sceneAssetId = shot.scene || skeleton.sceneAssetId || '';
+  skeleton.name = shot.name || skeleton.name;
+  skeleton.description = shot.desc || skeleton.description;
+  skeleton.prompt = shot.prompt || skeleton.prompt;
+  skeleton.shotType = shot.shotType || skeleton.shotType;
+  skeleton.camera = shot.camera || skeleton.camera;
+  skeleton.movement = shot.movement || skeleton.movement;
+  skeleton.updatedAt = Date.now();
 }
 
 function editShot(id) {
@@ -3237,6 +4034,15 @@ function buildDirectorPromptFromShot(s) {
 function generateShotNodeGroup(id) {
   const s = (workflow.shots || []).find(x => x.id === id);
   if (!s) return;
+  if (s.groupSceneId) {
+    const existingScene = (workflow.scenes || []).find(scene => scene.id === s.groupSceneId);
+    if (existingScene) {
+      focusScene(existingScene.id);
+      showToast('该镜头节点组已存在，已定位到现有节点组', 'info');
+      return;
+    }
+    s.groupSceneId = '';
+  }
   const basePrompt = (s.prompt && s.prompt.trim()) ? s.prompt.trim() : (s.desc || s.name || '');
   if (!basePrompt) { showToast('请先在「编辑」中填写提示词或画面描述', 'info'); return; }
   withHistory(() => {
@@ -3246,20 +4052,30 @@ function generateShotNodeGroup(id) {
   const ox = maxX > 0 ? maxX + 140 : 120;
   const oy = maxY > 0 ? maxY + 140 : 120;
   const dirPrompt = buildDirectorPromptFromShot(s);
+  const directorMeta = {
+    schema: 'flowcraft.director.node-group.v1',
+    shotId: s.id,
+    skeletonId: s.skeletonId || '',
+    sourceBeatId: s.sourceBeatId || '',
+    role: 'director-prompt',
+  };
   // 1) 导演提示词节点
   const tNode = addNode('text', ox, oy);
   tNode.title = '🎬 ' + (s.name || s.shotNo || '镜头') + ' · 导演提示词';
   tNode.prompt = dirPrompt;
+  tNode.directorMeta = { ...directorMeta, role: 'director-prompt' };
   buildNodeBody(tNode.el, tNode);
   // 2) 出图节点
   const iNode = addNode('aiImage', ox + 380, oy);
   iNode.title = '出图 · ' + (s.name || s.shotNo || '镜头');
   iNode.prompt = basePrompt;
+  iNode.directorMeta = { ...directorMeta, role: 'image-generation' };
   buildNodeBody(iNode.el, iNode);
   // 3) 成片节点
   const vNode = addNode('aiVideo', ox + 760, oy + 40);
   vNode.title = '成片 · ' + (s.name || s.shotNo || '镜头');
   vNode.prompt = basePrompt;
+  vNode.directorMeta = { ...directorMeta, role: 'video-generation' };
   buildNodeBody(vNode.el, vNode);
   // 连线：导演提示词 → 出图 → 成片
   const e1 = new Edge(tNode, 0, iNode, 1); workflow.edges.set(e1.id, e1);
@@ -3271,6 +4087,18 @@ function generateShotNodeGroup(id) {
   addNodesToScene(scene.id, [tNode.id, iNode.id, vNode.id]);
   s.groupSceneId = scene.id;
   s.nodeIds = [tNode.id, iNode.id, vNode.id];
+  // 主定位节点统一指向出图节点；兼容旧镜头面板只认识 nodeId 的定位逻辑。
+  s.nodeId = iNode.id;
+  s.status = 'grouped';
+  if (s.skeletonId) {
+    workflow.director = normalizeDirectorData(workflow.director);
+    const skeleton = workflow.director.shotSkeleton.find(item => item.id === s.skeletonId);
+    if (skeleton) {
+      skeleton.status = 'canvas-linked';
+      skeleton.nodeIds = [tNode.id, iNode.id, vNode.id];
+      skeleton.updatedAt = Date.now();
+    }
+  }
   if (s.status === 'idle') s.status = 'grouped';
   scheduleAutosave();
   renderShotPanel();
@@ -3281,23 +4109,87 @@ function generateShotNodeGroup(id) {
 
 function locateShotNode(id) {
   const s = (workflow.shots || []).find(x => x.id === id);
-  if (!s || !s.nodeId) return;
-  const n = workflow.nodes.get(s.nodeId);
-  if (!n) { showToast('该镜头对应的节点已不存在', 'info'); return; }
-  selectNode(n);
+  if (!s) return;
+  const ids = Array.isArray(s.nodeIds) && s.nodeIds.length ? s.nodeIds : (s.nodeId ? [s.nodeId] : []);
+  const nodes = ids.map(nodeId => workflow.nodes.get(nodeId)).filter(Boolean);
+  if (!nodes.length) { showToast('该镜头对应的节点组已不存在', 'info'); return; }
+  workflow.selection.forEach(selectedId => {
+    const selected = workflow.nodes.get(selectedId);
+    if (selected && selected.el) selected.el.classList.remove('selected');
+  });
+  workflow.selection.clear();
+  nodes.forEach(n => { workflow.selection.add(n.id); n.el.classList.add('selected'); n.el.style.zIndex = (++workflow.nextZ).toString(); });
   const z = workflow.camera.zoom || 1;
-  workflow.camera.x = (window.innerWidth / 2) - (n.x + n.width / 2) * z;
-  workflow.camera.y = (window.innerHeight / 2) - (n.y + n.height / 2) * z;
+  const bounds = getNodesBounds(nodes);
+  workflow.camera.x = (window.innerWidth / 2) - ((bounds.minX + bounds.maxX) / 2) * z;
+  workflow.camera.y = (window.innerHeight / 2) - ((bounds.minY + bounds.maxY) / 2) * z;
   applyTransform();
+}
+
+function getShotLinkedNodes(shot) {
+  if (!shot) return [];
+  const ids = new Set(Array.isArray(shot.nodeIds) ? shot.nodeIds : []);
+  if (shot.nodeId) ids.add(shot.nodeId);
+  workflow.nodes.forEach(node => {
+    if (node.directorMeta && node.directorMeta.shotId === shot.id) ids.add(node.id);
+  });
+  return [...ids].map(id => workflow.nodes.get(id)).filter(Boolean);
+}
+
+function pickShotResult(nodes) {
+  // 优先图片结果，其次视频缩略图；只写入可追溯的真实/本地结果，不制造占位图。
+  const imageNode = nodes.find(node => ['aiImage', 'imageEdit', 'upscale', 'lineart'].includes(node.type) && node.status === 'done' && node.thumb);
+  if (imageNode) return { nodeId: imageNode.id, type: 'image', preview: imageNode.thumb };
+  const videoNode = nodes.find(node => node.type === 'aiVideo' && node.status === 'done' && node.thumb);
+  if (videoNode) return { nodeId: videoNode.id, type: 'video', preview: videoNode.thumb };
+  return null;
 }
 
 function syncShotStatus(node) {
   if (!node || !workflow.shots) return;
   let changed = false;
   for (const s of workflow.shots) {
-    if (s.nodeId === node.id && s.status !== node.status) { s.status = node.status; changed = true; }
+    const linked = getShotLinkedNodes(s);
+    if (!linked.some(item => item.id === node.id)) continue;
+    const statuses = linked.map(item => item.status);
+    const nextStatus = statuses.includes('running') ? 'running' :
+      statuses.includes('error') ? 'error' :
+      statuses.includes('done') ? 'done' : 'idle';
+    if (s.status !== nextStatus) { s.status = nextStatus; changed = true; }
+    const result = pickShotResult(linked);
+    if (result && (s.resultNodeId !== result.nodeId || s.resultPreview !== result.preview || s.resultType !== result.type)) {
+      s.resultNodeId = result.nodeId;
+      s.resultPreview = result.preview;
+      s.resultType = result.type;
+      changed = true;
+    }
   }
   if (changed) scheduleAutosave();
+}
+
+// P1-6：首次成功路径的只读验收状态。
+// 只做数据层判断，不弹窗、不改节点视觉；用于面板验收、回归脚本和后续新手引导复用。
+function getDirectorFirstSuccessPathState() {
+  const beats = (workflow.director && workflow.director.storyBeats || []).filter(b => b.status === 'validated');
+  const skeleton = (workflow.director && workflow.director.shotSkeleton || []).filter(s => s.beatId && beats.some(b => b.id === s.beatId));
+  const shots = (workflow.shots || []).filter(s => skeleton.some(sk => sk.id === s.skeletonId));
+  const grouped = shots.filter(s => getShotLinkedNodes(s).length >= 3 && s.groupSceneId);
+  const completed = shots.filter(s => ['done', 'error'].includes(s.status));
+  const succeeded = shots.filter(s => s.status === 'done' && s.resultNodeId && s.resultPreview);
+  const steps = {
+    script: [...workflow.nodes.values()].some(n => n.type === 'script' && String(n.params && n.params.script || '').trim()),
+    beats: beats.length > 0,
+    skeleton: skeleton.length > 0,
+    shot: shots.length > 0,
+    nodeGroup: grouped.length > 0,
+    result: succeeded.length > 0,
+  };
+  return {
+    steps,
+    counts: { beats: beats.length, skeleton: skeleton.length, shots: shots.length, grouped: grouped.length, completed: completed.length, succeeded: succeeded.length },
+    complete: Object.values(steps).every(Boolean),
+    next: !steps.script ? 'script' : !steps.beats ? 'beats' : !steps.skeleton ? 'skeleton' : !steps.shot ? 'shot' : !steps.nodeGroup ? 'nodeGroup' : !steps.result ? 'result' : '',
+  };
 }
 
 (function wireShots() {
@@ -3332,6 +4224,7 @@ const ASSET_CATS_KEY = 'flowcraft:assetCats:v1';
 // 资产元数据：{ [assetKey]: { name, cat, lock } } —— 名称即引用令牌 <<<name>>>
 const ASSET_META_KEY = 'flowcraft:assetMeta:v1';
 let _assetCatFilter = '';
+let _assetView = 'current';
 
 function loadAssetMeta() {
   let meta = {};
@@ -3357,38 +4250,96 @@ function persistAssetMeta(meta) {
 }
 
 //================ 4i-1b. 全局资产图库（#11 跨画布复用）================
-// 资产元数据（名称/分类/锁定描述）本就持久化；但图片本体此前只存在当前画布节点里，
-// 换画布即丢失。这里把「显式保存的资产」图片本体独立入库，collectAssets 合并后，
-// 新画布仍能看到并引用 <<<名称>>>。软上限 3.5MB，超限只警告不阻塞主流程。
+// 资产元数据（名称/分类/锁定描述）本就持久化；图片本体现以 IndexedDB 为真源。
+// localStorage 只保留小图兜底副本，避免生成大图超过 3.5MB 后“设为资产”静默失败。
 const ASSET_IMAGES_KEY = 'flowcraft:assetImages:v1';
+const ASSET_IMAGES_IDB_KEY = 'globalAssetImages:v1';
 const ASSET_IMAGES_SOFT_LIMIT = 3.5 * 1024 * 1024;
+let _globalAssetImages = null;
+let _globalAssetImagesLoading = null;
 
-function loadGlobalAssetImages() {
+function _parseGlobalAssetImages(raw) {
   try {
-    const o = JSON.parse(localStorage.getItem(ASSET_IMAGES_KEY));
+    const o = typeof raw === 'string' ? JSON.parse(raw) : raw;
     return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {};
   } catch (e) { return {}; }
 }
-function saveGlobalAssetImage(key, entry) {
+
+function _readLegacyGlobalAssetImages() {
+  try { return _parseGlobalAssetImages(localStorage.getItem(ASSET_IMAGES_KEY)); }
+  catch (e) { return {}; }
+}
+
+function loadGlobalAssetImages() {
+  if (_globalAssetImages) return _globalAssetImages;
+  // IndexedDB 加载完成前先用旧副本渲染；加载完成后会统一刷新面板。
+  return _readLegacyGlobalAssetImages();
+}
+
+function _persistGlobalAssetImages() {
+  if (!_globalAssetImages) return;
+  const all = _globalAssetImages;
   try {
-    const all = loadGlobalAssetImages();
-    if (!entry || typeof entry.src !== 'string' || !entry.src.startsWith('data:')) return;
-    all[key] = { src: entry.src, nodeTitle: entry.nodeTitle || '', label: entry.label || '产出', kind: entry.kind || '' };
-    const json = JSON.stringify(all);
-    if (json.length > ASSET_IMAGES_SOFT_LIMIT) {
-      showToast('全局资产库接近存储上限，建议精简资产图片', 'warn', 4000);
+    const put = typeof idbPut === 'function' ? idbPut(ASSET_IMAGES_IDB_KEY, all) : null;
+    if (put && typeof put.catch === 'function') {
+      put.catch(e => console.warn('[FlowCraft] 全局资产 IndexedDB 写入失败:', e && e.message));
     }
-    localStorage.setItem(ASSET_IMAGES_KEY, json);
-  } catch (e) {
-    showToast('全局资产保存失败（存储已满？）：' + e.message, 'danger', 4000);
+  } catch (e) { console.warn('[FlowCraft] 全局资产 IndexedDB 写入失败:', e && e.message); }
+  // 小图继续写旧副本，保持旧版本与现有回归可读；大图只进 IndexedDB。
+  try {
+    const json = JSON.stringify(all);
+    if (json.length <= ASSET_IMAGES_SOFT_LIMIT) localStorage.setItem(ASSET_IMAGES_KEY, json);
+  } catch (_) {}
+}
+
+async function ensureGlobalAssetImagesLoaded() {
+  if (_globalAssetImages) return _globalAssetImages;
+  if (_globalAssetImagesLoading) return _globalAssetImagesLoading;
+  _globalAssetImagesLoading = (async () => {
+    let loaded = null;
+    try {
+      if (typeof idbGet === 'function') {
+        const row = await idbGet(ASSET_IMAGES_IDB_KEY);
+        const value = row && row.v !== undefined ? row.v : row;
+        loaded = value ? _parseGlobalAssetImages(value) : null;
+      }
+    } catch (_) { loaded = null; }
+    if (!loaded) {
+      loaded = _readLegacyGlobalAssetImages();
+      if (Object.keys(loaded).length) {
+        try { if (typeof idbPut === 'function') await idbPut(ASSET_IMAGES_IDB_KEY, loaded); } catch (_) {}
+      }
+    }
+    _globalAssetImages = loaded || {};
+    return _globalAssetImages;
+  })();
+  const result = await _globalAssetImagesLoading;
+  _globalAssetImagesLoading = null;
+  try { if (typeof updateAssetPanel === 'function') updateAssetPanel(); } catch (_) {}
+  return result;
+}
+
+function saveGlobalAssetImage(key, entry) {
+  if (!key || !entry || typeof entry.src !== 'string' || !entry.src.startsWith('data:')) return;
+  _globalAssetImages = _globalAssetImages || _readLegacyGlobalAssetImages();
+  _globalAssetImages[key] = {
+    src: entry.src,
+    nodeTitle: entry.nodeTitle || '',
+    label: entry.label || '产出',
+    kind: entry.kind || '',
+    name: String(entry.name || entry.nodeTitle || '').trim(),
+  };
+  _persistGlobalAssetImages();
+}
+
+function removeGlobalAssetImage(key) {
+  _globalAssetImages = _globalAssetImages || _readLegacyGlobalAssetImages();
+  if (_globalAssetImages[key]) {
+    delete _globalAssetImages[key];
+    _persistGlobalAssetImages();
   }
 }
-function removeGlobalAssetImage(key) {
-  try {
-    const all = loadGlobalAssetImages();
-    if (all[key]) { delete all[key]; localStorage.setItem(ASSET_IMAGES_KEY, JSON.stringify(all)); }
-  } catch (e) {}
-}
+
 // 全局资产条目（与 collectAssets 条目同形；nodeId/kind/label 原样保留 → assetKey 与 assetMeta 保持一致）
 function globalAssetEntries() {
   const all = loadGlobalAssetImages();
@@ -3397,7 +4348,8 @@ function globalAssetEntries() {
     const e = all[key] || {};
     if (!e.src || typeof e.src !== 'string' || !e.src.startsWith('data:')) return;
     const parts = key.split('|');
-    out.push({ src: e.src, nodeId: parts[0] || 'global', nodeTitle: e.nodeTitle || '', label: e.label || '产出', kind: e.kind || 'output' });
+    const savedName = String(e.name || '').trim();
+    out.push({ src: e.src, nodeId: parts[0] || 'global', nodeTitle: savedName || e.nodeTitle || '', label: e.label || '产出', kind: e.kind || 'output', name: savedName, globalKey: key });
   });
   return out;
 }
@@ -3419,7 +4371,32 @@ function setAssetMeta(key, patch) {
   if (!next.name && !next.cat && !next.lock) delete meta[key];
   else meta[key] = next;
   persistAssetMeta(meta);
+  // 同步已存在的项目级资产记录；字段编辑 API 可在后续面板中直接复用。
+  const project = (workflow.assets || []).find(a => a.source && assetKey({ nodeId: a.source.nodeId, kind: a.source.kind, label: a.source.label }) === key);
+  if (project) {
+    project.name = next.name;
+    project.type = ASSET_TYPE_BY_CAT[next.cat] || project.type || 'asset';
+    project.token = next.name ? '<<<' + next.name + '>>>' : '';
+    if (next.lock && project.fields) project.fields.negative = next.lock;
+    project.updatedAt = Date.now();
+  }
   return next;
+}
+
+// 统一字段写入入口：不依赖 DOM，供资产面板、模板和外部节点编辑器共用。
+function updateProjectAssetFields(idOrKey, patch) {
+  const all = syncProjectAssets();
+  const asset = all.find(a => a.id === idOrKey || (a.source && assetKey({ nodeId: a.source.nodeId, kind: a.source.kind, label: a.source.label }) === idOrKey));
+  if (!asset || !patch || typeof patch !== 'object') return null;
+  asset.fields = { ...emptyAssetFields(), ...(asset.fields || {}) };
+  ASSET_FIELD_KEYS.forEach(key => { if (patch[key] !== undefined) asset.fields[key] = String(patch[key] || '').trim(); });
+  if (patch.canonicalName !== undefined) asset.canonicalName = String(patch.canonicalName || '').trim() || asset.name;
+  if (patch.variants !== undefined && Array.isArray(patch.variants)) asset.variants = patch.variants.map(normalizeAssetVariant);
+  if (patch.description !== undefined) asset.description = String(patch.description || '').trim();
+  if (patch.tags !== undefined) asset.tags = Array.isArray(patch.tags) ? patch.tags.map(x => String(x).trim()).filter(Boolean) : [];
+  asset.updatedAt = Date.now();
+  scheduleAutosave();
+  return normalizeAssetRecord(asset);
 }
 
 // 旧接口保留：仅改分类
@@ -3435,7 +4412,82 @@ function saveAssetCat(key, cat) {
 }
 
 function assetKey(a) {
+  if (a && a.globalKey) return String(a.globalKey);
   return String(a.nodeId || '') + '|' + String(a.kind || '') + '|' + String(a.label || '');
+}
+
+// P1-2：只读的资产引用索引。
+// 只保存节点、字段和引用令牌关系，不复制图片本体，也不保存 prompt、Key 或 Authorization。
+function buildAssetReferenceIndex() {
+  syncProjectAssets();
+  const all = collectAssets();
+  const names = assetNameMap(all);
+  const records = {};
+  const invalidRefs = [];
+  const missingTokens = [];
+  const bySrc = new Map();
+  const byName = new Map();
+  all.forEach(a => {
+    const key = assetKey(a);
+    if (!records[key]) records[key] = { assetKey: key, name: names[key] || a.nodeTitle || a.label || '资产', token: names[key] ? '<<<' + names[key] + '>>>' : '', references: [], missing: false };
+    if (a.src) {
+      if (!bySrc.has(a.src)) bySrc.set(a.src, []);
+      bySrc.get(a.src).push(key);
+    }
+    [names[key], a.nodeTitle, a.label].forEach(name => {
+      const normalized = String(name || '').trim().toLowerCase();
+      if (normalized && !byName.has(normalized)) byName.set(normalized, key);
+    });
+  });
+  const add = (key, ref) => {
+    if (!key || !records[key] || !ref) return;
+    const row = {
+      nodeId: String(ref.nodeId || ''),
+      nodeTitle: String(ref.nodeTitle || '节点'),
+      field: String(ref.field || '未知字段'),
+      type: String(ref.type || 'value'),
+      tokenMatched: !!ref.tokenMatched,
+    };
+    if (!records[key].references.some(x => x.nodeId === row.nodeId && x.field === row.field && x.type === row.type)) records[key].references.push(row);
+  };
+  const addBySrc = (value, ref) => (bySrc.get(value) || []).forEach(key => add(key, ref));
+  const scanText = (value, node) => parseRefTokens(value).forEach(token => {
+    const key = byName.get(String(token).toLowerCase());
+    if (key) add(key, { nodeId: node.id, nodeTitle: node.title, field: '提示词引用', type: 'token', tokenMatched: true });
+    else if (!missingTokens.some(x => x.token.toLowerCase() === String(token).toLowerCase() && x.nodeId === node.id)) missingTokens.push({ token: String(token), nodeId: String(node.id), nodeTitle: String(node.title || '节点') });
+  });
+  const scan = (value, node, field, seen) => {
+    if (typeof value === 'string') {
+      if (normalizeImageSrc(value)) addBySrc(value, { nodeId: node.id, nodeTitle: node.title, field, type: 'image' });
+      else scanText(value, node);
+      return;
+    }
+    if (!value || typeof value !== 'object' || seen.has(value)) return;
+    seen.add(value);
+    if (Array.isArray(value)) value.forEach((item, i) => scan(item, node, field + '[' + i + ']', seen));
+    else Object.keys(value).forEach(k => {
+      if (k === 'el' || k === 'def') return;
+      scan(value[k], node, field ? field + '.' + k : k, seen);
+    });
+  };
+  workflow.nodes.forEach(node => {
+    if (!node || !node.id) return;
+    const seen = new Set();
+    if (Array.isArray(node.refImages)) node.refImages.forEach((ref, index) => {
+      if (!ref || !normalizeImageSrc(ref.src)) invalidRefs.push({ nodeId: String(node.id), nodeTitle: String(node.title || '节点'), field: '参考图 ' + (index + 1), name: String(ref && ref.name || '') });
+    });
+    ['thumb', 'uploadedImage', 'refImages', 'params', 'inputsData', 'outputsData', 'prompt', 'effectivePrompt'].forEach(field => {
+      if (node[field] !== undefined) scan(node[field], node, field, seen);
+    });
+  });
+  (workflow.assets || []).forEach(asset => {
+    const source = asset && asset.source;
+    if (!source) return;
+    const key = assetKey({ nodeId: source.nodeId, kind: source.kind, label: source.label });
+    add(key, { nodeId: source.nodeId || 'project', nodeTitle: source.label || asset.name || '资产', field: 'workflow.assets', type: 'asset-record' });
+  });
+  Object.keys(records).forEach(key => { records[key].refCount = records[key].references.length; });
+  return { byKey: records, assets: Object.values(records), invalidRefs, missingTokens };
 }
 
 // 资产显示名 = 自定义名称 ‖ 节点标题（重名自动编号）——这个名字就是引用令牌
@@ -3507,20 +4559,30 @@ function refCatEnglish(c) {
 
 // 建立"名称 → 资产"索引：资产名优先，节点标题 / 端口标签兜底
 function buildAssetRefIndex() {
+  // 引用解析前先把当前节点资产与旧版全局资产元数据同步到项目级容器，
+  // 避免“刚命名/刚切换工作台”的资产只能在刷新后才可被 <<<令牌>>> 命中。
+  syncProjectAssets();
   const all = collectAssets();
   const nameMap = assetNameMap(all);
   const index = new Map();
+  // 项目级记录优先提供结构化字段；旧版节点资产仍作为预览来源。
+  const projectBySource = new Map((workflow.assets || []).map(a => [a.source && assetKey({ nodeId: a.source.nodeId, kind: a.source.kind, label: a.source.label }), a]));
   all.forEach(a => {
     const k = assetKey(a);
     const nm = nameMap[k];
-    if (nm && !index.has(nm.toLowerCase())) index.set(nm.toLowerCase(), { asset: a, key: k, name: nm });
+    if (nm && !index.has(nm.toLowerCase())) index.set(nm.toLowerCase(), { asset: a, projectAsset: projectBySource.get(k) || null, key: k, name: nm });
   });
   all.forEach(a => {
     const k = assetKey(a);
     [a.nodeTitle, a.label].forEach(x => {
       const s = String(x || '').trim();
-      if (s && !index.has(s.toLowerCase())) index.set(s.toLowerCase(), { asset: a, key: k, name: s });
+      if (s && !index.has(s.toLowerCase())) index.set(s.toLowerCase(), { asset: a, projectAsset: projectBySource.get(k) || null, key: k, name: s });
     });
+  });
+  (workflow.assets || []).forEach(a => {
+    const nm = String(a.name || '').trim();
+    if (!nm || !a.preview || index.has(nm.toLowerCase())) return;
+    index.set(nm.toLowerCase(), { asset: { src: a.preview, nodeId: a.source && a.source.nodeId || 'project', nodeTitle: nm, label: a.source && a.source.label || '资产', kind: a.source && a.source.kind || 'project' }, projectAsset: a, key: a.id, name: nm });
   });
   return index;
 }
@@ -3540,7 +4602,12 @@ function resolveRefTokens(prompt) {
       const m = meta[hit.key] || {};
       result.refs.push({
         token: t, name: hit.name, src: src,
-        cat: m.cat || '', lock: m.lock || '', nodeId: hit.asset.nodeId
+        cat: m.cat || ASSET_CAT_BY_TYPE[hit.projectAsset && hit.projectAsset.type] || '',
+        lock: m.lock || (hit.projectAsset && hit.projectAsset.fields && hit.projectAsset.fields.negative) || '',
+        fields: hit.projectAsset && hit.projectAsset.fields ? { ...emptyAssetFields(), ...hit.projectAsset.fields } : emptyAssetFields(),
+        canonicalName: hit.projectAsset && hit.projectAsset.canonicalName || hit.name,
+        variants: hit.projectAsset && Array.isArray(hit.projectAsset.variants) ? hit.projectAsset.variants.map(normalizeAssetVariant) : [],
+        nodeId: hit.asset.nodeId
       });
       result.images.push(src);
     } else {
@@ -3559,6 +4626,10 @@ function buildRefAugmentedPrompt(r) {
     const bits = ['<<<' + ref.name + '>>> = reference image ' + (i + 1)];
     if (ref.cat) bits.push('role: ' + refCatEnglish(ref.cat));
     if (ref.lock) bits.push('locked description: ' + ref.lock);
+    const variants = (ref.variants || []).filter(v => v && (v.isDefault || v.latest)).slice(0, 3);
+    if (variants.length) bits.push('usable variant: ' + variants.map(v => [v.name, v.state, v.description, v.prompt].filter(Boolean).join('；')).join(' | '));
+    const labels = { composition: 'composition', features: 'features', pose: 'pose/position', camera: 'camera', lighting: 'lighting', background: 'background', material: 'material', color: 'color' };
+    Object.keys(labels).forEach(key => { if (ref.fields && ref.fields[key]) bits.push(labels[key] + ': ' + ref.fields[key]); });
     lines.push('- ' + bits.join(' · '));
   });
   lines.push('Match every referenced subject exactly: same identity, outfit, colors and proportions.');
@@ -4256,7 +5327,7 @@ function renderGenMetaStrip(el, node) {
     row.appendChild(lb); row.appendChild(sel);
     edit.appendChild(row);
   };
-  mkSelect('模型', 'model', ['nanoBananaPro', 'Nano Banana Pro', 'FLUX.1', 'Stable Diffusion XL', 'GPT Image 2']);
+  mkSelect('模型', 'model', ['nanoBananaPro', 'Nano Banana Pro', 'FLUX.1', 'Stable Diffusion XL', 'GPT Image 2', 'GPT Image 2.5']);
   mkSelect('比例', 'aspect', AI_SPEC_ASPECTS.filter(a => a !== 'custom'));
   mkSelect('分辨率', 'resolution', AI_SPEC_RESOLUTIONS);
   mkSelect('张数', 'count', ['1张', '2张', '4张', '6张', '8张']);
@@ -4304,7 +5375,9 @@ function fitNodeToImageRatio(node, naturalW, naturalH) {
     const contentW = Math.max(MIN_W, Math.round(naturalW * scale));
     const contentH = Math.max(96, Math.round(contentW / contentAspect));
     // image-only：标题已移到框外，框高只算图片内容
-    const headerH = node.type === 'aiImage' ? 0 : (node.el ? ((node.el.querySelector('.node-header') && node.el.querySelector('.node-header').offsetHeight) || 42) : 42);
+    const headerH = ['aiImage', 'lineart', 'upscale'].includes(node.type)
+      ? 0
+      : (node.el ? ((node.el.querySelector('.node-header') && node.el.querySelector('.node-header').offsetHeight) || 42) : 42);
     node.width = contentW + 32;
     node.height = contentH + headerH + 8;
     node.ratio = contentAspect;
@@ -4338,21 +5411,37 @@ function fitNodeToImageRatio(node, naturalW, naturalH) {
   } catch (e) {}
 }
 
-// 规格联动：选择比例/分辨率后立即把 aiImage 节点框调整为对应画幅比例，
-// 保证生成的图片（按比例裁剪后）与节点框完全贴合
+// 规格联动：选择比例/分辨率后立即把图片处理/生成节点框调整为对应画幅。
+// lineart / upscale 虽然没有空白预览内容，但它们的处理画布也必须跟随规格变化。
 function applySpecSizeToAiImageNode(node) {
   try {
-    if (!node || (node.type !== 'aiImage' && node.type !== 'imageEdit' && node.type !== 'aiVideo') || !node.el) return;
+    const specSizedTypes = ['aiImage', 'imageEdit', 'aiVideo', 'lineart', 'upscale'];
+    if (!node || !specSizedTypes.includes(node.type) || !node.el) return;
     const ratio = resolveAiSpecRatio(node.params && node.params.aspect, node.params && node.params.customAspect);
     if (!ratio) return;
-    const MAX_W = Math.max(260, Math.min(360, Math.round(window.innerWidth * 0.28)));
-    const MAX_H = Math.max(170, Math.min(260, Math.round(window.innerHeight * 0.24)));
+    const isProcessingNode = node.type === 'lineart' || node.type === 'upscale';
+    const resolution = node.params && node.params.resolution;
+    // 分辨率不改变图片比例，但改变处理画布的显示级别；上限受视口约束，避免 4K 把界面撑满。
+    const resolutionScale = resolution === '原画4K' ? 1.16 : (resolution === '超清2K' ? 1.08 : 1);
+    const MAX_W = Math.max(isProcessingNode ? 300 : 260, Math.min(isProcessingNode ? 440 : 420, Math.round(window.innerWidth * (isProcessingNode ? 0.30 : 0.28) * resolutionScale)));
+    const MAX_H = Math.max(isProcessingNode ? 220 : 170, Math.min(isProcessingNode ? 360 : 300, Math.round(window.innerHeight * (isProcessingNode ? 0.30 : 0.24) * resolutionScale)));
     let w = MAX_W, h = w / ratio;
     if (h > MAX_H) { h = MAX_H; w = h * ratio; }
-    w = Math.max(160, Math.round(w));
-    h = Math.max(96, Math.round(h));
-    node.width = w + 32;
-    node.height = h + 8; // image-only：框内只有图片，无标题栏占位
+    // 处理画板按比例包围盒计算，不分别强行设置最小宽高，避免竖幅/横幅被拉扯。
+    const minW = isProcessingNode ? 180 : 160;
+    if (w < minW) {
+      w = minW;
+      h = w / ratio;
+      if (h > MAX_H) { h = MAX_H; w = h * ratio; }
+    }
+    w = Math.max(80, Math.round(w));
+    h = Math.max(80, Math.round(h));
+    // 处理节点的主体有 10px 内边距，处理卡本身直接使用 aspect-ratio；
+    // 用同一组内容尺寸写回节点缓存，避免 DOM 已经变高但 fitToContent 仍按旧高度布局。
+    const chromeW = isProcessingNode ? 20 : 32;
+    const chromeH = isProcessingNode ? 20 : 8;
+    node.width = w + chromeW;
+    node.height = h + chromeH;
     node.ratio = ratio;
     node._fitProbed = true; // 规格已定框型：生成后不再按图片重排（上游比例已统一裁剪对齐）
     node.el.style.width = node.width + 'px';
@@ -4543,8 +5632,10 @@ function makePromptExpandBtn(getText, setText, syncInline, title) {
 // 编辑控件从节点体内迁移到「选中时浮现在节点下方的圆角 Composer」：节点默认保持纯净，
 // 选中才显示 prompt + 模型 + 参数 + 生成键。不改数据流，纯 UI 重组。
 let __composerNode = null;
+let __composerMode = 'single';
+let __composerNodes = [];
 // 图片/视频输入节点不使用节点下方 Composer，素材直接在节点内预览。
-const COMPOSER_TYPES = ['videoInput', 'aiImage', 'imageEdit', 'aiVideo', 'lineart', 'upscale'];
+const COMPOSER_TYPES = ['videoInput', 'aiImage', 'imageEdit', 'aiVideo', 'designAgent', 'lineart', 'upscale'];
 
 function nodeComposerEl() { return document.getElementById('nodeComposer'); }
 function isComposerType(node) { return !!(node && COMPOSER_TYPES.includes(node.type)); }
@@ -4555,6 +5646,8 @@ function isVideoInputSettingsCollapsed(node) {
 
 function showNodeComposer(node) {
   if (!isComposerType(node)) { hideNodeComposer(); return; }
+  __composerMode = 'single';
+  __composerNodes = [];
   __composerNode = node;
   const el = nodeComposerEl();
   if (!el) return;
@@ -4565,47 +5658,1015 @@ function showNodeComposer(node) {
 
 function hideNodeComposer() {
   __composerNode = null;
+  __composerMode = 'single';
+  __composerNodes = [];
   const el = nodeComposerEl();
   if (!el) return;
+  el.classList.remove('batch-composer');
   el.hidden = true;
   el.innerHTML = '';
+}
+
+function getSelectedAiImageNodes() {
+  return [...workflow.selection]
+    .map(id => workflow.nodes.get(id))
+    .filter(node => node && node.type === 'aiImage');
+}
+
+// 多选时只保留一份参数面板，不为每个节点分别创建浮层。
+function showBatchComposer(nodes) {
+  const list = (nodes || []).filter(node => node && workflow.nodes.has(node.id) && node.type === 'aiImage');
+  if (!list.length) { hideNodeComposer(); return; }
+  const el = nodeComposerEl();
+  if (!el) return;
+  __composerMode = 'batch';
+  __composerNodes = list;
+  __composerNode = null;
+  el.hidden = false;
+  el.classList.add('batch-composer');
+  el.innerHTML = '';
+
+  const head = document.createElement('div');
+  head.className = 'nc-head';
+  const title = document.createElement('span');
+  title.className = 'nc-title';
+  title.textContent = '🖼 图片生成 · 批量规格';
+  head.appendChild(title);
+  const close = document.createElement('button');
+  close.type = 'button'; close.className = 'nc-close'; close.textContent = '✕'; close.title = '关闭';
+  close.onmousedown = e => e.stopPropagation();
+  close.onclick = e => { e.stopPropagation(); hideNodeComposer(); };
+  head.appendChild(close); el.appendChild(head);
+
+  const summary = document.createElement('div');
+  summary.className = 'nc-batch-summary';
+  summary.textContent = '已选中 ' + list.length + ' 个图片生成节点，仅修改比例与分辨率';
+  el.appendChild(summary);
+
+  const row = document.createElement('div');
+  row.className = 'nc-params nc-batch-params';
+  const aspect = document.createElement('select');
+  aspect.className = 'nc-select'; aspect.title = '比例';
+  AI_SPEC_ASPECTS.filter(a => a !== 'custom').forEach(a => {
+    const o = document.createElement('option'); o.value = a; o.textContent = '比例 ' + a; aspect.appendChild(o);
+  });
+  const resolution = document.createElement('select');
+  resolution.className = 'nc-select'; resolution.title = '分辨率';
+  AI_SPEC_RESOLUTIONS.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = '分辨率 ' + r; resolution.appendChild(o); });
+  aspect.value = list[0].params && list[0].params.aspect && list[0].params.aspect !== 'custom' ? list[0].params.aspect : '9:16';
+  resolution.value = list[0].params && AI_SPEC_RESOLUTIONS.includes(list[0].params.resolution) ? list[0].params.resolution : AI_SPEC_RESOLUTIONS[0];
+  row.appendChild(aspect); row.appendChild(resolution); el.appendChild(row);
+
+  const apply = document.createElement('button');
+  apply.type = 'button'; apply.className = 'ai-btn small primary nc-batch-apply-inline';
+  apply.textContent = '应用到已选 ' + list.length + ' 个';
+  apply.onmousedown = e => e.stopPropagation();
+  apply.onclick = e => {
+    e.stopPropagation();
+    applyDress25GridBatchSpec(aspect.value, resolution.value, 'selected');
+    hideNodeComposer();
+  };
+  el.appendChild(apply);
+  positionNodeComposer();
 }
 
 // 把 Composer 定位到选中节点正下方（屏幕坐标，跟随画布 pan/zoom；节点拖动/缩放/重建时再调）
 function positionNodeComposer() {
   const el = nodeComposerEl();
   const node = __composerNode;
-  if (!el || el.hidden || !node || !workflow) return;
+  if (!el || el.hidden || !workflow) return;
+  if (__composerMode === 'batch') {
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    const nodes = __composerNodes.filter(n => n && workflow.nodes.has(n.id) && n.el && n.el.isConnected);
+    if (!nodes.length) { hideNodeComposer(); return; }
+    let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
+    nodes.forEach(n => { const r = n.el.getBoundingClientRect(); minL = Math.min(minL, r.left); minT = Math.min(minT, r.top); maxR = Math.max(maxR, r.right); maxB = Math.max(maxB, r.bottom); });
+    const pw = el.offsetWidth || 300, ph = el.offsetHeight || 150;
+    const safe = 12, rightReserve = Math.min(320, wrapRect.width * .28);
+    const candidates = [
+      [maxR - wrapRect.left + safe, minT - wrapRect.top],
+      [minL - wrapRect.left - pw - safe, minT - wrapRect.top],
+      [minL - wrapRect.left, maxB - wrapRect.top + safe],
+      [minL - wrapRect.left, minT - wrapRect.top - ph - safe],
+    ];
+    let chosen = candidates.find(([l, t]) => l >= safe && t >= safe && l + pw <= wrapRect.width - safe - rightReserve && t + ph <= wrapRect.height - safe);
+    if (!chosen) chosen = [Math.max(safe, wrapRect.width - pw - safe - rightReserve), Math.max(safe, Math.min(wrapRect.height - ph - safe, minT - wrapRect.top))];
+    el.style.width = '300px';
+    el.style.left = Math.round(chosen[0]) + 'px';
+    el.style.top = Math.round(chosen[1]) + 'px';
+    return;
+  }
+  if (!node) return;
   // 节点已被删除/画布已重载 → 收起
   if (!workflow.nodes.has(node.id)) { hideNodeComposer(); return; }
-  const cam = workflow.camera;
-  const h = node.height || (node.el && node.el.offsetHeight) || 160;
-  const w = Math.max(240, Math.round((node.width || 280) * cam.zoom));
-  el.style.width = Math.round(w) + 'px';
-  // 节点四边屏幕坐标
-  const nodeTop = node.y * cam.zoom + cam.y;
-  const nodeBottom = (node.y + h) * cam.zoom + cam.y;
-  const nodeLeft = node.x * cam.zoom + cam.x;
-  const nodeRight = (node.x + (node.width || 280)) * cam.zoom + cam.x;
+  const nodeEl = node.el;
+  const wrapRect = canvasWrap.getBoundingClientRect();
+  // 直接读取渲染边界，而不是用缓存 height 反推：媒体节点比例适配、缩放和
+  // CSS 头部高度变化都会让缓存值暂时落后，导致下方面板出现偏移。
+  if (!nodeEl || !nodeEl.isConnected) { hideNodeComposer(); return; }
+  const nodeRect = nodeEl.getBoundingClientRect();
+  const nodeTop = nodeRect.top - wrapRect.top;
+  const nodeBottom = nodeRect.bottom - wrapRect.top;
+  const nodeLeft = nodeRect.left - wrapRect.left;
+  const nodeRight = nodeRect.right - wrapRect.left;
+  const renderedWidth = Math.max(1, Math.round(nodeRect.width));
+  el.style.width = Math.max(240, renderedWidth) + 'px';
   let left = nodeLeft;
   let top = nodeBottom + 12; // 首选：节点正下方
   // 视口内兜底：下方放不下时依次尝试 右侧 → 左侧 → 最后 clamp，避免面板压住节点本体
   try {
-    const wrapRect = canvasWrap.getBoundingClientRect();
     const ch = el.offsetHeight, cw = el.offsetWidth;
-    const roomBelow = (top + ch) <= (wrapRect.bottom - 8);
+    const wrapW = wrapRect.width;
+    const wrapH = wrapRect.height;
+    const roomBelow = (top + ch) <= (wrapH - 8);
     if (!roomBelow) {
       const rightLeft = nodeRight + 12;
       const leftLeft = nodeLeft - cw - 12;
-      if (rightLeft + cw <= wrapRect.right - 8) { left = rightLeft; top = nodeTop; }
-      else if (leftLeft >= wrapRect.left + 8) { left = leftLeft; top = nodeTop; }
-      else { top = Math.max(8, (wrapRect.bottom - wrapRect.top) - ch - 8); }
+      if (rightLeft + cw <= wrapW - 8) { left = rightLeft; top = nodeTop; }
+      else if (leftLeft >= 8) { left = leftLeft; top = nodeTop; }
+      else { top = Math.max(8, wrapH - ch - 8); }
     }
-    if (left + cw > wrapRect.right - 8) left = Math.max(8, (wrapRect.right - wrapRect.left) - cw - 8);
-    if (top + ch > wrapRect.bottom - 8) top = Math.max(8, (wrapRect.bottom - wrapRect.top) - ch - 8);
+    if (left + cw > wrapW - 8) left = Math.max(8, wrapW - cw - 8);
+    if (left < 8) left = 8;
+    if (top + ch > wrapH - 8) top = Math.max(8, wrapH - ch - 8);
+    if (top < 8) top = 8;
   } catch (e) {}
   el.style.left = Math.round(left) + 'px';
   el.style.top = Math.round(top) + 'px';
+}
+
+function designAgentInputBrief(node) {
+  const own = node && node.params && typeof node.params.brief === 'string' ? node.params.brief.trim() : '';
+  const upstream = (node && node.inputsData || []).filter(p => p && p.type === 'text' && p.value)
+    .map(p => String(p.value).trim()).filter(Boolean).join('\n');
+  return [own, upstream].filter(Boolean).join('\n').trim();
+}
+
+function designAgentHasReference(node) {
+  return (node && node.inputsData || []).some(p => p && p.type === 'image' && normalizeImageSrc(p.value));
+}
+
+// 设计智能体的 P0 本地能力：把输入整理成可继续传给下游节点的结构化文本。
+// 这里明确不调用外部模型，避免把“本地可用”误标成真实 AI 结果。
+function generateDesignAgentPlan(node) {
+  node.params = node.params || {};
+  node.params.agentMessages = Array.isArray(node.params.agentMessages) ? node.params.agentMessages : [];
+  node.params.resultCards = Array.isArray(node.params.resultCards) ? node.params.resultCards : [];
+  const brief = designAgentInputBrief(node) || '请补充你的设计需求。';
+  const role = String(node.params.role || '视觉设计师');
+  const task = String(node.params.task || '图片生成提示词');
+  const format = String(node.params.outputFormat || '结构化设计方案');
+  const hasRef = designAgentHasReference(node);
+  const focus = task === '25 宫格分镜方案'
+    ? '将主题拆成连续镜头，明确每格的主体、动作、景别、机位与画面关系。'
+    : task === '视频生成提示词'
+      ? '同时说明主体动作、镜头运动、节奏、时长感和需要避免的画面变化。'
+      : task === '镜头脚本'
+        ? '按镜号、景别、画面、动作、台词/旁白和声音整理。'
+        : task === '角色设定'
+          ? '明确外观、服装、材质、表情、动作、身份和保持一致性的关键特征。'
+          : task === '风格分析'
+            ? '提炼构图、色彩、光线、材质、镜头语言和可复用的风格关键词。'
+            : '把需求转成可执行的图片创作方向、主体描述和生成提示词。';
+  const prompt = [
+    brief,
+    '角色定位：' + role,
+    '任务目标：' + task,
+    hasRef ? '参考素材：已接收参考图，请保留其主体关系并提炼可迁移特征。' : '参考素材：暂无参考图，以文字需求为主要依据。',
+    focus
+  ].join('；');
+  const result = [
+    '【设计主题】', brief,
+    '', '【角色与任务】', role + ' · ' + task,
+    '', '【执行重点】', focus,
+    '', '【主体描述】', '围绕上述需求提炼清晰主体，优先保证主体身份、数量、动作与视觉层级明确。',
+    '', '【构图建议】', '确定主体位置、景别和空间关系；保留明确的前景、中景与背景层次，避免无关元素抢占视觉中心。',
+    '', '【色彩与光影】', '根据主题选择主色与辅助色，保持光源方向统一，并用明暗对比强化主体。',
+    '', '【图片提示词】', prompt,
+    '', '【视频提示词】', '主体保持一致，动作自然连续，镜头围绕核心主体平稳运动，节奏服务于主题。',
+    '', '【负向约束】', '避免主体缺失、结构混乱、比例异常、文字乱码、过度装饰和与主题无关的元素。',
+    '', '【输出格式】', format
+  ].join('\n');
+  node.params.brief = brief === '请补充你的设计需求。' ? '' : brief;
+  node.params.result = result;
+  const userMessage = String(brief || '').trim();
+  const lastMessage = node.params.agentMessages[node.params.agentMessages.length - 1];
+  if (!lastMessage || lastMessage.role !== 'user' || lastMessage.content !== userMessage) {
+    node.params.agentMessages.push({ role: 'user', content: userMessage, hasReference: hasRef, time: Date.now() });
+  }
+  node.params.agentMessages.push({ role: 'assistant', content: '已整理出一份' + task + '，可继续追问或连接下游节点。', status: 'done', time: Date.now() });
+  const cardBaseId = 'design_' + Date.now().toString(36);
+  const isGridTask = task === '25 宫格分镜方案';
+  node.params.resultCards = isGridTask
+    ? Array.from({ length: 25 }, (_, i) => ({
+        id: cardBaseId + '_' + (i + 1),
+        index: i + 1,
+        title: '镜头 ' + String(i + 1).padStart(2, '0'),
+        summary: '第 ' + (i + 1) + ' 格 · ' + brief,
+        content: [
+          '【镜头 ' + String(i + 1).padStart(2, '0') + '】',
+          '主体：围绕“' + brief + '”保持主体一致。',
+          '画面：第 ' + (i + 1) + ' 格的独立构图与动作推进。',
+          '景别：中景；机位：平视；动作：自然连续。',
+          '风格：与整组画面保持统一的色彩、光线和材质。',
+          '负向约束：避免主体变形、画面跳切、无关元素和文字乱码。'
+        ].join('\n'),
+        status: 'done'
+      }))
+    : [{
+        id: cardBaseId,
+        index: 1,
+        title: task,
+        summary: brief,
+        content: result,
+        status: 'done'
+      }];
+  node.params.activeResultCard = 0;
+  node.params.agentStatus = 'done';
+  node.outputsData = [{ type: 'text', value: node.params.resultCards[0].content }];
+  node.status = 'done';
+  node.resultMode = 'local';
+  return result;
+}
+
+function ensureDesignAgentState(node) {
+  node.params = node.params || {};
+  if (!Array.isArray(node.params.agentMessages)) node.params.agentMessages = [];
+  if (!Array.isArray(node.params.resultCards)) node.params.resultCards = [];
+  if (!Array.isArray(node.params.agentQueue)) node.params.agentQueue = [];
+  if (!node.params.agentStatus) node.params.agentStatus = node.params.result ? 'done' : 'idle';
+}
+
+function enqueueDesignAgentCards(node, cards) {
+  ensureDesignAgentState(node);
+  const list = Array.isArray(cards) ? cards : [];
+  const existing = new Set(node.params.agentQueue.map(item => item.cardId));
+  let added = 0;
+  list.forEach(card => {
+    if (!card || existing.has(card.id)) return;
+    node.params.agentQueue.push({
+      id: 'queue_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
+      cardId: card.id,
+      title: card.title || '设计任务',
+      prompt: card.content || '',
+      status: 'queued',
+      createdAt: Date.now()
+    });
+    existing.add(card.id); added++;
+  });
+  if (added) { scheduleAutosave(); showToast('已加入 ' + added + ' 条图片生成任务队列', 'success'); }
+  else showToast('这些任务已经在队列中', 'info');
+  return added;
+}
+
+// P1.3：设计智能体的本地演示队列。
+// 这里只推进可追踪的队列状态，不调用模型，也不伪造图片结果。
+function getDesignAgentQueueItems(node) {
+  ensureDesignAgentState(node);
+  return node.params.agentQueue.filter(item => item && item.status !== 'cancelled');
+}
+
+function renderDesignAgentQueue(node) {
+  if (node === __composerNode) showNodeComposer(node);
+}
+
+function finishDesignAgentQueue(node) {
+  if (!node || !node.params) return;
+  node.__agentQueueTimer = null;
+  const items = getDesignAgentQueueItems(node);
+  const hasRunning = items.some(item => item.status === 'running');
+  const hasQueued = items.some(item => item.status === 'queued');
+  if (!hasRunning && !hasQueued) node.params.agentStatus = 'done';
+  scheduleAutosave();
+  renderDesignAgentQueue(node);
+}
+
+function runNextDesignAgentQueueItem(node) {
+  if (!node || !workflow.nodes.has(node.id)) return;
+  ensureDesignAgentState(node);
+  if (node.params.agentStatus === 'paused') return;
+  const items = getDesignAgentQueueItems(node);
+  const running = items.find(item => item.status === 'running');
+  if (running) return;
+  const next = items.find(item => item.status === 'queued');
+  if (!next) { finishDesignAgentQueue(node); return; }
+
+  next.status = 'running';
+  next.startedAt = Date.now();
+  node.params.agentStatus = 'running';
+  scheduleAutosave();
+  renderDesignAgentQueue(node);
+
+  // 本地演示执行：给用户一个可观察的状态过渡，但不宣称已经完成真实生图。
+  node.__agentQueueTimer = setTimeout(() => {
+    node.__agentQueueTimer = null;
+    if (node.params.agentStatus !== 'running' || next.status !== 'running') return;
+    next.status = 'done';
+    next.completedAt = Date.now();
+    runNextDesignAgentQueueItem(node);
+  }, 650);
+}
+
+function startDesignAgentQueue(node) {
+  ensureDesignAgentState(node);
+  const hasWork = getDesignAgentQueueItems(node).some(item => item.status === 'queued' || item.status === 'running');
+  if (!hasWork) { showToast('队列中没有待执行任务', 'info'); return; }
+  node.params.agentStatus = 'running';
+  runNextDesignAgentQueueItem(node);
+  showToast('已开始本地演示队列（不会调用真实模型）', 'info');
+}
+
+function pauseDesignAgentQueue(node) {
+  ensureDesignAgentState(node);
+  if (node.params.agentStatus !== 'running') return;
+  node.params.agentStatus = 'paused';
+  if (node.__agentQueueTimer) { clearTimeout(node.__agentQueueTimer); node.__agentQueueTimer = null; }
+  const running = getDesignAgentQueueItems(node).find(item => item.status === 'running');
+  if (running) running.status = 'queued';
+  scheduleAutosave();
+  renderDesignAgentQueue(node);
+  showToast('队列已暂停', 'info');
+}
+
+function cancelDesignAgentQueue(node) {
+  ensureDesignAgentState(node);
+  if (node.__agentQueueTimer) { clearTimeout(node.__agentQueueTimer); node.__agentQueueTimer = null; }
+  getDesignAgentQueueItems(node).forEach(item => {
+    if (item.status === 'queued' || item.status === 'running') item.status = 'cancelled';
+  });
+  node.params.agentStatus = 'idle';
+  scheduleAutosave();
+  renderDesignAgentQueue(node);
+  showToast('已取消未完成任务', 'info');
+}
+
+function clearCompletedDesignAgentQueue(node) {
+  ensureDesignAgentState(node);
+  // 已创建节点仍是结果汇总的来源，不能随普通演示任务一并清除。
+  node.params.agentQueue = node.params.agentQueue.filter(item => item.status !== 'done' || item.createdNodeId);
+  scheduleAutosave();
+  renderDesignAgentQueue(node);
+}
+
+function designAgentQueueItemForCard(node, card) {
+  if (!node || !card) return null;
+  return getDesignAgentQueueItems(node).find(item => item.cardId === card.id) || null;
+}
+
+function designAgentRectsOverlap(a, b, gap = 24) {
+  return a.x < b.x + b.width + gap && a.x + a.width + gap > b.x
+    && a.y < b.y + b.height + gap && a.y + a.height + gap > b.y;
+}
+
+function createDesignAgentImageNodes(node, queueItems) {
+  if (!node || !workflow.nodes.has(node.id)) return 0;
+  const items = (queueItems || []).filter(item => item && item.status === 'done' && !item.createdNodeId);
+  if (!items.length) {
+    showToast('没有可创建的已完成任务', 'info');
+    return 0;
+  }
+  const occupied = [...workflow.nodes.values()].filter(Boolean).map(item => ({
+    x: Number(item.x) || 0, y: Number(item.y) || 0,
+    width: Number(item.width) || 280, height: Number(item.height) || 200
+  }));
+  const baseX = (Number(node.x) || 0) + (Number(node.width) || 300) + 64;
+  const baseY = Number(node.y) || 0;
+  let created = 0;
+  items.forEach((item, index) => {
+    const size = { width: 220, height: 160 };
+    let x = baseX;
+    let y = baseY + index * (size.height + 48);
+    let guard = 0;
+    while (occupied.some(rect => designAgentRectsOverlap({ x, y, ...size }, rect)) && guard++ < 160) {
+      y += size.height + 48;
+      if (y > baseY + 11 * (size.height + 48)) {
+        y = baseY;
+        x += size.width + 72;
+      }
+    }
+    const imageNode = addNode('aiImage', Math.round(x), Math.round(y));
+    imageNode.title = (item.title || '图片任务') + ' · 待生成';
+    imageNode.prompt = item.prompt || '';
+    imageNode.params = imageNode.params || {};
+    imageNode.params.agentTaskId = item.id;
+    imageNode.params.agentTaskStatus = '待生成';
+    imageNode.params.agentResultGroup = node.id;
+    imageNode.status = 'idle';
+    imageNode.resultMode = 'pending';
+    if (imageNode.el) buildNodeBody(imageNode.el, imageNode);
+    // 设计智能体的唯一文本输出 → 新图片节点的提示词输入。
+    // 每个任务节点各自接收同一个智能体输出端口，实际任务文本仍保留在节点 prompt 中，
+    // 这样切换/编辑设计智能体结果时，现有数据流仍能刷新下游提示词。
+    const connected = !!connectNodes(node.id, 0, imageNode.id, 1);
+    item.edgeCreated = connected;
+    item.createdNodeId = imageNode.id;
+    item.status = 'node-created';
+    occupied.push({ x: imageNode.x, y: imageNode.y, width: imageNode.width, height: imageNode.height });
+    created++;
+  });
+  if (created) {
+    markEdgesDirty();
+    scheduleAutosave();
+    selectNode(node);
+    showNodeComposer(node);
+    showToast('已创建 ' + created + ' 个待生成图片节点，可逐个运行', 'success');
+  }
+  return created;
+}
+
+function getDesignAgentCreatedImageNodes(node) {
+  if (!node) return [];
+  return getDesignAgentQueueItems(node).map(item => item && item.createdNodeId ? workflow.nodes.get(item.createdNodeId) : null)
+    .filter(item => item && item.type === 'aiImage');
+}
+
+// 任务卡本身记录“已创建”，图片节点则记录实际运行状态；展示时以图片节点为准，
+// 但不改写队列原值，避免清理已完成任务时丢失已创建节点的归属关系。
+function getDesignAgentCreatedTaskStatus(item) {
+  if (!item || !item.createdNodeId) return item && item.status ? item.status : 'queued';
+  const target = workflow.nodes.get(item.createdNodeId);
+  if (!target) return 'node-missing';
+  if (target.status === 'error' || target.status === 'failure') return 'error';
+  if (target.status === 'running') return 'running';
+  if (target.status === 'done') return 'done';
+  if (target.status === 'cancelled') return 'cancelled';
+  return 'node-created';
+}
+
+function getDesignAgentTaskStatusLabel(status) {
+  const labels = {
+    queued: '待生成', running: '生成中', done: '已完成', error: '失败', failure: '失败',
+    cancelled: '已取消', skipped: '已跳过', 'node-created': '已创建节点', 'node-missing': '节点已删除'
+  };
+  return labels[status] || status || '待生成';
+}
+
+function syncDesignAgentTaskState(target) {
+  if (!target || !target.params || !target.params.agentTaskId) return;
+  const owner = getDesignAgentOwnerForImageNode(target);
+  if (!owner || !owner.params) return;
+  const item = (owner.params.agentQueue || []).find(entry => entry && entry.id === target.params.agentTaskId);
+  if (!item) return;
+  const next = target.status === 'error' || target.status === 'failure' ? 'error' :
+    target.status === 'running' ? 'running' : target.status === 'done' ? 'done' :
+      target.status === 'cancelled' ? 'cancelled' : 'node-created';
+  if (item.status !== next) {
+    item.status = next;
+    item.updatedAt = Date.now();
+    target.params.agentTaskStatus = getDesignAgentTaskStatusLabel(next);
+    scheduleAutosave();
+  }
+}
+
+// 反向找到创建当前图片节点的设计智能体。图片节点状态/结果变化时，
+// 由这里触发 Composer 的轻量重绘，让结果预览不需要用户重新点选智能体。
+function getDesignAgentOwnerForImageNode(target) {
+  if (!target) return null;
+  for (const candidate of workflow.nodes.values()) {
+    if (!candidate || candidate.type !== 'designAgent' || !candidate.params) continue;
+    const queue = Array.isArray(candidate.params.agentQueue) ? candidate.params.agentQueue : [];
+    if (queue.some(item => item && item.createdNodeId === target.id)) return candidate;
+  }
+  return null;
+}
+
+function refreshDesignAgentResultPreviewFor(target) {
+  const owner = getDesignAgentOwnerForImageNode(target);
+  if (!owner || owner !== __composerNode) return;
+  // 避免同一批同步状态更新连续重建多次 Composer。
+  if (owner.__resultPreviewRefreshPending) return;
+  owner.__resultPreviewRefreshPending = true;
+  const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout;
+  schedule(() => {
+    owner.__resultPreviewRefreshPending = false;
+    if (owner === __composerNode && workflow.nodes.has(owner.id)) showNodeComposer(owner);
+  }, 0);
+}
+
+function runDesignAgentImageNodes(node, onlyFailed = false) {
+  // 默认只运行未完成节点；已经成功的节点不重复请求，失败/取消节点允许重试。
+  const runnable = new Set(['idle', 'error', 'failure', 'cancelled', 'skipped']);
+  const targets = getDesignAgentCreatedImageNodes(node).filter(item => runnable.has(item.status)
+    && (!onlyFailed || item.status === 'error' || item.status === 'failure'));
+  if (!targets.length) { showToast('没有可运行的图片节点', 'info'); return; }
+  if (node.__designAgentBatch && node.__designAgentBatch.running) {
+    showToast('图片节点批量运行已经开始', 'info'); return;
+  }
+  const batch = node.__designAgentBatch = { nodes: targets, index: 0, running: true, cancelled: false };
+  const next = () => {
+    if (!batch.running || batch.cancelled || batch.index >= batch.nodes.length) {
+      batch.running = false;
+      scheduleAutosave();
+      renderDesignAgentQueue(node);
+      if (!batch.cancelled) showToast('已完成批量运行：' + batch.index + ' 个图片节点', 'success');
+      return;
+    }
+    const target = batch.nodes[batch.index];
+    if (!target || !workflow.nodes.has(target.id)) { batch.index++; next(); return; }
+    batch.index++;
+    batch.current = target;
+    runNode(target);
+    const startedAt = Date.now();
+    const watch = () => {
+      if (batch.cancelled) return;
+      if (target.status === 'running') { setTimeout(watch, 250); return; }
+      // 失败节点不阻断其他已确认任务，继续执行并在结束时由节点自身显示失败原因。
+      if (target.status === 'idle' && Date.now() - startedAt < 1500) { setTimeout(watch, 250); return; }
+      renderDesignAgentQueue(node);
+      next();
+    };
+    setTimeout(watch, 250);
+  };
+  next();
+  showToast('已按顺序开始运行 ' + targets.length + ' 个图片节点', 'info');
+}
+
+function retryDesignAgentImageNode(owner, target) {
+  if (!owner || !target || !workflow.nodes.has(target.id)) return;
+  if (target.status !== 'error' && target.status !== 'failure') {
+    showToast('只有失败的图片节点可以重试', 'info');
+    return;
+  }
+  if (target.el) target.el.querySelectorAll('.node-error-reason').forEach(el => el.remove());
+  target.failureReason = '';
+  target._lastError = '';
+  target.resultMode = 'pending';
+  target.status = 'idle';
+  target.params = target.params || {};
+  target.params.agentTaskStatus = '待运行';
+  syncDesignAgentTaskState(target);
+  if (target.el) updateNodeStatus(target);
+  scheduleAutosave();
+  focusDesignAgentCreatedNode(owner, target);
+  runNode(target);
+  showToast('已重试：' + (target.title || '图片节点'), 'info');
+}
+
+function cancelDesignAgentImageNodes(node) {
+  const batch = node && node.__designAgentBatch;
+  if (!batch || !batch.running) return;
+  batch.cancelled = true;
+  batch.running = false;
+  [batch.current, ...batch.nodes.slice(batch.index)].forEach(target => {
+    if (!target || target.status !== 'running') return;
+    if (window.FlowCraft && window.FlowCraft.runner && typeof window.FlowCraft.runner.cancel === 'function') {
+      window.FlowCraft.runner.cancel(target.id);
+    }
+    setNodeStatus(target, 'cancelled', '批量运行已取消');
+    if (target.el) updateNodeStatus(target);
+  });
+  scheduleAutosave();
+  renderDesignAgentQueue(node);
+  showToast('已停止后续图片节点运行', 'info');
+}
+
+function focusDesignAgentCreatedNode(node, target) {
+  if (!target || !workflow.nodes.has(target.id)) return;
+  selectNode(target);
+  if (typeof fitNodeToView === 'function') fitNodeToView(target);
+  else if (typeof applyTransform === 'function') applyTransform();
+}
+
+function arrangeDesignAgentImageNodes(node) {
+  const targets = getDesignAgentCreatedImageNodes(node);
+  if (!targets.length) { showToast('还没有可整理的图片节点', 'info'); return; }
+  const ordered = targets.slice().sort((a, b) => {
+    const ai = Number((node.params.agentQueue.find(item => item.createdNodeId === a.id) || {}).cardId?.split('_').pop()) || 0;
+    const bi = Number((node.params.agentQueue.find(item => item.createdNodeId === b.id) || {}).cardId?.split('_').pop()) || 0;
+    return ai - bi;
+  });
+  const gapX = 40, gapY = 40, cols = Math.min(5, Math.max(1, ordered.length));
+  const baseX = (Number(node.x) || 0) + (Number(node.width) || 300) + 72;
+  const baseY = Number(node.y) || 0;
+  const widths = Array.from({ length: cols }, () => 0);
+  const heights = [];
+  ordered.forEach((target, index) => {
+    const col = index % cols, row = Math.floor(index / cols);
+    widths[col] = Math.max(widths[col], Number(target.width) || 220);
+    heights[row] = Math.max(heights[row] || 0, Number(target.height) || 160);
+  });
+  const colX = [], rowY = [];
+  widths.forEach((width, index) => { colX[index] = index ? colX[index - 1] + widths[index - 1] + gapX : baseX; });
+  heights.forEach((height, index) => { rowY[index] = index ? rowY[index - 1] + heights[index - 1] + gapY : baseY; });
+  pushHistory();
+  ordered.forEach((target, index) => {
+    const col = index % cols, row = Math.floor(index / cols);
+    target.x = Math.round(colX[col]);
+    target.y = Math.round(rowY[row]);
+    if (target.el) {
+      target.el.style.left = target.x + 'px';
+      target.el.style.top = target.y + 'px';
+    }
+  });
+  markEdgesDirty();
+  scheduleAutosave();
+  applyTransform();
+  showToast('已整理 ' + ordered.length + ' 个图片节点', 'success');
+}
+
+function makeDesignAgentSelect(label, value, options, onChange) {
+  const row = document.createElement('label');
+  row.className = 'nc-field design-agent-field';
+  const caption = document.createElement('span');
+  caption.textContent = label;
+  row.appendChild(caption);
+  const select = document.createElement('select');
+  select.className = 'nc-select';
+  options.forEach(option => {
+    const item = document.createElement('option');
+    item.value = option;
+    item.textContent = option;
+    select.appendChild(item);
+  });
+  if (!options.includes(value)) value = options[0];
+  select.value = value;
+  select.onmousedown = e => e.stopPropagation();
+  select.onchange = e => onChange(e.target.value);
+  row.appendChild(select);
+  return row;
+}
+
+function buildDesignAgentComposerBody(node, el) {
+  ensureDesignAgentState(node);
+
+  const session = document.createElement('div');
+  session.className = 'design-agent-session';
+  const sessionHead = document.createElement('div');
+  sessionHead.className = 'design-agent-session-head';
+  sessionHead.innerHTML = '<strong>设计对话</strong><span>' + (node.params.agentStatus === 'done' ? '已完成' : '等待输入') + '</span>';
+  session.appendChild(sessionHead);
+  const messages = document.createElement('div');
+  messages.className = 'design-agent-messages';
+  const history = node.params.agentMessages.slice(-6);
+  if (!history.length) {
+    const empty = document.createElement('div');
+    empty.className = 'design-agent-empty';
+    empty.textContent = '开始一段设计对话，输入需求或连接上游文本、参考图。';
+    messages.appendChild(empty);
+  } else {
+    history.forEach(message => {
+      const item = document.createElement('div');
+      item.className = 'design-agent-message ' + (message.role === 'user' ? 'is-user' : 'is-assistant');
+      item.textContent = message.content || '';
+      messages.appendChild(item);
+    });
+  }
+  session.appendChild(messages);
+  el.appendChild(session);
+
+  const skill = document.createElement('div');
+  skill.className = 'design-agent-skill-row';
+  skill.innerHTML = '<span>✦ 添加技能</span>';
+  skill.onclick = e => { e.stopPropagation(); skillMenu.hidden = !skillMenu.hidden; };
+  skill.onmousedown = e => e.stopPropagation();
+  const skillMenu = document.createElement('select');
+  skillMenu.className = 'nc-select design-agent-skill-select';
+  skillMenu.hidden = true;
+  ['产品画册设计', '25 宫格分镜', '广告海报设计', '人物设定'].forEach(value => {
+    const option = document.createElement('option'); option.value = value; option.textContent = value; skillMenu.appendChild(option);
+  });
+  skillMenu.onmousedown = e => e.stopPropagation();
+  skillMenu.onchange = e => { node.params.task = e.target.value === '25 宫格分镜' ? '25 宫格分镜方案' : (e.target.value === '人物设定' ? '角色设定' : '图片生成提示词'); scheduleAutosave(); showNodeComposer(node); };
+  skill.appendChild(skillMenu);
+  el.appendChild(skill);
+
+  const briefWrap = document.createElement('div');
+  briefWrap.className = 'design-agent-brief-wrap design-agent-chat-input';
+  const brief = document.createElement('textarea');
+  brief.className = 'node-textarea nc-textarea design-agent-brief';
+  brief.rows = 3;
+  brief.placeholder = '继续追问，或输入一段新的设计需求…';
+  brief.value = node.params.brief || '';
+  brief.onmousedown = e => e.stopPropagation();
+  brief.oninput = e => { node.params.brief = e.target.value; scheduleAutosave(); };
+  briefWrap.appendChild(brief);
+  el.appendChild(briefWrap);
+
+  const fields = document.createElement('div');
+  fields.className = 'design-agent-fields';
+  fields.appendChild(makeDesignAgentSelect('角色', node.params.role, ['视觉设计师', '分镜设计师', '服装设计师', '广告创意', '产品设计师'], value => { node.params.role = value; scheduleAutosave(); }));
+  fields.appendChild(makeDesignAgentSelect('任务', node.params.task, ['图片生成提示词', '视频生成提示词', '25 宫格分镜方案', '镜头脚本', '角色设定', '风格分析'], value => { node.params.task = value; scheduleAutosave(); }));
+  fields.appendChild(makeDesignAgentSelect('输出', node.params.outputFormat, ['结构化设计方案', '精简提示词', '详细提示词', '分镜表格', '角色设定卡'], value => { node.params.outputFormat = value; scheduleAutosave(); }));
+  fields.appendChild(makeDesignAgentSelect('模型', node.params.model, ['当前模型', '本地模板'], value => { node.params.model = value; scheduleAutosave(); }));
+  el.appendChild(fields);
+
+  const refState = document.createElement('div');
+  refState.className = 'design-agent-ref-state';
+  refState.textContent = designAgentHasReference(node) ? '已接收参考图，可在方案中提炼视觉特征' : '可连接图片节点作为参考图';
+  el.appendChild(refState);
+
+  const actions = document.createElement('div');
+  actions.className = 'nc-actions design-agent-actions';
+  const run = document.createElement('button');
+  run.type = 'button'; run.className = 'nc-run';
+  run.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l9 6-9 6z"/></svg> 发送并生成';
+  run.onmousedown = e => e.stopPropagation();
+  run.onclick = e => {
+    e.stopPropagation();
+    gatherInputs(node);
+    generateDesignAgentPlan(node);
+    if (node.el) buildNodeBody(node.el, node);
+    updateNodeStatus(node); markEdgesDirty(); scheduleAutosave();
+    if (node === __composerNode) showNodeComposer(node);
+    showToast('设计方案已生成，可继续追问或连接下游文本节点', 'success');
+  };
+  actions.appendChild(run);
+  el.appendChild(actions);
+
+  const cards = document.createElement('div');
+  cards.className = 'design-agent-result-cards';
+  const cardList = node.params.resultCards;
+  const activeIndex = Math.max(0, Math.min(cardList.length - 1, Number(node.params.activeResultCard) || 0));
+  node.params.activeResultCard = activeIndex;
+  if (cardList.length > 1) {
+    const navigator = document.createElement('div');
+    navigator.className = 'design-agent-card-nav';
+    const prev = document.createElement('button');
+    prev.type = 'button'; prev.className = 'nc-clear'; prev.textContent = '‹'; prev.title = '上一条任务';
+    prev.disabled = activeIndex <= 0;
+    prev.onmousedown = e => e.stopPropagation();
+    prev.onclick = e => {
+      e.stopPropagation();
+      node.params.activeResultCard = activeIndex - 1;
+      node.params.result = cardList[activeIndex - 1].content;
+      node.outputsData = [{ type: 'text', value: cardList[activeIndex - 1].content }];
+      markEdgesDirty(); scheduleAutosave(); showNodeComposer(node);
+    };
+    const counter = document.createElement('span');
+    counter.textContent = (activeIndex + 1) + ' / ' + cardList.length + ' 条任务';
+    const next = document.createElement('button');
+    next.type = 'button'; next.className = 'nc-clear'; next.textContent = '›'; next.title = '下一条任务';
+    next.disabled = activeIndex >= cardList.length - 1;
+    next.onmousedown = e => e.stopPropagation();
+    next.onclick = e => {
+      e.stopPropagation();
+      node.params.activeResultCard = activeIndex + 1;
+      node.params.result = cardList[activeIndex + 1].content;
+      node.outputsData = [{ type: 'text', value: cardList[activeIndex + 1].content }];
+      markEdgesDirty(); scheduleAutosave(); showNodeComposer(node);
+    };
+    navigator.appendChild(prev); navigator.appendChild(counter); navigator.appendChild(next);
+    cards.appendChild(navigator);
+  }
+  const card = cardList[activeIndex];
+  if (card) {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'design-agent-result-card';
+    const cardHead = document.createElement('div');
+    cardHead.className = 'design-agent-card-head';
+    cardHead.innerHTML = '<strong>' + escapeHtml(card.title || '设计方案') + '</strong><span>' + escapeHtml(card.status === 'done' ? '已完成' : '待确认') + '</span>';
+    cardEl.appendChild(cardHead);
+    const summary = document.createElement('div'); summary.className = 'design-agent-card-summary'; summary.textContent = card.summary || '';
+    cardEl.appendChild(summary);
+    const result = document.createElement('textarea');
+    result.className = 'node-textarea design-agent-result-editor'; result.rows = 6; result.value = card.content || '';
+    result.onmousedown = e => e.stopPropagation();
+    result.oninput = e => { card.content = e.target.value; node.params.result = e.target.value; node.outputsData = [{ type: 'text', value: e.target.value }]; scheduleAutosave(); markEdgesDirty(); };
+    cardEl.appendChild(result);
+    const cardActions = document.createElement('div'); cardActions.className = 'design-agent-card-actions';
+    const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'nc-clear'; copy.textContent = '复制';
+    copy.onmousedown = e => e.stopPropagation(); copy.onclick = e => { e.stopPropagation(); navigator.clipboard?.writeText(card.content || '').then(() => showToast('方案已复制', 'success')).catch(() => showToast('复制失败，请直接选择文本', 'warn')); };
+    cardActions.appendChild(copy);
+    const currentQueueItem = designAgentQueueItemForCard(node, card);
+    if (currentQueueItem && currentQueueItem.status === 'done' && !currentQueueItem.createdNodeId) {
+      const createCurrent = document.createElement('button');
+      createCurrent.type = 'button'; createCurrent.className = 'nc-run'; createCurrent.textContent = '创建图片节点';
+      createCurrent.onmousedown = e => e.stopPropagation();
+      createCurrent.onclick = e => { e.stopPropagation(); createDesignAgentImageNodes(node, [currentQueueItem]); };
+      cardActions.appendChild(createCurrent);
+    }
+    if (currentQueueItem && currentQueueItem.createdNodeId) {
+    const createdLabel = document.createElement('span');
+      createdLabel.className = 'design-agent-created-label';
+      createdLabel.textContent = getDesignAgentTaskStatusLabel(getDesignAgentCreatedTaskStatus(currentQueueItem));
+      cardActions.appendChild(createdLabel);
+    }
+    cardEl.appendChild(cardActions); cards.appendChild(cardEl);
+  }
+  el.appendChild(cards);
+
+  if (cardList.length) {
+    const queue = document.createElement('div');
+    queue.className = 'design-agent-queue';
+    const queued = node.params.agentQueue.filter(item => item && item.status !== 'cancelled');
+    const queueStatusText = node.params.agentStatus === 'running' ? '执行中' : (node.params.agentStatus === 'paused' ? '已暂停' : (node.params.agentStatus === 'done' ? '已完成' : '待执行'));
+    const queueHead = document.createElement('div');
+    queueHead.className = 'design-agent-queue-head';
+    queueHead.innerHTML = '<strong>图片生成队列</strong><span>' + queueStatusText + ' · ' + queued.length + ' 条</span>';
+    queue.appendChild(queueHead);
+    const queueNote = document.createElement('div');
+    queueNote.className = 'design-agent-queue-note';
+    queueNote.textContent = '本地演示队列：仅模拟排队状态，不调用真实模型。';
+    queue.appendChild(queueNote);
+    const queueActions = document.createElement('div');
+    queueActions.className = 'design-agent-queue-actions';
+    const addCurrent = document.createElement('button');
+    addCurrent.type = 'button'; addCurrent.className = 'nc-clear'; addCurrent.textContent = '加入当前任务';
+    addCurrent.onmousedown = e => e.stopPropagation();
+    addCurrent.onclick = e => { e.stopPropagation(); enqueueDesignAgentCards(node, [card]); showNodeComposer(node); };
+    queueActions.appendChild(addCurrent);
+    if (cardList.length > 1) {
+      const addAll = document.createElement('button');
+      addAll.type = 'button'; addAll.className = 'nc-run'; addAll.textContent = '加入全部 ' + cardList.length + ' 条';
+      addAll.onmousedown = e => e.stopPropagation();
+      addAll.onclick = e => { e.stopPropagation(); enqueueDesignAgentCards(node, cardList); showNodeComposer(node); };
+      queueActions.appendChild(addAll);
+    }
+    queue.appendChild(queueActions);
+    const runQueue = document.createElement('button');
+    runQueue.type = 'button'; runQueue.className = 'nc-run';
+    runQueue.textContent = node.params.agentStatus === 'paused' ? '继续执行' : '开始演示执行';
+    runQueue.disabled = node.params.agentStatus === 'running' || !queued.some(item => item.status === 'queued');
+    runQueue.onmousedown = e => e.stopPropagation();
+    runQueue.onclick = e => { e.stopPropagation(); startDesignAgentQueue(node); };
+    queueActions.appendChild(runQueue);
+    const pauseQueue = document.createElement('button');
+    pauseQueue.type = 'button'; pauseQueue.className = 'nc-clear'; pauseQueue.textContent = '暂停';
+    pauseQueue.disabled = node.params.agentStatus !== 'running';
+    pauseQueue.onmousedown = e => e.stopPropagation();
+    pauseQueue.onclick = e => { e.stopPropagation(); pauseDesignAgentQueue(node); };
+    queueActions.appendChild(pauseQueue);
+    const cancelQueue = document.createElement('button');
+    cancelQueue.type = 'button'; cancelQueue.className = 'nc-clear'; cancelQueue.textContent = '取消未完成';
+    cancelQueue.disabled = !queued.some(item => item.status === 'queued' || item.status === 'running');
+    cancelQueue.onmousedown = e => e.stopPropagation();
+    cancelQueue.onclick = e => { e.stopPropagation(); cancelDesignAgentQueue(node); };
+    queueActions.appendChild(cancelQueue);
+    const clearDone = document.createElement('button');
+    clearDone.type = 'button'; clearDone.className = 'nc-clear'; clearDone.textContent = '清理未创建任务';
+    clearDone.disabled = !queued.some(item => item.status === 'done' && !item.createdNodeId);
+    clearDone.onmousedown = e => e.stopPropagation();
+    clearDone.onclick = e => { e.stopPropagation(); clearCompletedDesignAgentQueue(node); };
+    queueActions.appendChild(clearDone);
+    const createDone = document.createElement('button');
+    createDone.type = 'button'; createDone.className = 'nc-run'; createDone.textContent = '创建已完成节点';
+    createDone.disabled = !queued.some(item => item.status === 'done' && !item.createdNodeId);
+    createDone.onmousedown = e => e.stopPropagation();
+    createDone.onclick = e => { e.stopPropagation(); createDesignAgentImageNodes(node, queued); };
+    queueActions.appendChild(createDone);
+    const createdNodes = getDesignAgentCreatedImageNodes(node);
+    const batchRunning = !!(node.__designAgentBatch && node.__designAgentBatch.running);
+    const createdSummary = createdNodes.reduce((summary, item) => {
+      if (item.status === 'done') summary.done++;
+      else if (item.status === 'error' || item.status === 'failure') summary.failed++;
+      else if (item.status === 'running') summary.running++;
+      else summary.pending++;
+      return summary;
+    }, { pending: 0, running: 0, done: 0, failed: 0 });
+    const createdNote = document.createElement('div');
+    createdNote.className = 'design-agent-created-summary';
+    createdNote.textContent = createdNodes.length
+      ? '图片节点：待运行 ' + createdSummary.pending + ' · 生成中 ' + createdSummary.running + ' · 已完成 ' + createdSummary.done + ' · 失败 ' + createdSummary.failed
+      : '创建图片节点后，可在这里统一运行。';
+    queue.appendChild(createdNote);
+    if (createdNodes.length) {
+      // 轻量结果汇总：只展示当前设计智能体创建的图片节点，不改变画布上的图片节点视觉。
+      // 没有结果时使用状态卡而不是空黑块，避免无效图片给用户造成“已生成”的错觉。
+      const gallery = document.createElement('div');
+      gallery.className = 'design-agent-result-gallery';
+      const galleryHead = document.createElement('div');
+      galleryHead.className = 'design-agent-result-gallery-head';
+      galleryHead.innerHTML = '<span>结果预览</span><em>单击查看大图 · 双击定位节点</em>';
+      gallery.appendChild(galleryHead);
+      const galleryGrid = document.createElement('div');
+      galleryGrid.className = 'design-agent-result-gallery-grid';
+      const stateMap = { idle: '待运行', running: '生成中', done: '已完成', error: '失败', failure: '失败', cancelled: '已取消', skipped: '已跳过' };
+      createdNodes.slice(0, 25).forEach((target, index) => {
+        const tile = document.createElement('div');
+        tile.tabIndex = 0;
+        tile.setAttribute('role', 'button');
+        tile.className = 'design-agent-result-thumb status-' + (target.status || 'idle');
+        tile.title = (target.title || ('图片节点 ' + (index + 1))) + ' · ' + (stateMap[target.status] || '待运行');
+        const src = getNodePreviewImage(target);
+        if (src) {
+          const img = document.createElement('img');
+          img.src = src;
+          img.alt = target.title || ('图片节点 ' + (index + 1));
+          img.loading = 'lazy';
+          img.draggable = false;
+          img.onerror = () => {
+            img.remove();
+            tile.classList.add('is-invalid');
+            status.textContent = '图片无效';
+          };
+          tile.appendChild(img);
+        } else {
+          tile.classList.add('is-empty');
+        }
+        const status = document.createElement('span');
+        status.className = 'design-agent-result-thumb-status';
+        status.textContent = src ? (target.status === 'done' ? '已完成' : (stateMap[target.status] || '待运行')) : (stateMap[target.status] || '待生成');
+        tile.appendChild(status);
+        const badge = document.createElement('b');
+        badge.className = 'design-agent-result-thumb-index';
+        badge.textContent = String(index + 1).padStart(2, '0');
+        tile.appendChild(badge);
+        if (target.status === 'error' || target.status === 'failure') {
+          const retry = document.createElement('button');
+          retry.type = 'button';
+          retry.className = 'design-agent-result-thumb-retry';
+          retry.textContent = '↻';
+          retry.title = '重试此图片节点';
+          retry.onmousedown = e => e.stopPropagation();
+          retry.onclick = e => { e.stopPropagation(); retryDesignAgentImageNode(node, target); };
+          tile.appendChild(retry);
+        }
+        tile.onmousedown = e => e.stopPropagation();
+        tile.onclick = e => {
+          e.stopPropagation();
+          const currentSrc = getNodePreviewImage(target);
+          if (currentSrc) openImageLightbox(currentSrc);
+          else focusDesignAgentCreatedNode(node, target);
+        };
+        tile.ondblclick = e => { e.stopPropagation(); focusDesignAgentCreatedNode(node, target); };
+        tile.onkeydown = e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tile.click(); }
+        };
+        galleryGrid.appendChild(tile);
+      });
+      if (createdNodes.length > 25) {
+        const more = document.createElement('div');
+        more.className = 'design-agent-result-gallery-more';
+        more.textContent = '还有 ' + (createdNodes.length - 25) + ' 个节点，可在下方列表定位。';
+        gallery.appendChild(more);
+      }
+      gallery.appendChild(galleryGrid);
+      queue.appendChild(gallery);
+
+      const resultList = document.createElement('div');
+      resultList.className = 'design-agent-created-list';
+      const resultHead = document.createElement('div');
+      resultHead.className = 'design-agent-created-list-head';
+      resultHead.textContent = '生成节点结果';
+      resultList.appendChild(resultHead);
+      createdNodes.slice(0, 8).forEach(target => {
+        const row = document.createElement('button');
+        row.type = 'button'; row.className = 'design-agent-created-row';
+        row.title = '点击定位到图片节点';
+        const name = document.createElement('span');
+        name.textContent = target.title || '图片节点';
+        const state = document.createElement('em');
+      state.textContent = getDesignAgentTaskStatusLabel(target.status === 'idle' ? 'node-created' : target.status);
+        row.appendChild(name); row.appendChild(state);
+        row.onmousedown = e => e.stopPropagation();
+        row.onclick = e => { e.stopPropagation(); focusDesignAgentCreatedNode(node, target); };
+        resultList.appendChild(row);
+      });
+      if (createdNodes.length > 8) {
+        const more = document.createElement('div');
+        more.className = 'design-agent-created-more';
+        more.textContent = '还有 ' + (createdNodes.length - 8) + ' 个节点，已在画布中创建。';
+        resultList.appendChild(more);
+      }
+      queue.appendChild(resultList);
+    }
+    const runCreated = document.createElement('button');
+    runCreated.type = 'button'; runCreated.className = 'nc-run';
+    runCreated.textContent = '批量运行图片节点' + (createdNodes.length ? ' · ' + (createdSummary.pending + createdSummary.failed) : '');
+    runCreated.disabled = batchRunning || !(createdSummary.pending || createdSummary.failed);
+    runCreated.onmousedown = e => e.stopPropagation();
+    runCreated.onclick = e => { e.stopPropagation(); runDesignAgentImageNodes(node); };
+    queueActions.appendChild(runCreated);
+    const retryFailed = document.createElement('button');
+    retryFailed.type = 'button'; retryFailed.className = 'nc-clear'; retryFailed.textContent = '仅重试失败';
+    retryFailed.disabled = batchRunning || createdSummary.failed === 0;
+    retryFailed.onmousedown = e => e.stopPropagation();
+    retryFailed.onclick = e => { e.stopPropagation(); runDesignAgentImageNodes(node, true); };
+    queueActions.appendChild(retryFailed);
+    const stopCreated = document.createElement('button');
+    stopCreated.type = 'button'; stopCreated.className = 'nc-clear'; stopCreated.textContent = '停止批量运行';
+    stopCreated.disabled = !batchRunning;
+    stopCreated.onmousedown = e => e.stopPropagation();
+    stopCreated.onclick = e => { e.stopPropagation(); cancelDesignAgentImageNodes(node); };
+    queueActions.appendChild(stopCreated);
+    const arrangeCreated = document.createElement('button');
+    arrangeCreated.type = 'button'; arrangeCreated.className = 'nc-clear'; arrangeCreated.textContent = '整理图片节点';
+    arrangeCreated.disabled = !createdNodes.length;
+    arrangeCreated.onmousedown = e => e.stopPropagation();
+    arrangeCreated.onclick = e => { e.stopPropagation(); arrangeDesignAgentImageNodes(node); };
+    queueActions.appendChild(arrangeCreated);
+    if (queued.length) {
+      const queueList = document.createElement('div'); queueList.className = 'design-agent-queue-list';
+      queued.slice(-5).forEach(item => {
+        const row = document.createElement('div'); row.className = 'design-agent-queue-item';
+        const title = document.createElement('span'); title.textContent = item.title;
+        const status = document.createElement('em');
+        const taskStatus = getDesignAgentCreatedTaskStatus(item);
+        status.textContent = getDesignAgentTaskStatusLabel(taskStatus);
+        const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = '×'; cancel.title = '移出队列';
+        cancel.onmousedown = e => e.stopPropagation();
+        cancel.onclick = e => { e.stopPropagation(); item.status = 'cancelled'; scheduleAutosave(); showNodeComposer(node); };
+        row.appendChild(title); row.appendChild(status); row.appendChild(cancel); queueList.appendChild(row);
+      });
+      queue.appendChild(queueList);
+    }
+    el.appendChild(queue);
+  }
+
+  if (!el._ncBound) {
+    el.addEventListener('mousedown', e => e.stopPropagation());
+    el._ncBound = true;
+  }
 }
 
 function buildNodeComposerBody(node) {
@@ -4618,6 +6679,7 @@ function buildNodeComposerBody(node) {
   const isVideoInput = node.type === 'videoInput';
   const isAiImageLike = node.type === 'aiImage' || node.type === 'imageEdit';
   const isProcessingNode = node.type === 'lineart' || node.type === 'upscale';
+  const isDesignAgent = node.type === 'designAgent';
   const collapsed = isVideoInput && isVideoInputSettingsCollapsed(node);
 
   // 头部：类型标签 + 上游提示词标记 + 资产引用徽标 + 收起
@@ -4627,11 +6689,13 @@ function buildNodeComposerBody(node) {
   title.className = 'nc-title';
   title.textContent = isMediaInput
     ? (node.type === 'videoInput' ? '🎬 视频输入' : '🖼 图片输入') + ' · 详情'
-    : (isAiImageLike
+    : (isDesignAgent
+      ? '🧠 设计智能体 · 方案'
+      : (isAiImageLike
       ? (node.type === 'imageEdit' ? '🖌 图片修正' : '🖼 图片') + ' · 生成'
       : isProcessingNode
         ? (node.type === 'lineart' ? '✏️ 提取线稿' : '✨ 智能高清') + ' · 处理'
-        : '🎬 视频 · 生成');
+        : '🎬 视频 · 生成'));
   head.appendChild(title);
   if (node.effectivePrompt && node.effectivePrompt !== (node.prompt || '').trim()) {
     const up = document.createElement('span');
@@ -4663,6 +6727,11 @@ function buildNodeComposerBody(node) {
   closeBtn.onclick = (e) => { e.stopPropagation(); hideNodeComposer(); };
   head.appendChild(closeBtn);
   el.appendChild(head);
+
+  if (isDesignAgent) {
+    buildDesignAgentComposerBody(node, el);
+    return;
+  }
 
   // 提示词/说明输入
   const textarea = document.createElement('textarea');
@@ -4979,11 +7048,11 @@ function buildNodeComposerBody(node) {
     const modelSel = document.createElement('select');
     modelSel.className = 'nc-select nc-model';
     const models = isProcessingNode
-      ? ['GPT Image 2']
+      ? ['GPT Image 2', 'GPT Image 2.5']
       : node.type === 'imageEdit'
-      ? ['GPT Image 2']
+      ? ['GPT Image 2', 'GPT Image 2.5']
       : (node.type === 'aiImage' || node.type === 'image'
-        ? ['Nano Banana Pro', 'FLUX.1', 'Stable Diffusion XL', 'GPT Image 2']
+        ? ['Nano Banana Pro', 'FLUX.1', 'Stable Diffusion XL', 'GPT Image 2', 'GPT Image 2.5']
         : ['可灵 2.0', 'Runway Gen-4']);
     models.forEach(m => {
       const o = document.createElement('option');
@@ -4998,6 +7067,22 @@ function buildNodeComposerBody(node) {
 
     const specSel = buildUnifiedAiSpecSelect(node, 'nc-select nc-spec-select');
     row.appendChild(specSel);
+
+    // 批量规格入口放在图片生成参数面板内，不占用节点上方工具栏。
+    if (node.type === 'aiImage') {
+      const batchBtn = document.createElement('button');
+      batchBtn.type = 'button';
+      batchBtn.className = 'nc-batch-spec-btn';
+      batchBtn.textContent = '批量';
+      batchBtn.title = '批量设置选中图片节点或全部 25 宫格';
+      batchBtn.onmousedown = (e) => e.stopPropagation();
+      batchBtn.onclick = (e) => {
+        e.stopPropagation();
+        const nodes = getSelectedAiImageNodes();
+        showBatchComposer(nodes.length ? nodes : [node]);
+      };
+      row.appendChild(batchBtn);
+    }
 
     const isVideo = node.type === 'aiVideo';
     const paramDefs = [];
@@ -5392,6 +7477,7 @@ function restoreFromRecycle(index) {
   node.croppedImage = typeof nd.croppedImage === 'string' ? nd.croppedImage : '';
   node.cropMeta = nd.cropMeta ? JSON.parse(JSON.stringify(nd.cropMeta)) : null;
   node.uploadedVideo = typeof nd.uploadedVideo === 'string' ? nd.uploadedVideo : '';
+  node.uploadedAudio = typeof nd.uploadedAudio === 'string' ? nd.uploadedAudio : '';
   node.prompt = nd.prompt;
   node.params = { ...nd.params };
   node.refImages = normalizeRefImages(nd.refImages);
@@ -5402,7 +7488,7 @@ function restoreFromRecycle(index) {
   node.status = nd.status;
   node.previewOnly = !!nd.previewOnly;
   node.previewSourceId = typeof nd.previewSourceId === 'string' ? nd.previewSourceId : '';
-  if (node.type === 'videoInput' || node.type === 'image') {
+  if (['videoInput', 'image', 'bgm'].includes(node.type)) {
     node.outputsData = computeNodeOutput(node);
   }
   const el = createNodeElement(node);
@@ -5645,7 +7731,7 @@ function buildSidebar() {
   aiLabel.textContent = 'AI 生成';
   list.appendChild(aiLabel);
 
-  ['aiImage', 'imageEdit', 'aiVideo', 'aiSet'].forEach(type => {
+  ['aiImage', 'imageEdit', 'aiVideo', 'designAgent', 'aiSet'].forEach(type => {
     list.appendChild(createLibraryItem(type));
   });
 
@@ -5726,10 +7812,10 @@ function getNodeSemanticTier(type) {
   return (meta && meta.tier) || fallback[type] || 'demo';
 }
 function getNodeSemanticLabel(tier) {
-  return ({ input: '输入', production: '真实', demo: '演示', stub: '未实现' })[tier] || '演示';
+  return ({ input: '输入', production: '真实', local: '本地', demo: '演示', stub: '未实现' })[tier] || '演示';
 }
 function getNodeSemanticClass(tier) {
-  return ({ input: 'tier-input', production: 'tier-production', demo: 'tier-demo', stub: 'tier-stub' })[tier] || 'tier-demo';
+  return ({ input: 'tier-input', production: 'tier-production', local: 'tier-local', demo: 'tier-demo', stub: 'tier-stub' })[tier] || 'tier-demo';
 }
 function getNodeSemantic(typeOrNode) {
   const type = typeof typeOrNode === 'string' ? typeOrNode : (typeOrNode && typeOrNode.type) || '';
@@ -5737,10 +7823,10 @@ function getNodeSemantic(typeOrNode) {
   return { tier, label: getNodeSemanticLabel(tier), className: getNodeSemanticClass(tier) };
 }
 function getNodeResultLabel(mode) {
-  return ({ pending: '未运行', real: '真实', demo: '演示', failed: '失败', unimplemented: '未实现' })[mode] || '未运行';
+  return ({ pending: '未运行', real: '真实', local: '本地', demo: '演示', failed: '失败', unimplemented: '未实现' })[mode] || '未运行';
 }
 function getNodeResultClass(mode) {
-  return ({ pending: 'result-pending', real: 'result-real', demo: 'result-demo', failed: 'result-failed', unimplemented: 'result-unimplemented' })[mode] || 'result-pending';
+  return ({ pending: 'result-pending', real: 'result-real', local: 'result-local', demo: 'result-demo', failed: 'result-failed', unimplemented: 'result-unimplemented' })[mode] || 'result-pending';
 }
 function setNodeResultMode(node, mode) {
   if (!node) return;
@@ -6098,7 +8184,8 @@ function copyNodePrompt(node) {
   }
 }
 
-function saveNodeImageAsAsset(node) {
+async function saveNodeImageAsAsset(node) {
+  await ensureGlobalAssetImagesLoaded();
   const src = getNodeDisplayImageSource(node);
   if (!src || !/^data:/i.test(src)) { showToast('存资产需要本地图像，当前图源不支持', 'warn'); return; }
   const all = loadGlobalAssetImages();
@@ -6265,6 +8352,8 @@ function renderImagePreviewSection(el, node) {
     const gen = (Array.isArray(node._galleryImages) && node._galleryImages.length)
       ? node._galleryImages
       : ((node.outputsData || []).filter(p => p && p.type === 'image' && normalizeImageSrc(p.value)).map(p => p.value));
+    // 未运行时不创建占位预览区，避免固定最小高度形成空白区域。
+    if (!gen.length) return;
     const cleanArea = document.createElement('div');
     cleanArea.className = 'node-preview-area clean-output';
     if (gen.length) {
@@ -6295,11 +8384,6 @@ function renderImagePreviewSection(el, node) {
         simg.ondragstart = (e) => e.preventDefault();
         cleanArea.appendChild(simg);
       }
-    } else {
-      const empty = document.createElement('div');
-      empty.className = 'node-clean-empty';
-      empty.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" width="28" height="28"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M2 10l3.5-3.5L8 9l2.5-2.5L14 10"/></svg>';
-      cleanArea.appendChild(empty);
     }
     el.appendChild(cleanArea);
     return;
@@ -6491,8 +8575,38 @@ function downloadDataURL(dataURL, filename) {
   }
 }
 
+// 取得保存节点连接的上游图片集。这里统一使用「当前输出」而不是单独读取 thumb，
+// 避免生成结果已经更新、保存节点仍显示旧缩略图的分叉状态。
+function getSaveGalleryImages(node) {
+  const images = [];
+  [...workflow.edges.values()].forEach(e => {
+    if (e.to.node !== node) return;
+    const src = e.from.node;
+    if (!src) return;
+    const gallery = Array.isArray(src._galleryImages)
+      ? src._galleryImages.map(normalizeImageSrc).filter(Boolean) : [];
+    const outputs = (src.outputsData || [])
+      .filter(p => p && p.type === 'image')
+      .map(p => normalizeImageSrc(p.value)).filter(Boolean);
+    // 生成节点的画廊是完整结果；没有画廊时才取 outputsData。
+    (gallery.length ? gallery : outputs).forEach(v => { if (!images.includes(v)) images.push(v); });
+  });
+  return images;
+}
+
+// 上游结果变更后，立即刷新已连接保存节点的预览。只刷新 save，不触碰其它节点 UI。
+function refreshConnectedSavePreviews(sourceNode) {
+  if (!sourceNode) return;
+  const seen = new Set();
+  [...workflow.edges.values()].forEach(e => {
+    if (e.from.node !== sourceNode || !e.to.node || e.to.node.type !== 'save' || seen.has(e.to.node)) return;
+    seen.add(e.to.node);
+    if (e.to.node.el) buildNodeBody(e.to.node.el, e.to.node);
+  });
+}
+
 // 收集保存节点「实时」输入：即使工作流尚未运行，也尝试从已连接的上游节点取值
-// （图片类节点取 node.thumb；文本类节点取 node.prompt / params.script 等），
+// （图片类节点优先取 outputsData，thumb 仅作兼容旧数据的回退），
 // 避免"连了线但没点运行 → 预览空白、保存无反应"的问题。
 const SAVE_IMAGE_SRC = ['image', 'aiImage', 'upscale', 'lineart', 'aiSet', 'material', 'light', 'layout', 'videoBreak'];
 const SAVE_TEXT_SRC = ['text', 'script', 'subtitle'];
@@ -6506,8 +8620,11 @@ function collectSaveInputs(node) {
       let payload = (src.outputsData && src.outputsData[e.from.port]) || null;
       if (!payload && src) {
         // 回退：上游尚未运行，取其当前已有产出
-        if (SAVE_IMAGE_SRC.includes(src.type) && src.thumb && /^data:image\//.test(src.thumb)) {
-          payload = { type: 'image', value: src.thumb };
+        if (SAVE_IMAGE_SRC.includes(src.type)) {
+          const currentImage = (src.outputsData || []).find(p => p && p.type === 'image' && normalizeImageSrc(p.value));
+          const currentSrc = currentImage && normalizeImageSrc(currentImage.value);
+          if (currentSrc) payload = { type: 'image', value: currentSrc };
+          else if (src.thumb && /^data:image\//.test(src.thumb)) payload = { type: 'image', value: src.thumb };
         } else if (SAVE_TEXT_SRC.includes(src.type)) {
           let t = '';
           if (src.type === 'text') t = nodeFullText(src).trim();
@@ -6526,19 +8643,21 @@ function collectSaveInputs(node) {
 // 图片下载：data: 直接存；http(s) 先 fetch→blob 再存（跨域失败降级新标签页打开）
 function downloadImageAny(src, name) {
   if (/^data:/i.test(src)) {
-    try { downloadDataURL(src, name); } catch (e) {}
-    return Promise.resolve(true);
+    return downloadDataUrl(src, name);
   }
   return fetch(src).then(function(r) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.blob();
   }).then(function(b) {
-    const u = URL.createObjectURL(b);
-    const a = document.createElement('a');
-    a.href = u; a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(u), 2000);
-    return true;
+    return saveBlobWithPicker(b, name).then(function(picked) {
+      if (picked !== false) return picked;
+      const u = URL.createObjectURL(b);
+      const a = document.createElement('a');
+      a.href = u; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(u), 2000);
+      return true;
+    });
   }).catch(function() {
     try {
       const a = document.createElement('a');
@@ -6550,16 +8669,8 @@ function downloadImageAny(src, name) {
 }
 
 async function runSaveNode(node) {
-  // 优先：上游 AI 绘图节点产出多张原图（_galleryImages）→ 逐张分开保存
-  let galleryImgs = [];
-  [...workflow.edges.values()].forEach(e => {
-    if (e.to.node === node) {
-      const src = e.from.node;
-      if (src && Array.isArray(src._galleryImages) && src._galleryImages.length > 0) {
-        galleryImgs = src._galleryImages;
-      }
-    }
-  });
+  // 与保存节点面板共用同一解析口径，确保“看到的图”就是“保存的图”。
+  const galleryImgs = getSaveGalleryImages(node);
 
   let filename = String(node.params.filename || node.title || 'flowcraft').trim().replace(/[\\/:*?"<>|]/g, '_');
   if (!filename) filename = 'flowcraft';
@@ -7394,22 +9505,55 @@ async function splitAiImageGalleryToNodes(sourceNode) {
 }
 
 function buildNodeBody(el, node) {
-  // 移除旧的 body / preset-row / controls / toolbar / ports / preview
+  // 移除旧的 body / preset-row / controls / toolbar / ports / preview。
+  // 工具栏属于 header，但 buildNodeBody 会被上传、生成、恢复等多条路径重复调用；
+  // 在这里也做一次幂等清理，避免旧 header toolbar 残留后再次追加，导致按钮成倍出现。
   el.querySelectorAll('.node-body, .node-preset-row, .node-controls, .node-toolbar, .node-toolbar-hit, .node-port, .node-dataflow, .node-preview-area')
     .forEach(n => n.remove());
+  el.querySelectorAll('.node-tools').forEach(n => n.remove());
+
+  // 线稿/智能高清未生成时保留适度的默认处理区，但不创建空白预览、上传按钮或占位文案。
+  // 旧存档可能仍是此前的 88px 紧凑高度，只在检测到旧紧凑尺寸时升级；用户后续手动调整的尺寸不覆盖。
+  if (['lineart', 'upscale'].includes(node.type)) {
+    const hasOutput = (Array.isArray(node._galleryImages) && node._galleryImages.some(src => normalizeImageSrc(src)))
+      || (node.outputsData || []).some(p => p && p.type === 'image' && normalizeImageSrc(p.value));
+    if (!hasOutput) {
+      if (!Number.isFinite(Number(node.height)) || Number(node.height) <= 100) {
+        node.width = Math.max(Number(node.width) || 0, 280);
+        node.height = 150;
+      }
+      el.style.width = node.width + 'px';
+      el.style.minHeight = node.height + 'px';
+    }
+  }
   refreshNodeHeaderMeta(node, el); // header 工具区/元数据行随重渲染刷新（thumb/params 变化后）
 
   const def = node.def;
   // #5 Details on Demand：aiImage/aiVideo 的编辑 UI（提示词/模型/参数/生成）迁移到节点下方 Composer，
   // 节点体保持纯净（仅内容 + 状态）。数据流不变，仍读写 node.prompt / node.params。
-  const isComposerManaged = ['aiImage', 'imageEdit', 'aiVideo'].includes(node.type);
+  const isComposerManaged = ['aiImage', 'imageEdit', 'aiVideo', 'designAgent'].includes(node.type);
   const hasPrompt = false;
-  const hasThumb = ['image', 'aiImage', 'imageEdit', 'aiVideo', 'upscale', 'lineart', 'compare', 'videoInput'].includes(node.type);
+  // 线稿/智能高清未生成时使用下面的专用处理工作区；不要再先创建通用
+  // 缩略图主体，否则即使 CSS 隐藏了它，也会残留空白高度和无意义的占位结构。
+  const hasThumb = ['image', 'aiImage', 'imageEdit', 'aiVideo', 'compare', 'videoInput'].includes(node.type);
   const hasControls = false;
   const hasToolbar = ['aiImage', 'aiVideo', 'lineart', 'upscale'].includes(node.type);
 
   // —— body: 缩略图 + 提示词 ——
   let body = null;
+  if (node.type === 'designAgent') {
+    body = document.createElement('div');
+    body.className = 'node-body design-agent-body';
+    const role = document.createElement('div');
+    role.className = 'design-agent-role';
+    role.textContent = (node.params.role || '视觉设计师') + ' · ' + (node.params.task || '图片生成提示词');
+    const result = document.createElement('div');
+    result.className = 'design-agent-result';
+    result.textContent = node.params.result ? '已生成设计方案' : '等待输入需求';
+    body.appendChild(role);
+    body.appendChild(result);
+    el.appendChild(body);
+  }
   if (hasThumb || hasPrompt) {
     body = document.createElement('div');
     body.className = 'node-body';
@@ -7890,16 +10034,8 @@ function buildNodeBody(el, node) {
     const imgIn = inData.find(d => d && d.type === 'image' && typeof d.value === 'string');
     const textIn = inData.find(d => d && d.type === 'text' && typeof d.value === 'string');
 
-    // 找到连接到本节点图片端口的上游 AI 绘图节点，取其逐张原图（_galleryImages）
-    let galleryImgs = [];
-    [...workflow.edges.values()].forEach(e => {
-      if (e.to.node === node) {
-        const src = e.from.node;
-        if (src && src.type === 'aiImage' && Array.isArray(src._galleryImages) && src._galleryImages.length > 0) {
-          galleryImgs = src._galleryImages;
-        }
-      }
-    });
+    // 与实际保存逻辑共用当前输出解析，支持 AI 绘图、图片修正及其它图片节点。
+    const galleryImgs = getSaveGalleryImages(node);
 
     // 预览区
     const previewArea = document.createElement('div');
@@ -7991,6 +10127,42 @@ function buildNodeBody(el, node) {
     body = saveBody;
   }
 
+  // 线稿 / 智能高清：未生成时使用一块完整处理画板，不再显示旧的三格流程卡。
+  // 画板只表达处理类型与当前规格，不显示上传按钮、空白占位或状态提示。
+  const isProcessingNode = node.type === 'lineart' || node.type === 'upscale';
+  const hasProcessingOutput = (Array.isArray(node._galleryImages) && node._galleryImages.some(src => normalizeImageSrc(src)))
+    || (node.outputsData || []).some(p => p && p.type === 'image' && normalizeImageSrc(p.value));
+  if (isProcessingNode && !hasProcessingOutput) {
+    const processingBody = document.createElement('div');
+    processingBody.className = 'node-body node-processing-body';
+    const stage = document.createElement('div');
+    stage.className = 'processing-board';
+    const ratio = resolveAiSpecRatio(node.params && node.params.aspect, node.params && node.params.customAspect) || 1;
+    stage.style.aspectRatio = String(ratio);
+    const source = (node.inputsData || []).find(p => p && p.type === 'image' && normalizeImageSrc(p.value));
+    const visual = document.createElement('div');
+    visual.className = 'processing-board-visual' + (source ? ' has-source' : '');
+    if (source) {
+      const sourceImg = document.createElement('img');
+      sourceImg.src = normalizeImageSrc(source.value);
+      sourceImg.alt = '输入图';
+      sourceImg.draggable = false;
+      visual.appendChild(sourceImg);
+    }
+    const pattern = document.createElement('div');
+    pattern.className = 'processing-board-pattern';
+    pattern.innerHTML = '<i></i><i></i><i></i><i></i>';
+    visual.appendChild(pattern);
+    const veil = document.createElement('div');
+    veil.className = 'processing-board-veil';
+    veil.innerHTML = '<span class="processing-board-glyph">' + (node.type === 'lineart' ? '✎' : '✦') + '</span>'
+      + '<strong>' + (node.type === 'lineart' ? '提取线稿' : '智能高清') + '</strong>'
+      + '<div class="processing-board-specs"><span>' + ((node.params && node.params.aspect) || '1:1') + '</span><span>' + ((node.params && node.params.resolution) || '高清1K') + '</span></div>';
+    visual.appendChild(veil);
+    stage.appendChild(visual);
+    processingBody.appendChild(stage);
+    body = processingBody;
+  }
   if (body) el.appendChild(body);
 
 
@@ -8001,25 +10173,246 @@ function buildNodeBody(el, node) {
     vbody.className = 'node-body node-body-video';
 
     if (node.type === 'script') {
-      // 脚本预览
-      const preview = document.createElement('div');
-      preview.className = 'vg-script-preview';
-      preview.textContent = node.params.script || '';
-      vbody.appendChild(preview);
-      // 元信息行
-      const meta = document.createElement('div');
-      meta.className = 'vg-script-meta';
+      // 脚本节点是可编辑、可保存的真实数据节点，不再展示固定演示文案。
+      const workbenchHead = document.createElement('div');
+      workbenchHead.className = 'vg-script-workbench-head';
+      workbenchHead.innerHTML = '<div><strong>脚本工作台</strong><span>可编辑 · 可保存 · 可连接下游</span></div><em>本地生成</em>';
+      vbody.appendChild(workbenchHead);
+      const field = (label, tagName, className, placeholder, value) => {
+        const wrap = document.createElement('label');
+        wrap.className = 'vg-script-field';
+        const lab = document.createElement('span');
+        lab.className = 'vg-script-field-label';
+        lab.textContent = label;
+        const input = document.createElement(tagName);
+        input.className = className;
+        input.placeholder = placeholder;
+        input.value = value || '';
+        input.onmousedown = (e) => e.stopPropagation();
+        input.onclick = (e) => e.stopPropagation();
+        wrap.appendChild(lab);
+        wrap.appendChild(input);
+        return { wrap, input };
+      };
+
+      const topicField = field('主题', 'input', 'vg-script-topic', '例如：AI 如何改变普通人的工作方式', node.params.topic);
+      topicField.input.oninput = (e) => { node.params.topic = e.target.value; scheduleAutosave(); };
+      vbody.appendChild(topicField.wrap);
+
+      const reqField = field('写作要求', 'textarea', 'vg-script-requirements', '例如：60 秒口播、语气自然、分 3 个要点', node.params.requirements);
+      reqField.input.rows = 2;
+      reqField.input.oninput = (e) => { node.params.requirements = e.target.value; scheduleAutosave(); };
+      vbody.appendChild(reqField.wrap);
+
+      const scriptField = field('脚本文本', 'textarea', 'vg-script-editor', '生成后可直接修改脚本文本', node.params.script);
+      scriptField.input.rows = 7;
       const count = document.createElement('span');
       count.className = 'vg-script-count';
-      count.textContent = (node.params.wordCount || 0) + ' 字';
+      const syncCount = () => {
+        const text = String(scriptField.input.value || '');
+        count.textContent = Array.from(text).length + ' 字';
+      };
+      scriptField.input.oninput = () => {
+        node.params.script = scriptField.input.value;
+        node.params.wordCount = Array.from(node.params.script).length;
+        node.outputsData = computeNodeOutput(node);
+        node.status = node.params.script.trim() ? 'done' : 'idle';
+        node.resultMode = node.params.script.trim() ? 'real' : 'pending';
+        syncCount();
+        updateNodeStatus(node);
+        markEdgesDirty();
+        scheduleAutosave();
+      };
+      vbody.appendChild(scriptField.wrap);
+
+      const meta = document.createElement('div');
+      meta.className = 'vg-script-meta';
       meta.appendChild(count);
-      const btn = document.createElement('button');
-      btn.className = 'vg-regen-btn';
-      btn.textContent = '重新生成';
-      btn.onclick = (e) => { e.stopPropagation(); };
-      btn.onmousedown = (e) => e.stopPropagation();
-      meta.appendChild(btn);
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'vg-regen-btn';
+      saveBtn.textContent = '保存脚本';
+      saveBtn.onclick = (e) => {
+        e.stopPropagation();
+        node.params.script = scriptField.input.value;
+        node.params.wordCount = Array.from(node.params.script).length;
+        node.outputsData = computeNodeOutput(node);
+        node.status = node.params.script.trim() ? 'done' : 'idle';
+        node.resultMode = node.params.script.trim() ? 'real' : 'pending';
+        updateNodeStatus(node);
+        markEdgesDirty();
+        scheduleAutosave();
+        showToast('脚本已保存，可连接到下游节点', 'success');
+      };
+      saveBtn.onmousedown = (e) => e.stopPropagation();
+      meta.appendChild(saveBtn);
+
+      const regenBtn = document.createElement('button');
+      regenBtn.className = 'vg-regen-btn primary';
+      regenBtn.textContent = node.params.script ? '重新生成' : '本地生成';
+      regenBtn.title = '基于主题和写作要求生成结构化脚本，不调用外部 AI';
+      regenBtn.onclick = (e) => {
+        e.stopPropagation();
+        const generated = buildLocalScript(node.params.topic, node.params.requirements);
+        node.params.script = generated;
+        node.params.wordCount = Array.from(generated).length;
+        node.outputsData = computeNodeOutput(node);
+        node.status = 'done';
+        node.resultMode = 'real';
+        buildNodeBody(el, node);
+        markEdgesDirty();
+        scheduleAutosave();
+        showToast('脚本已重新生成（本地结构化生成）', 'success');
+      };
+      regenBtn.onmousedown = (e) => e.stopPropagation();
+      meta.appendChild(regenBtn);
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'vg-regen-btn';
+      clearBtn.textContent = '清空';
+      clearBtn.title = '清空当前脚本文本（不会删除主题和写作要求）';
+      clearBtn.onclick = (e) => {
+        e.stopPropagation();
+        node.params.script = '';
+        node.params.wordCount = 0;
+        node.outputsData = computeNodeOutput(node);
+        node.status = 'idle';
+        node.resultMode = 'pending';
+        buildNodeBody(el, node);
+        markEdgesDirty();
+        scheduleAutosave();
+      };
+      clearBtn.onmousedown = (e) => e.stopPropagation();
+      meta.appendChild(clearBtn);
+
+      const beatBtn = document.createElement('button');
+      beatBtn.className = 'vg-regen-btn';
+      beatBtn.textContent = '提取节拍';
+      beatBtn.title = '从当前脚本文本生成待确认的剧情节拍，不会立即写入项目';
+      beatBtn.onclick = (e) => {
+        e.stopPropagation();
+        const beats = proposeStoryBeatsForNode(node);
+        buildNodeBody(el, node);
+        showToast(beats.length ? `已生成 ${beats.length} 条候选节拍，请确认后写入` : '请先填写脚本文本', beats.length ? 'info' : 'warn');
+      };
+      beatBtn.onmousedown = (e) => e.stopPropagation();
+      meta.appendChild(beatBtn);
+
+      const confirmBeatBtn = document.createElement('button');
+      confirmBeatBtn.className = 'vg-regen-btn primary';
+      confirmBeatBtn.textContent = '确认写入节拍';
+      confirmBeatBtn.title = '把当前候选节拍写入项目级编导数据';
+      confirmBeatBtn.onclick = (e) => {
+        e.stopPropagation();
+        const ok = confirmStoryBeatsForNode(node);
+        if (ok) { buildNodeBody(el, node); showToast('候选节拍已确认并写入项目', 'success'); }
+        else showToast('暂无可确认的候选节拍', 'warn');
+      };
+      confirmBeatBtn.onmousedown = (e) => e.stopPropagation();
+      meta.appendChild(confirmBeatBtn);
+
+      const beatState = document.createElement('span');
+      beatState.className = 'vg-script-count';
+      const beatResult = node.params.beatResult || {};
+      const beatCount = Array.isArray(beatResult.beats) ? beatResult.beats.length : 0;
+      beatState.textContent = beatCount ? `候选节拍 ${beatCount} 条 · ${beatResult.status === 'validated' ? '已写入' : '待确认'}` : '暂无节拍';
+      meta.appendChild(beatState);
+      const skeletonBtn = document.createElement('button');
+      skeletonBtn.className = 'vg-regen-btn';
+      skeletonBtn.textContent = '生成分镜骨架';
+      skeletonBtn.title = '将已确认节拍生成可继续编辑的分镜骨架，不调用外部 AI';
+      skeletonBtn.onclick = (e) => {
+        e.stopPropagation();
+        const created = generateShotSkeletonForNode(node);
+        if (created) { buildNodeBody(el, node); showToast('已生成 ' + created + ' 条分镜骨架，可在镜头面板继续编辑', 'success'); }
+        else showToast('请先确认至少一条剧情节拍', 'warn');
+      };
+      skeletonBtn.onmousedown = (e) => e.stopPropagation();
+      meta.appendChild(skeletonBtn);
       vbody.appendChild(meta);
+
+      // 节拍只在脚本节点展开参数区内编辑，避免额外弹窗或改变节点预览区。
+      if (beatCount) {
+        const beatList = document.createElement('div');
+        beatList.className = 'vg-story-beat-list';
+        beatResult.beats.forEach((beat, beatIndex) => {
+          const row = document.createElement('div');
+          row.className = 'vg-story-beat-row';
+          const head = document.createElement('div');
+          head.className = 'vg-story-beat-head';
+          head.textContent = '节拍 ' + (beatIndex + 1) + (beat.status === 'validated' ? ' · 已确认' : ' · 待确认');
+          row.appendChild(head);
+          const actionInput = document.createElement('input');
+          actionInput.className = 'vg-script-topic';
+          actionInput.value = beat.action || '';
+          actionInput.placeholder = '动作 / 事件';
+          actionInput.onmousedown = (e) => e.stopPropagation();
+          actionInput.onclick = (e) => e.stopPropagation();
+          row.appendChild(actionInput);
+          const sceneSelect = document.createElement('select');
+          sceneSelect.className = 'vg-story-beat-scene';
+          sceneSelect.onmousedown = (e) => e.stopPropagation();
+          sceneSelect.onclick = (e) => e.stopPropagation();
+          const noneOption = document.createElement('option');
+          noneOption.value = '';
+          noneOption.textContent = '未绑定场景资产';
+          sceneSelect.appendChild(noneOption);
+          (workflow.assets || []).filter(asset => asset.type === 'scene' || asset.cat === '场景').forEach(asset => {
+            const option = document.createElement('option');
+            option.value = asset.id;
+            option.textContent = asset.name || asset.canonicalName || asset.id;
+            option.selected = asset.id === beat.sceneAssetId;
+            sceneSelect.appendChild(option);
+          });
+          sceneSelect.value = beat.sceneAssetId || '';
+          sceneSelect.onchange = () => {
+            editStoryBeatForNode(node, beat.id, { sceneAssetId: sceneSelect.value });
+            showToast(sceneSelect.value ? '场景资产已绑定' : '已取消场景资产绑定', 'info');
+          };
+          row.appendChild(sceneSelect);
+          const textInput = document.createElement('textarea');
+          textInput.className = 'vg-script-editor vg-story-beat-text';
+          textInput.rows = 2;
+          textInput.value = beat.sourceText || '';
+          textInput.placeholder = '节拍内容';
+          textInput.onmousedown = (e) => e.stopPropagation();
+          textInput.onclick = (e) => e.stopPropagation();
+          row.appendChild(textInput);
+          const rowActions = document.createElement('div');
+          rowActions.className = 'vg-script-meta';
+          const saveBeat = document.createElement('button');
+          saveBeat.className = 'vg-regen-btn';
+          saveBeat.textContent = '保存节拍';
+          saveBeat.onclick = (e) => {
+            e.stopPropagation();
+            if (editStoryBeatForNode(node, beat.id, { action: actionInput.value, sourceText: textInput.value })) {
+              buildNodeBody(el, node);
+              showToast('节拍已更新', 'success');
+            }
+          };
+          saveBeat.onmousedown = (e) => e.stopPropagation();
+          rowActions.appendChild(saveBeat);
+          const deleteBeat = document.createElement('button');
+          deleteBeat.className = 'vg-regen-btn';
+          deleteBeat.textContent = '删除';
+          deleteBeat.onclick = (e) => {
+            e.stopPropagation();
+            if (deleteStoryBeatForNode(node, beat.id)) {
+              buildNodeBody(el, node);
+              showToast('节拍已删除', 'info');
+            }
+          };
+          deleteBeat.onmousedown = (e) => e.stopPropagation();
+          rowActions.appendChild(deleteBeat);
+          row.appendChild(rowActions);
+          beatList.appendChild(row);
+        });
+        vbody.appendChild(beatList);
+      }
+
+      const hint = document.createElement('div');
+      hint.className = 'vg-script-hint';
+      hint.textContent = '本地结构化生成 · 不调用外部 AI';
+      vbody.appendChild(hint);
+      syncCount();
     }
 
     else if (node.type === 'footage') {
@@ -8096,42 +10489,109 @@ function buildNodeBody(el, node) {
     }
 
     else if (node.type === 'bgm') {
-      const p = node.params;
-      // 音乐名
+      const p = node.params = node.params || {};
+      p.volume = Number(p.volume ?? 100);
+      p.name = typeof p.name === 'string' ? p.name : '';
+      p.duration = typeof p.duration === 'string' ? p.duration : '';
+      const hasAudio = typeof node.uploadedAudio === 'string' && node.uploadedAudio.length > 0;
+
       const name = document.createElement('div');
       name.className = 'vg-bgm-name';
-      name.textContent = p.name || '';
+      name.textContent = hasAudio ? (p.name || '音频') : '未上传音频';
       vbody.appendChild(name);
-      // 元信息
+
       const meta = document.createElement('div');
       meta.className = 'vg-bgm-meta';
       const dur = document.createElement('span');
-      dur.textContent = p.duration || '';
+      dur.textContent = hasAudio ? (p.duration || '--:--') : '';
       meta.appendChild(dur);
-      const mood = document.createElement('span');
-      mood.className = 'vg-bgm-mood';
-      mood.textContent = p.mood || '';
-      meta.appendChild(mood);
+      if (hasAudio) {
+        const mood = document.createElement('span');
+        mood.className = 'vg-bgm-mood';
+        mood.textContent = '本地音频';
+        meta.appendChild(mood);
+      }
       vbody.appendChild(meta);
-      // 音量
-      const vol = document.createElement('div');
-      vol.className = 'vg-bgm-volume';
-      const volLabel = document.createElement('span');
-      volLabel.className = 'vg-bgm-volume-label';
-      volLabel.textContent = '音量';
-      vol.appendChild(volLabel);
-      const slider = document.createElement('div');
-      slider.className = 'vg-bgm-slider';
-      const fill = document.createElement('div');
-      fill.className = 'vg-bgm-slider-fill';
-      fill.style.width = (p.volume || 0) + '%';
-      slider.appendChild(fill);
-      const thumb = document.createElement('div');
-      thumb.className = 'vg-bgm-slider-thumb';
-      thumb.style.left = (p.volume || 0) + '%';
-      slider.appendChild(thumb);
-      vol.appendChild(slider);
-      vbody.appendChild(vol);
+
+      if (hasAudio) {
+        const player = document.createElement('audio');
+        player.className = 'vg-bgm-player';
+        player.controls = true;
+        player.preload = 'metadata';
+        player.src = node.uploadedAudio;
+        player.volume = Math.min(1, Math.max(0, p.volume / 100));
+        player.onmousedown = (e) => e.stopPropagation();
+        player.onclick = (e) => e.stopPropagation();
+        vbody.appendChild(player);
+
+        const vol = document.createElement('div');
+        vol.className = 'vg-bgm-volume';
+        const volLabel = document.createElement('span');
+        volLabel.className = 'vg-bgm-volume-label';
+        volLabel.textContent = '音量';
+        vol.appendChild(volLabel);
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.className = 'vg-bgm-range';
+        slider.min = '0';
+        slider.max = '100';
+        slider.step = '1';
+        slider.value = String(p.volume);
+        slider.onmousedown = (e) => e.stopPropagation();
+        slider.oninput = (e) => {
+          e.stopPropagation();
+          p.volume = Number(e.target.value);
+          player.volume = Math.min(1, Math.max(0, p.volume / 100));
+          node.outputsData = computeNodeOutput(node);
+          markEdgesDirty();
+          scheduleAutosave();
+        };
+        vol.appendChild(slider);
+        const pct = document.createElement('span');
+        pct.className = 'vg-bgm-volume-value';
+        pct.textContent = p.volume + '%';
+        vol.appendChild(pct);
+        vbody.appendChild(vol);
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'vg-bgm-empty';
+        empty.textContent = '点击上传本地音频（MP3 / WAV / M4A）';
+        empty.onclick = (e) => { e.stopPropagation(); openAudioFilePicker(node); };
+        empty.onmousedown = (e) => e.stopPropagation();
+        vbody.appendChild(empty);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'vg-bgm-actions';
+      const upBtn = document.createElement('button');
+      upBtn.type = 'button';
+      upBtn.className = 'vg-bgm-btn';
+      upBtn.textContent = hasAudio ? '替换音频' : '上传音频';
+      upBtn.onmousedown = (e) => e.stopPropagation();
+      upBtn.onclick = (e) => { e.stopPropagation(); openAudioFilePicker(node); };
+      actions.appendChild(upBtn);
+      if (hasAudio) {
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'vg-bgm-btn ghost';
+        clearBtn.textContent = '清空';
+        clearBtn.onmousedown = (e) => e.stopPropagation();
+        clearBtn.onclick = (e) => {
+          e.stopPropagation();
+          node.uploadedAudio = '';
+          p.name = '';
+          p.duration = '';
+          p.mime = '';
+          if (p.assetId) delete p.assetId;
+          node.outputsData = computeNodeOutput(node);
+          if (node.el) buildNodeBody(node.el, node);
+          markEdgesDirty();
+          scheduleAutosave();
+          showToast('音频已清除', 'success');
+        };
+        actions.appendChild(clearBtn);
+      }
+      vbody.appendChild(actions);
     }
 
     else if (node.type === 'compose') {
@@ -8245,12 +10705,12 @@ function buildNodeBody(el, node) {
     const modelSel = document.createElement('select');
     modelSel.className = 'model-select';
     const models = node.type === 'aiImage'
-      ? ['Nano Banana Pro', 'FLUX.1', 'Stable Diffusion XL', 'GPT Image 2']
+      ? ['Nano Banana Pro', 'FLUX.1', 'Stable Diffusion XL', 'GPT Image 2', 'GPT Image 2.5']
       : ['可灵 2.0', 'Runway Gen-4'];
     models.forEach(m => {
       const opt = document.createElement('option');
       opt.value = m;
-      opt.textContent = m === 'GPT Image 2' ? m + '（真实出图）' : m + '（演示）';
+    opt.textContent = m === 'GPT Image 2' ? m + '（真实出图）' : (m === 'GPT Image 2.5' ? m + '（需提供方支持）' : m + '（演示）');
       modelSel.appendChild(opt);
     });
     node.params.model = normalizeAiImageModelName(node.params.model);
@@ -9660,6 +12120,7 @@ function updateNodeErrorReason(node) {
 function updateNodeStatus(node) {
   if (!node.el) return;
   if (node.status === 'failure') node.status = 'error';
+  syncDesignAgentTaskState(node);
   applyNodeSemanticBadge(node);
   const resultPill = node.el.querySelector('.node-result-pill');
   if (resultPill) {
@@ -9706,6 +12167,7 @@ function updateNodeStatus(node) {
   // 镜头清单：同步对应镜头的生成状态并刷新面板
   syncShotStatus(node);
   refreshShotPanelIfOpen();
+  refreshDesignAgentResultPreviewFor(node);
 }
 
 function renderCharacterStateInfo(node) {
@@ -9858,6 +12320,7 @@ function deleteNode(id) {
   workflow.nodes.delete(id);
   workflow.order = workflow.order.filter(nid => nid !== id);
   workflow.selection.delete(id);
+  repairDirectorLinks();
 
   updateStatusbar();
   updateRecycleUI();
@@ -10049,22 +12512,16 @@ function startNodeDrag(e, node) {
   group.forEach(g => g.n.el.classList.add('dragging'));
   dragContext = { type: 'node', nodeId: node.id };
 
-  const onMove = (e2) => {
-    const dx = (e2.clientX - startX) / workflow.camera.zoom;
-    const dy = (e2.clientY - startY) / workflow.camera.zoom;
-    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-      if (!historyPushed) {
-        pushHistory();       // 首次移动时压栈（此时各节点 x/y 仍是拖拽前值）
-        historyPushed = true;
-      }
-      moved = true;
-    }
-    // 拖拽过程中只更新位移；吸附和自动连线留到松手时处理，避免每帧全图扫描导致卡顿
-    const effDx = dx;
-    const effDy = dy;
+  // 鼠标事件可能远高于屏幕刷新率；拖拽过程中只保留最新位移，
+  // 统一在下一帧写入 DOM，避免普通节点与媒体节点因高频重排出现卡顿。
+  let latestDx = 0;
+  let latestDy = 0;
+  let dragFrame = 0;
+  const applyDragFrame = () => {
+    dragFrame = 0;
     group.forEach(g => {
-      const nx = g.ox + effDx;
-      const ny = g.oy + effDy;
+      const nx = g.ox + latestDx;
+      const ny = g.oy + latestDy;
       g.n.x = nx;
       g.n.y = ny;
       g.n.el.style.left = nx + 'px';
@@ -10073,7 +12530,30 @@ function startNodeDrag(e, node) {
     markEdgesDirty();
     if (__composerNode && group.some(g => g.n === __composerNode)) positionNodeComposer();
   };
+  const scheduleDragFrame = () => {
+    if (!dragFrame) dragFrame = requestAnimationFrame(applyDragFrame);
+  };
+
+  const onMove = (e2) => {
+    latestDx = (e2.clientX - startX) / workflow.camera.zoom;
+    latestDy = (e2.clientY - startY) / workflow.camera.zoom;
+    if (Math.abs(latestDx) > 1 || Math.abs(latestDy) > 1) {
+      if (!historyPushed) {
+        pushHistory();       // 首次移动时压栈（此时各节点 x/y 仍是拖拽前值）
+        historyPushed = true;
+      }
+      moved = true;
+    }
+    // 拖拽过程中只更新位移；吸附和自动连线留到松手时处理，避免每次 mousemove 全图扫描
+    scheduleDragFrame();
+  };
   const onUp = () => {
+    // 松手前强制应用最后一次位移，保证低帧率或快速松手时坐标不落后一帧。
+    if (dragFrame) {
+      cancelAnimationFrame(dragFrame);
+      dragFrame = 0;
+      applyDragFrame();
+    }
     group.forEach(g => g.n.el && g.n.el.classList.remove('dragging'));
     if (moved && group.length === 1 && shouldSnapOnRelease) {
       const g = group[0];
@@ -10332,6 +12812,114 @@ function updateToolbarTitles() {
   if (themeBtn) themeBtn.title = `切换主题 (${getShortcutDisplay(keybindings.toggleTheme)})`;
 }
 
+// 顶部工具栏增强：统一显示悬停名称，并支持长按后在同一功能组内拖拽排序。
+// 短按仍保持原有点击行为；排序只保存按钮顺序，不改动按钮功能和画布节点。
+function initToolbarEnhancements() {
+  const toolbar = document.getElementById('canvasToolbar');
+  if (!toolbar || toolbar._fcToolbarReady) return;
+  toolbar._fcToolbarReady = true;
+  const buttons = () => [...toolbar.querySelectorAll(':scope > .tb-btn')];
+  const storageKey = 'flowcraft-toolbar-order:v1';
+  const preferredGroups = [
+    ['btnUndo', 'btnRedo'],
+    ['btnRecycle', 'btnWorkflow', 'btnWorkbench', 'btnAssets', 'btnTemplates'],
+    ['btnShots', 'btnScenes', 'btnRunLog', 'btnRegen'],
+    ['btnExport', 'btnExportPng', 'btnDelivery', 'btnImport'],
+    ['btnClearSave'],
+    ['btnShortcuts', 'btnTheme', 'btnBgMode', 'btnArrange', 'btnRunAll'],
+  ];
+  const readOrder = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+      return Array.isArray(saved) ? saved.filter(v => typeof v === 'string') : null;
+    } catch (_) { return null; }
+  };
+  const normalizeOrder = (ids) => {
+    const byId = new Map(buttons().map(b => [b.id, b]));
+    const ordered = (ids || []).map(id => byId.get(id)).filter(Boolean);
+    byId.forEach(btn => { if (!ordered.includes(btn)) ordered.push(btn); });
+    return ordered;
+  };
+  const applyOrder = (ids) => {
+    const ordered = normalizeOrder(ids);
+    if (ordered.length !== buttons().length) return;
+    ordered.forEach(btn => toolbar.appendChild(btn));
+  };
+  // 分隔线只保留为固定视觉节奏；拖拽排序使用完整一维顺序，避免跨分组恢复失败。
+  let savedOrder = readOrder();
+  if (!savedOrder) {
+    const byId = new Map(buttons().map(b => [b.id, b]));
+    const dividers = [...toolbar.querySelectorAll(':scope > .tb-divider')];
+    preferredGroups.forEach((group, index) => {
+      group.map(id => byId.get(id)).filter(Boolean).forEach(btn => toolbar.appendChild(btn));
+      if (dividers[index]) toolbar.appendChild(dividers[index]);
+    });
+    savedOrder = buttons().map(b => b.id);
+  }
+  applyOrder(savedOrder);
+  const saveOrder = () => {
+    try {
+      const ids = buttons().map(b => b.id);
+      localStorage.setItem(storageKey, JSON.stringify(ids));
+      savedOrder = ids;
+    } catch (_) {}
+  };
+  buttons().forEach(btn => {
+    if (!btn.dataset.toolbarTooltip) btn.dataset.toolbarTooltip = btn.getAttribute('title') || btn.getAttribute('aria-label') || btn.id;
+    if (!btn.getAttribute('aria-label')) btn.setAttribute('aria-label', btn.dataset.toolbarTooltip);
+    btn.removeAttribute('title');
+    btn.draggable = false;
+    let pressTimer = null;
+    let dragging = false;
+    let pointerId = null;
+    const clearPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      pointerId = e.pointerId;
+      const startX = e.clientX, startY = e.clientY;
+      clearPress();
+      pressTimer = setTimeout(() => {
+        dragging = true;
+        toolbar.classList.add('toolbar-sorting');
+        btn.classList.add('toolbar-dragging');
+        btn.setPointerCapture?.(pointerId);
+      }, 480);
+      const move = (ev) => {
+        if (ev.pointerId !== pointerId) return;
+        if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 8) clearPress();
+        if (!dragging) return;
+        ev.preventDefault();
+        const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest?.('.canvas-toolbar > .tb-btn');
+        if (!target || target === btn) return;
+        const rect = target.getBoundingClientRect();
+        toolbar.insertBefore(btn, ev.clientX < rect.left + rect.width / 2 ? target : target.nextSibling);
+      };
+      const end = () => {
+        clearPress();
+        if (dragging) {
+          saveOrder();
+          btn.dataset.preventClick = '1';
+          setTimeout(() => { delete btn.dataset.preventClick; }, 80);
+        }
+        dragging = false;
+        pointerId = null;
+        toolbar.classList.remove('toolbar-sorting');
+        btn.classList.remove('toolbar-dragging');
+        window.removeEventListener('pointermove', move, true);
+        window.removeEventListener('pointerup', end, true);
+        window.removeEventListener('pointercancel', end, true);
+      };
+      window.addEventListener('pointermove', move, true);
+      window.addEventListener('pointerup', end, true);
+      window.addEventListener('pointercancel', end, true);
+    });
+  });
+  toolbar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tb-btn');
+    if (btn && btn.dataset.preventClick) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+}
+
 function handleShortcutsKeyDown(e) {
   if (recordingShortcut) return;
   if (e.target.closest('input, textarea, select')) return;
@@ -10431,6 +13019,7 @@ function handleShortcutsRecording(e) {
 let panning = false;
 let panStart = null;
 let isSpacePressed = false;
+let leftCanvasPanEnabled = false;
 let selDragStart = null;     // 框选起点（视口坐标）
 let isBoxSelecting = false;  // 是否正在框选
 let rubberEl = null;         // 橡皮筋矩形 DOM
@@ -10451,8 +13040,8 @@ canvasWrap.addEventListener('mousedown', (e) => {
     if (__selectedEdge) { clearEdgeSelection(); }
   }
 
-  // 空格键 或 中键 → 平移
-  if (e.button === 1 || (isSpacePressed && e.button === 0)) {
+  // 空格键 / 中键 / 开关启用后的左键空白区域 → 平移
+  if (e.button === 1 || ((isSpacePressed || leftCanvasPanEnabled) && e.button === 0)) {
     panning = true;
     panStart = { x: e.clientX, y: e.clientY, camX: workflow.camera.x, camY: workflow.camera.y };
     canvasWrap.classList.add('panning');
@@ -10520,8 +13109,11 @@ window.addEventListener('mouseup', (e) => {
     rubberEl = null;
     isBoxSelecting = false;
     selDragStart = null;
-    // #5：多选只对「最后一个」生成节点生效
-    lastComposerNode ? showNodeComposer(lastComposerNode) : hideNodeComposer();
+    // 多选只显示一份独立批量面板，避免多个参数面板互相遮挡。
+    const selectedAi = getSelectedAiImageNodes();
+    if (selectedAi.length > 1) showBatchComposer(selectedAi);
+    else if (lastComposerNode) showNodeComposer(lastComposerNode);
+    else hideNodeComposer();
   } else if (selDragStart) {
     // 单击空白（未拖动）→ 清除选中
     workflow.selection.forEach(id => {
@@ -10834,6 +13426,16 @@ document.getElementById('zoomOut').onclick = () => {
   markEdgesDirty();
 };
 document.getElementById('zoomFit').onclick = () => fitToContent();
+const canvasPanToggle = document.getElementById('canvasPanToggle');
+if (canvasPanToggle) {
+  canvasPanToggle.onclick = (e) => {
+    e.stopPropagation();
+    leftCanvasPanEnabled = !leftCanvasPanEnabled;
+    canvasPanToggle.classList.toggle('active', leftCanvasPanEnabled);
+    canvasPanToggle.setAttribute('aria-pressed', String(leftCanvasPanEnabled));
+    canvasWrap.classList.toggle('left-pan-mode', leftCanvasPanEnabled);
+  };
+}
 // 点击缩放百分比 → 回到 100%（以画布中心为锚点）
 const zoomDisplayEl = document.getElementById('zoomDisplay');
 zoomDisplayEl.title = '点击回到 100%';
@@ -13246,6 +15848,254 @@ function gatherInputs(node) {
   });
 }
 
+// 脚本节点的离线结构化生成：明确是可用的本地能力，不伪装成外部 AI 生成。
+function buildLocalScript(topic, requirements) {
+  const subject = String(topic || '').trim() || '一个值得分享的主题';
+  const req = String(requirements || '').trim();
+  return [
+    '【开场】',
+    `你有没有想过，${subject}为什么值得现在认真了解？`,
+    '',
+    '【展开】',
+    req || `今天用三个要点讲清楚${subject}：先说背景，再说关键变化，最后给出可以立刻执行的方法。`,
+    '',
+    '【结尾】',
+    `如果这件事对你有帮助，先收藏，再把${subject}转发给真正需要的人。`
+  ].join('\n');
+}
+
+// P0-3：把脚本文本转换为“待确认”的候选节拍。
+// 这是本地规则模板，不冒充模型结果；候选只有在用户确认后才写入 workflow.director.storyBeats。
+function extractStoryBeatCandidates(script, sourceNodeId) {
+  const text = String(script || '').trim();
+  if (!text) return [];
+  const blocks = text.split(/\n\s*\n+/).map(s => s.trim()).filter(Boolean);
+  const candidates = [];
+  blocks.forEach((block, index) => {
+    const lines = block.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    const heading = lines[0] || '';
+    const body = lines.slice(1).join(' ') || heading;
+    const action = /开场|结尾/.test(heading) ? heading.replace(/[【】]/g, '') : '推进情节';
+    candidates.push(normalizeStoryBeat({
+      id: 'beat_candidate_' + Date.now().toString(36) + '_' + index,
+      order: index + 1,
+      sourceText: body,
+      action,
+      dialogue: /[“”"「」]/.test(body) ? body : '',
+      status: 'draft',
+      source: { nodeId: String(sourceNodeId || ''), kind: 'script-local-template' },
+    }));
+  });
+  return candidates;
+}
+
+function proposeStoryBeatsForNode(node) {
+  const beats = extractStoryBeatCandidates(node && node.params && node.params.script, node && node.id);
+  if (!node || !node.params) return [];
+  node.params.beatResult = {
+    status: beats.length ? 'draft' : 'error',
+    beats,
+    sourceHash: String((node.params.script || '').length) + ':' + String((node.params.script || '').slice(0, 80)),
+    updatedAt: Date.now(),
+    error: beats.length ? '' : '脚本文本为空',
+  };
+  scheduleAutosave();
+  return beats;
+}
+
+function confirmStoryBeatsForNode(node) {
+  const result = node && node.params && node.params.beatResult;
+  if (result && result.status === 'validated') return false;
+  const beats = result && Array.isArray(result.beats) ? result.beats : [];
+  if (!beats.length) return false;
+  const existing = new Set((workflow.director && workflow.director.storyBeats || []).map(b => b.id));
+  const confirmed = beats.filter(beat => !existing.has(beat.id)).map((beat, index) => normalizeStoryBeat({
+    ...beat,
+    id: existing.has(beat.id) ? beat.id : 'beat_' + Date.now().toString(36) + '_' + index,
+    status: 'validated',
+    updatedAt: Date.now(),
+  }));
+  workflow.director = normalizeDirectorData(workflow.director);
+  workflow.director.storyBeats = workflow.director.storyBeats.concat(confirmed);
+  node.params.beatResult = { ...result, status: 'validated', beats: confirmed, updatedAt: Date.now(), error: '' };
+  scheduleAutosave();
+  return true;
+}
+
+function editStoryBeatForNode(node, beatId, patch) {
+  if (!node || !node.params || !node.params.beatResult) return false;
+  const result = node.params.beatResult;
+  const localBeat = (result.beats || []).find(beat => beat.id === beatId);
+  if (!localBeat) return false;
+  pushHistory();
+  const next = normalizeStoryBeat({ ...localBeat, ...patch, updatedAt: Date.now() });
+  result.beats = result.beats.map(beat => beat.id === beatId ? next : beat);
+  if (result.status === 'validated') {
+    workflow.director = normalizeDirectorData(workflow.director);
+    workflow.director.storyBeats = workflow.director.storyBeats.map(beat => beat.id === beatId ? next : beat);
+  }
+  result.updatedAt = Date.now();
+  scheduleAutosave();
+  return true;
+}
+
+function deleteStoryBeatForNode(node, beatId) {
+  if (!node || !node.params || !node.params.beatResult) return false;
+  const result = node.params.beatResult;
+  if (!(result.beats || []).some(beat => beat.id === beatId)) return false;
+  pushHistory();
+  result.beats = result.beats.filter(beat => beat.id !== beatId);
+  if (result.status === 'validated') {
+    workflow.director = normalizeDirectorData(workflow.director);
+    workflow.director.storyBeats = workflow.director.storyBeats.filter(beat => beat.id !== beatId);
+    if (!result.beats.length) result.status = 'empty';
+  }
+  result.updatedAt = Date.now();
+  scheduleAutosave();
+  return true;
+}
+
+function generateShotSkeletonForNode(node) {
+  if (!node || !node.params || !node.params.beatResult) return 0;
+  const beats = (node.params.beatResult.beats || []).filter(beat => beat.status === 'validated');
+  if (!beats.length) return 0;
+  pushHistory();
+  workflow.director = normalizeDirectorData(workflow.director);
+  const existing = new Set(workflow.director.shotSkeleton.map(shot => shot.beatId));
+  const skeleton = beats.filter(beat => !existing.has(beat.id)).map((beat, index) => ({
+    id: 'shot_skeleton_' + Date.now().toString(36) + '_' + index,
+    beatId: beat.id,
+    order: Number(beat.order) || index + 1,
+    sceneAssetId: beat.sceneAssetId || '',
+    name: '节拍 ' + (Number(beat.order) || index + 1),
+    description: beat.sourceText || beat.action || '',
+    shotType: '中景',
+    camera: '固定机位',
+    movement: '无',
+    prompt: [beat.action, beat.sourceText, beat.dialogue].filter(Boolean).join('；'),
+    status: 'draft',
+    source: { nodeId: node.id, kind: 'story-beat' },
+    updatedAt: Date.now(),
+  }));
+  workflow.director.shotSkeleton = workflow.director.shotSkeleton.concat(skeleton);
+  skeleton.forEach(shot => {
+    workflow.shots.push({
+      id: 'shot_' + Date.now().toString(36) + '_' + shot.order,
+      name: shot.name,
+      scene: shot.sceneAssetId || '',
+      shotNo: String(shot.order).padStart(3, '0'),
+      desc: shot.description,
+      prompt: shot.prompt,
+      status: 'idle',
+      nodeId: null,
+      sourceBeatId: shot.beatId,
+      skeletonId: shot.id,
+      nodeIds: [], groupSceneId: '', resultNodeId: '', resultPreview: '', resultType: '',
+    });
+  });
+  scheduleAutosave();
+  renderShotPanel();
+  return skeleton.length;
+}
+
+function discardStoryBeatCandidates(node) {
+  if (!node || !node.params) return;
+  node.params.beatResult = { status: 'empty', beats: [], sourceHash: '', updatedAt: Date.now(), error: '' };
+  scheduleAutosave();
+}
+
+// 脚本节点参数迁移：兼容早期把脚本文本写在 node.script 的演示版本。
+function normalizeScriptParams(params, legacyNode) {
+  const p = {
+    topic: '', requirements: '', script: '', wordCount: 0,
+    beatResult: { status: 'empty', beats: [], sourceHash: '', updatedAt: 0, error: '' },
+    ...(params || {}),
+  };
+  if (!p.script && legacyNode && typeof legacyNode.script === 'string') p.script = legacyNode.script;
+  if (!p.script && legacyNode && legacyNode.params && typeof legacyNode.params.script === 'string') p.script = legacyNode.params.script;
+  p.topic = typeof p.topic === 'string' ? p.topic : '';
+  p.requirements = typeof p.requirements === 'string' ? p.requirements : '';
+  p.script = typeof p.script === 'string' ? p.script : '';
+  p.wordCount = Array.from(p.script).length;
+  if (!p.beatResult || typeof p.beatResult !== 'object') p.beatResult = { status: 'empty', beats: [], sourceHash: '', updatedAt: 0, error: '' };
+  p.beatResult.beats = Array.isArray(p.beatResult.beats) ? p.beatResult.beats.map(normalizeStoryBeat) : [];
+  return p;
+}
+
+
+function formatAudioDuration(seconds) {
+  const n = Math.max(0, Math.round(Number(seconds) || 0));
+  const m = Math.floor(n / 60);
+  const sec = String(n % 60).padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
+function registerNodeAudioAsset(node, dataUrl, fileName) {
+  if (!dataUrl) return '';
+  try {
+    if (typeof addAsset !== 'function') return '';
+    const bytes = Math.round((dataUrl.length - (dataUrl.indexOf(',') + 1)) * 0.75);
+    return addAsset({
+      type: 'audio',
+      src: dataUrl,
+      name: fileName || node.params?.name || '音频',
+      size: bytes,
+      sourceNodeId: node.id,
+      sourceType: node.type,
+    }) || '';
+  } catch (_) { return ''; }
+}
+
+function openAudioFilePicker(node) {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'audio/*';
+  inp.style.display = 'none';
+  inp.onchange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) loadAudioFile(file, node);
+    inp.remove();
+  };
+  document.body.appendChild(inp);
+  inp.click();
+}
+
+function loadAudioFile(file, node) {
+  const maxBytes = 18 * 1024 * 1024;
+  if (file.size > maxBytes) {
+    showToast('音频超过 18MB，请先压缩后再上传', 'warn');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    const probe = new Audio(dataUrl);
+    probe.preload = 'metadata';
+    const apply = () => {
+      node.params = node.params || {};
+      node.uploadedAudio = dataUrl;
+      node.params.name = file.name;
+      node.params.duration = formatAudioDuration(probe.duration);
+      node.params.mime = file.type || '';
+      node.params.volume = Number(node.params.volume ?? 100);
+      node.outputsData = computeNodeOutput(node);
+      const assetId = registerNodeAudioAsset(node, dataUrl, file.name);
+      if (assetId) node.params.assetId = assetId;
+      if (node.el) buildNodeBody(node.el, node);
+      markEdgesDirty();
+      scheduleAutosave();
+      showToast('音频已载入节点', 'success');
+    };
+    if (Number.isFinite(probe.duration)) apply();
+    else {
+      probe.onloadedmetadata = apply;
+      probe.onerror = apply;
+    }
+  };
+  reader.onerror = () => showToast('音频读取失败', 'danger');
+  reader.readAsDataURL(file);
+}
+
 // 根据节点类型 + 输入 + 参数，计算本节点输出载荷
 function computeNodeOutput(node) {
   const def = node.def;
@@ -13270,7 +16120,13 @@ function computeNodeOutput(node) {
       out[0] = { type: 'text', value: applyLoopVars(nodeFullText(node).trim()) || '(空文本)' };
       break;
     case 'bgm':
-      out[0] = { type: 'audio', value: { name: node.params.name, duration: node.params.duration } };
+      out[0] = { type: 'audio', value: {
+        src: node.uploadedAudio || '',
+        name: node.params.name || '',
+        duration: node.params.duration || '',
+        volume: Number(node.params.volume ?? 100),
+        mime: node.params.mime || ''
+      } };
       break;
     case 'aiImage':
     case 'imageEdit':
@@ -13317,6 +16173,9 @@ function computeNodeOutput(node) {
     }
     case 'script':
       out[0] = { type: 'text', value: node.params.script || '' };
+      break;
+    case 'designAgent':
+      out[0] = { type: 'text', value: node.params && node.params.result ? node.params.result : '' };
       break;
     case 'footage':
       out[0] = { type: 'video', value: { poster: createPlaceholderDataURL(80, 50, seed + 800, ''), duration: (node.params.items || []).length + ' 段素材' } };
@@ -13800,6 +16659,21 @@ function executeNodeAsync(node, delay) {
           node.effectivePrompt = applyLoopVars(merged);
         }
 
+        // 设计智能体 P0：本地结构化方案生成，不调用外部模型；输出可直接连接下游文本节点。
+        if (node.type === 'designAgent') {
+          generateDesignAgentPlan(node);
+          setNodeResultMode(node, 'local');
+          node.status = 'done';
+          captureGenMeta(node, Date.now() - _t0);
+          logRun(node, true, Date.now() - _t0);
+          if (node.el) buildNodeBody(node.el, node);
+          updateNodeStatus(node);
+          markEdgesDirty();
+          scheduleAutosave();
+          resolve();
+          return;
+        }
+
         // 保存节点：实际触发本地下载
         if (node.type === 'save') {
           setNodeResultMode(node, 'demo');
@@ -13815,7 +16689,8 @@ function executeNodeAsync(node, delay) {
         // 智能超清 / 线稿：基于上游真实图片做图生图（img2img）
         // 有上游图且配置了 OpenAI Key 时调用 images/edits；否则 / 失败时回退到下方 computeNodeOutput（保留原图透传）。
         if (node.type === 'upscale' || node.type === 'lineart' || node.type === 'imageEdit') {
-          const upImg = getNodeInputImage(node);
+          // 生成节点可能输出远程 URL；先转成 data URL，避免“能预览但图生图接口拿不到源图”。
+          const upImg = await materializeImageDataUrl(getNodeInputImage(node));
           const editKey = localStorage.getItem(OPENAI_KEY_STORAGE);
           const proxyOn = !!_fcProxy();
           if (upImg && (editKey || proxyOn)) {
@@ -13830,6 +16705,7 @@ function executeNodeAsync(node, delay) {
                 captureGenMeta(node, Date.now() - _t0);
                 logRun(node, true, Date.now() - _t0);
                 if (node.el) buildNodeBody(node.el, node);
+                refreshConnectedSavePreviews(node);
                 updateNodeStatus(node);
                 markEdgesDirty();
                 scheduleAutosave();
@@ -13853,6 +16729,7 @@ function executeNodeAsync(node, delay) {
               captureGenMeta(node, Date.now() - _t0);
               logRun(node, true, Date.now() - _t0);
               if (node.el) buildNodeBody(node.el, node);
+              refreshConnectedSavePreviews(node);
               updateNodeStatus(node);
               markEdgesDirty();
               scheduleAutosave();
@@ -13874,6 +16751,7 @@ function executeNodeAsync(node, delay) {
               captureGenMeta(node, Date.now() - _t0);
               logRun(node, true, Date.now() - _t0);
               if (node.el) buildNodeBody(node.el, node);
+              refreshConnectedSavePreviews(node);
               updateNodeStatus(node);
               markEdgesDirty();
               scheduleAutosave();
@@ -13916,6 +16794,7 @@ function executeNodeAsync(node, delay) {
           node.status = 'done';
           captureGenMeta(node, Date.now() - _t0);
           logRun(node, true, Date.now() - _t0);
+          refreshConnectedSavePreviews(node);
         } else if (isAiImageNode) {
           // 真实调用图片生成（代理启用时经 FlowCraft.proxy）
           const img = await generateOpenAIImage(node);
@@ -13926,12 +16805,13 @@ function executeNodeAsync(node, delay) {
           node.status = 'done';
           captureGenMeta(node, Date.now() - _t0);
           logRun(node, true, Date.now() - _t0);
+          refreshConnectedSavePreviews(node);
         } else if (node.resultMode === 'real' && Array.isArray(node.outputsData) && node.outputsData.length) {
           // 已由真实/本地路径产出：防止重复执行时演示回退覆盖真实结果
         } else {
           const out = computeNodeOutput(node);
           node.outputsData = out;
-          setNodeResultMode(node, 'demo');
+          setNodeResultMode(node, node.type === 'script' ? 'local' : 'demo');
 
           // 图片类节点：把产出图片同步到缩略图，直观体现"继承上游"
           const imgOut = out.find(d => d && d.type === 'image');
@@ -14041,6 +16921,17 @@ function shouldFallbackToResponses(err) {
 }
 function responseImageSrc(item) {
   if (!item) return null;
+  if (typeof item === 'string') {
+    const direct = normalizeImageSrc(item);
+    if (direct) return direct;
+    const raw = item.trim();
+    // 某些中转会直接返回 base64 字符串，而不是包在 b64_json 字段里。
+    // 只接受看起来像 base64 的内容，避免把普通文本误当成图片。
+    if (raw.length >= 32 && /^[A-Za-z0-9+/=_-]+$/.test(raw)) {
+      return normalizeImageSrc('data:image/png;base64,' + raw);
+    }
+    return null;
+  }
   const cands = [];
   if (typeof item.result === 'string' && item.result) {
     const r = item.result.trim();
@@ -14053,6 +16944,12 @@ function responseImageSrc(item) {
   if (item.image_url) cands.push(typeof item.image_url === 'string' ? item.image_url : (item.image_url.url || ''));
   if (item.url) cands.push(item.url);
   if (item.b64_json) cands.push('data:image/png;base64,' + item.b64_json);
+  if (item.image_base64) cands.push('data:image/png;base64,' + item.image_base64);
+  if (item.base64) cands.push('data:image/png;base64,' + item.base64);
+  if (item.images && !Array.isArray(item.images) && typeof item.images === 'object') {
+    const nested = responseImageSrc(item.images);
+    if (nested) cands.push(nested);
+  }
   if (Array.isArray(item.content)) {
     item.content.forEach(c => {
       if (!c) return;
@@ -14064,12 +16961,40 @@ function responseImageSrc(item) {
 }
 function extractResponseImages(data) {
   const list = [];
-  const scan = arr => (arr || []).forEach(item => {
-    const s = responseImageSrc(item);
-    if (s) list.push(s);
-    if (item && Array.isArray(item.output)) scan(item.output);
-  });
-  scan(data && data.output);
+  const seen = new Set();
+  const imageKeys = new Set([
+    'data', 'output', 'images', 'results', 'result', 'content', 'image',
+    'image_url', 'b64_json', 'image_base64', 'base64', 'url'
+  ]);
+  const add = (src) => {
+    const normalized = normalizeImageSrc(src);
+    if (normalized && !seen.has(normalized)) { seen.add(normalized); list.push(normalized); }
+  };
+  const visit = (value, key, depth) => {
+    if (value == null || depth > 8) return;
+    if (typeof value === 'string') {
+      const direct = normalizeImageSrc(value);
+      if (direct) { add(direct); return; }
+      // 某些中转会把 base64 直接放在顶层或 data/output 数组里；仅在
+      // 根层或已知图片字段下尝试，避免把普通长文本提示误判成图片。
+      if (!key || imageKeys.has(key) || key === 'b64_json' || key === 'image_base64' || key === 'base64' || key === 'result') {
+        const candidate = responseImageSrc(value);
+        if (candidate) add(candidate);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item) => visit(item, key, depth + 1));
+      return;
+    }
+    if (typeof value !== 'object') return;
+    const direct = responseImageSrc(value);
+    if (direct) add(direct);
+    Object.keys(value).forEach((childKey) => {
+      if (imageKeys.has(childKey) || depth < 2) visit(value[childKey], childKey, depth + 1);
+    });
+  };
+  visit(data, '', 0);
   return list;
 }
 function generateOpenAIImageViaResponses(base, key, model, prompt, n) {
@@ -14086,7 +17011,16 @@ function generateOpenAIImageViaResponses(base, key, model, prompt, n) {
 }
 // gpt-image-2 图像生成（精简版：只保留常用主模型 + 备选模型）
 // 目标：减少兜底链路，避免一次生成触发过多请求。
-var OPENAI_IMAGE_MODELS = ['gpt-image-2', 'gpt-image-1'];
+var OPENAI_IMAGE_MODELS = ['gpt-image-2', 'gpt-image-2.5', 'gpt-image-1'];
+
+// 画布下拉使用中文显示名，发送请求时统一转换为提供方模型 ID。
+// GPT Image 2.5 不做静默回退：如果当前提供方不支持，直接显示明确的 404/不支持错误。
+function resolveCanvasImageModel(node) {
+  var value = String(node && node.params && node.params.model || '').trim();
+  if (value === 'GPT Image 2.5' || value === 'gpt-image-2.5') return 'gpt-image-2.5';
+  if (value === 'GPT Image 2' || value === 'gpt-image-2') return 'gpt-image-2';
+  return '';
+}
 
 // 根据「比例 + 分辨率」挑选 API 支持的具体尺寸
 // gpt-image-1 官方支持：1024x1024 / 1024x1536 / 1536x1024 / 1536x1536 / 1536x2048 / 2048x1024 / 2048x1536 / 2048x2048
@@ -14163,7 +17097,7 @@ function applyAiSpecSelection(node, aspect, resolution) {
   if (resolution) node.params.resolution = resolution;
   if (aspect && aspect !== 'custom' && node.params.customAspect) delete node.params.customAspect;
   normalizeAiSpecParams(node);
-  if (node.type === 'aiImage' || node.type === 'imageEdit' || node.type === 'aiVideo') applySpecSizeToAiImageNode(node);
+  if (['aiImage', 'imageEdit', 'aiVideo', 'lineart', 'upscale'].includes(node.type)) applySpecSizeToAiImageNode(node);
   if (node.el) buildNodeBody(node.el, node);
   if (node === __composerNode) showNodeComposer(node);
   scheduleAutosave();
@@ -14332,22 +17266,41 @@ function pickOpenAISize(aspect, resolution, customAspect) {
   const ar = aspect || '1:1';
   const customRatio = resolveAiSpecRatio(ar, customAspect);
   if (resolution === '超清2K' || resolution === '原画4K') {
+    // 当前 gpt-image-2 提供方同时限制最长边 ≤ 3840、总像素 ≤ 8294400；“4K”作为画布规格仍保留，
+    // 但请求尺寸必须同时满足这两个限制，否则正方形会因 3840×3840 超出总像素上限而失败。
+    const safe4K = (ratio) => {
+      const maxEdge = 3840;
+      const maxPixels = 8294400;
+      if (!ratio || !Number.isFinite(ratio) || ratio <= 0) return '2880x2880';
+      // ratio = width / height；先按比例求满足总像素上限的最长边，再限制最长边。
+      const pixelLimitedLong = ratio >= 1
+        ? Math.sqrt(maxPixels * ratio)
+        : Math.sqrt(maxPixels / ratio);
+      const longSide = Math.min(maxEdge, pixelLimitedLong);
+      const w = ratio >= 1 ? longSide : longSide * ratio;
+      const h = ratio >= 1 ? longSide / ratio : longSide;
+      const evenW = Math.max(256, Math.floor(w / 8) * 8);
+      const evenH = Math.max(256, Math.floor(h / 8) * 8);
+      return evenW + 'x' + evenH;
+    };
     const m = {
-      '1:1': resolution === '原画4K' ? '4096x4096' : '2048x2048',
-      '1:4': resolution === '原画4K' ? '1024x4096' : '512x2048',
-      '4:5': resolution === '原画4K' ? '4096x5120' : '2048x2560',
-      '16:9': resolution === '原画4K' ? '4096x2304' : '2048x1152',
-      '9:16': resolution === '原画4K' ? '2304x4096' : '1152x2048',
-      '3:2': resolution === '原画4K' ? '3840x2560' : '1920x1280',
-      '3:4': resolution === '原画4K' ? '3072x4096' : '1024x1536',
-      '4:3': resolution === '原画4K' ? '4096x3072' : '2048x1536',
-      '21:9': resolution === '原画4K' ? '4096x1754' : '1920x822'
+      '1:1': resolution === '原画4K' ? safe4K(1) : '2048x2048',
+      '1:4': resolution === '原画4K' ? safe4K(1 / 4) : '512x2048',
+      '4:5': resolution === '原画4K' ? safe4K(4 / 5) : '2048x2560',
+      '16:9': resolution === '原画4K' ? safe4K(16 / 9) : '2048x1152',
+      '9:16': resolution === '原画4K' ? safe4K(9 / 16) : '1152x2048',
+      '2:3': resolution === '原画4K' ? safe4K(2 / 3) : '1024x1536',
+      '3:2': resolution === '原画4K' ? safe4K(3 / 2) : '1920x1280',
+      '3:4': resolution === '原画4K' ? safe4K(3 / 4) : '1024x1536',
+      '4:3': resolution === '原画4K' ? safe4K(4 / 3) : '2048x1536',
+      '21:9': resolution === '原画4K' ? safe4K(21 / 9) : '1920x822'
     };
     if (ar === 'custom' && customRatio) {
-      const longSide = resolution === '原画4K' ? 4096 : 2048;
+      const longSide = resolution === '原画4K' ? 3840 : 2048;
       const shortSide = Math.max(256, Math.round(longSide / customRatio));
       const safeShortSide = Math.max(256, Math.round(shortSide / 8) * 8);
-      return customRatio >= 1 ? longSide + 'x' + safeShortSide : safeShortSide + 'x' + longSide;
+      if (resolution === '原画4K') return safe4K(customRatio);
+      return customRatio >= 1 ? longSide + 'x' + Math.min(longSide, safeShortSide) : Math.min(longSide, safeShortSide) + 'x' + longSide;
     }
     return m[ar] || '2048x2048';
   }
@@ -14443,11 +17396,9 @@ function loadImgToCanvas(src) {
 function openAIImageSingle(base, key, model, prompt, size) {
   return openaiPostJSON(base, '/images/generations', key, { model: model, prompt: prompt, n: 1, size: size || '1024x1024' })
     .then(function(data) {
-      const item = data && data.data && data.data[0];
-      if (!item) throw new Error('返回数据为空');
-      const img = normalizeImageSrc(item.b64_json ? 'data:image/png;base64,' + item.b64_json : (item.url || null));
-      if (!img) throw new Error(describeImagePayloadIssue(item));
-      return img;
+      const imgs = extractResponseImages(data);
+      if (!imgs.length) throw new Error('生成接口未返回有效图片：' + describeImagePayloadIssue(data));
+      return imgs[0];
     });
 }
 
@@ -14494,7 +17445,7 @@ function generateImageViaProxyFallback(node, prompt, count, size, reason) {
   var proxy = _fcProxy();
   if (!proxy) return Promise.reject(new Error('代理未配置'));
   var route = _routeModel('image');
-  var model = (route && route.model) || 'gpt-image-2';
+  var model = resolveCanvasImageModel(node) || (route && route.model) || 'gpt-image-2';
   var provider = (route && route.provider) || 'openai';
   var t0 = Date.now();
   if (reason) showToast('直连被拦截，已切换代理生成：' + reason, 'warn');
@@ -14504,13 +17455,7 @@ function generateImageViaProxyFallback(node, prompt, count, size, reason) {
     token: window.FlowCraft.__userToken || undefined,
     body: { model: model, prompt: prompt, n: count, size: size }
   }).then(function(json) {
-    var imgs = [];
-    if (Array.isArray(json && json.data)) {
-      imgs = json.data.map(function(d) { return normalizeImageSrc(d && d.b64_json ? 'data:image/png;base64,' + d.b64_json : (d && d.url ? d.url : '')) || ''; });
-    } else if (Array.isArray(json && json.output)) {
-      imgs = json.output.map(function(o) { return normalizeImageSrc(o && o.image && o.image.b64_json ? 'data:image/png;base64,' + o.image.b64_json : (o && o.image && o.image.url ? o.image.url : '')) || ''; });
-    }
-    imgs = imgs.filter(Boolean);
+    var imgs = extractResponseImages(json);
     if (!imgs.length) throw new ProxyError('代理未返回图片数据', { kind: 'system', retryable: false, code: 'empty_image' });
     if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: provider + '/' + model, ok: true, ms: Date.now() - t0 });
     return imgs;
@@ -14626,17 +17571,17 @@ function openAIImageEditMulti(base, key, model, prompt, imageDataUrls, size, use
     }
     return resp.json();
   }).then(function(data) {
-    const it = (data && data.data && data.data[0]) || null;
-    if (!it) throw new Error('参考图生成接口返回为空');
-    const img = normalizeImageSrc(it.b64_json ? 'data:image/png;base64,' + it.b64_json : (it.url || null));
-    if (!img) return createImageErrorPlaceholder(describeImagePayloadIssue(it));
-    return img;
+    const imgs = extractResponseImages(data);
+    if (!imgs.length) throw new Error('参考图生成接口未返回有效图片：' + describeImagePayloadIssue((data && data.data && data.data[0]) || data));
+    return imgs[0];
   });
 }
 
 // 依次尝试：候选模型 × (多图 image[] → 单图 image)，全失败则抛出
-function generateImageWithRefs(base, key, prompt, images, count, size) {
-  const models = ['gpt-image-1', 'gpt-image-2'];
+function generateImageWithRefs(base, key, prompt, images, count, size, modelCandidates) {
+  const models = (modelCandidates && modelCandidates.length)
+    ? Array.from(new Set(modelCandidates.filter(Boolean)))
+    : ['gpt-image-1', 'gpt-image-2'];
   const multi = (images || []).length > 1;
   let lastErr = null;
   function once(model, useArray) {
@@ -14714,7 +17659,7 @@ async function generateImageViaProxy(node) {
 
   // 阶段 9：路由选中的图片模型（默认 gpt-image-2，行为等价）
   const _rImg = _routeModel('image');
-  const _imgModel = (_rImg && _rImg.model) || 'gpt-image-2';
+  const _imgModel = resolveCanvasImageModel(node) || (_rImg && _rImg.model) || 'gpt-image-2';
   const _imgProvider = (_rImg && _rImg.provider) || 'openai';
   const _imgModelId = _imgProvider + '/' + _imgModel;
   const _t0 = Date.now();
@@ -14741,13 +17686,7 @@ async function generateImageViaProxy(node) {
     });
   }
   function collect(json) {
-    const arr = [];
-    if (Array.isArray(json && json.data)) {
-      json.data.forEach(d => arr.push('data:image/png;base64,' + (d && d.b64_json ? d.b64_json : '')));
-    } else if (Array.isArray(json && json.output)) {
-      json.output.filter(o => o && o.image && o.image.url).forEach(o => arr.push(o.image.url));
-    }
-    return arr.filter(Boolean);
+    return extractResponseImages(json);
   }
 
   const first = await once();
@@ -14859,6 +17798,14 @@ function generateOpenAIImage(node) {
   const countMap = { '1张': 1, '2张': 2, '4张': 4, '6张': 6, '8张': 8 };
   const count = countMap[node.params.count] || 1;
   const size = pickOpenAISize(node.params.aspect, node.params.resolution, node.params.customAspect);
+  // 直连路径与代理路径共用同一图片模型路由；未启用路由时保持原候选顺序。
+  const selectedCanvasImageModel = resolveCanvasImageModel(node);
+  const routedImageModel = (_routeModel('image') || {}).model;
+  const imageModelCandidates = selectedCanvasImageModel
+    ? [selectedCanvasImageModel]
+    : (routedImageModel
+      ? Array.from(new Set([routedImageModel].concat(OPENAI_IMAGE_MODELS)))
+      : OPENAI_IMAGE_MODELS.slice());
 
   node.status = 'running';
   updateNodeStatus(node);
@@ -14899,11 +17846,11 @@ function generateOpenAIImage(node) {
     return imgs[0];
   }
   function plain() {
-    return openAIImageWithFallback(base, key, prompt, count, size).then(finish);
+    return openAIImageWithFallback(base, key, prompt, count, size, imageModelCandidates).then(finish);
   }
 
   function plainWithProxyFallback() {
-    return openAIImageWithFallback(base, key, prompt, count, size).then(finish).catch(function(err) {
+    return openAIImageWithFallback(base, key, prompt, count, size, imageModelCandidates).then(finish).catch(function(err) {
       if (isCorsLikeError(err)) {
         return generateImageViaProxyFallback(node, prompt, count, size, describeOpenAIError(err)).then(finish);
       }
@@ -14915,7 +17862,7 @@ function generateOpenAIImage(node) {
   if (ref.refs.length) {
     showToast('已引用 ' + ref.refs.length + ' 个资产（' + ref.refs.map(function(r) { return r.name; }).join('、') +
       '），参考图将随请求一起发送', 'info');
-    task = generateImageWithRefs(base, key, ref.augmented, ref.images, count, size)
+    task = generateImageWithRefs(base, key, ref.augmented, ref.images, count, size, imageModelCandidates)
       .then(finish)
       .catch(function(err) {
         showToast('带参考图生成失败，已回退为纯文本生成：' + describeOpenAIError(err), 'warn');
@@ -14941,7 +17888,7 @@ function generateOpenAIImage(node) {
       } catch (e2) {}
       if (node.el) buildNodeBody(node.el, node);
       updateNodeStatus(node);
-      showToast('gpt-image-2 生成失败：' + describeOpenAIError(err) +
+      showToast((selectedCanvasImageModel || 'gpt-image-2') + ' 生成失败：' + describeOpenAIError(err) +
         '（已尝试模型：' + (err.tried || OPENAI_IMAGE_MODELS.join(' / ')) + '）。' +
         '请检查：① API Key 是否正确 ② ⚙ 中自定义 API 地址 ③ 当前服务是否支持这些模型名 / 当前尺寸', 'danger');
       return null;
@@ -15003,8 +17950,17 @@ function buildImg2ImgPrompt(node) {
       'preserve the original composition, subjects, colors and artistic style. Clean, photorealistic, no distortion.';
   }
   if (node.type === 'imageEdit') {
-    return base + '请根据修正说明对提供的图片进行修正。尽量保留原始构图、主体身份、色彩和整体结构，除非说明中明确要求更改。' +
-      '输出干净、自然、高质量的修正结果，不要额外添加无关元素，也不要造成明显畸变。';
+    const hasRefs = Array.isArray(node.refImages) && node.refImages.some(function(r) {
+      return r && typeof r.src === 'string' && /^data:image\//i.test(r.src);
+    });
+    const role = hasRefs
+      ? '输入图片顺序非常重要：第一张图片是必须保留构图和人物的源图，后续图片仅作为参考图，不能替代源图。'
+        + '请从参考图中提取用户明确要求的饰品或局部细节，并自然地合成到第一张源图的对应位置。'
+      : '请把输入图片作为唯一源图进行局部修正。';
+    return base + role +
+      '严格按照修正说明操作，只修改明确要求的区域；未被要求的脸部、发型、姿势、服装版型、裤子颜色、材质、光线、背景和画面比例必须保持不变。' +
+      '如果要求添加腰带上的红绳饰品，请将参考图中的红色绳结、垂坠和金属穗完整添加到源图腰部，匹配源图的视角、遮挡关系、透视、尺度、光影和材质，不要把参考图的整条裤子或人物复制过来。' +
+      '输出一张自然、完整、无拼接痕迹的高质量结果，不要额外添加无关元素，不要删除源图已有的细节。';
   }
   // lineart：提取为干净黑白线稿
   return base + 'Convert this image into clean black-and-white line art / sketch on a white background. ' +
@@ -15101,7 +18057,7 @@ function generateOpenAIImageEdit(node, imageDataUrl) {
     const resolution = node.type === 'upscale' ? '超清2K' : '高清1K';
     const size = pickOpenAISize(aspect, resolution, node.params && node.params.customAspect);
     const route = _routeModel('image');
-    const model = 'gpt-image-2';
+    const model = resolveCanvasImageModel(node) || (route && route.model) || 'gpt-image-2';
     const provider = (route && route.provider) || 'openai';
     const t0 = Date.now();
     let extraRefs = [];
@@ -15114,9 +18070,9 @@ function generateOpenAIImageEdit(node, imageDataUrl) {
       token: window.FlowCraft.__userToken || undefined,
       body: { model: model, prompt: prompt, size: size, n: 1, imageDataUrl: imageDataUrl, imageDataUrls: extraRefs.length ? [imageDataUrl].concat(extraRefs) : [imageDataUrl] }
     }).then(function(data) {
-      const it = (data && data.data && data.data[0]) || null;
-      const img = it && normalizeImageSrc(it.b64_json ? 'data:image/png;base64,' + it.b64_json : (it.url || null));
-      if (!img) return createImageErrorPlaceholder(describeImagePayloadIssue(it));
+      const imgs = extractResponseImages(data);
+      const img = imgs[0] || null;
+      if (!img) throw new ProxyError('图生图接口未返回有效图片：' + describeImagePayloadIssue(data), { kind: 'system', retryable: false, code: 'empty_image' });
       if (window.FlowCraft && window.FlowCraft.health) window.FlowCraft.health.record({ modelId: provider + '/' + model, ok: true, ms: Date.now() - t0 });
       return img;
     });
@@ -15129,7 +18085,13 @@ function generateOpenAIImageEdit(node, imageDataUrl) {
   const resolution = node.type === 'upscale' ? '超清2K' : '高清1K';
   const size = pickOpenAISize(aspect, resolution, node.params && node.params.customAspect);
   const extraRefs = Array.isArray(node.refImages) ? node.refImages.filter(function(r) { return r && r.src && r.src !== imageDataUrl; }).map(function(r) { return r.src; }) : [];
-  const models = ['gpt-image-2'];
+  const routedModel = (_routeModel('image') || {}).model;
+  const selectedCanvasImageModel = resolveCanvasImageModel(node);
+  const models = selectedCanvasImageModel
+    ? [selectedCanvasImageModel]
+    : (routedModel && routedModel !== 'gpt-image-2'
+      ? [routedModel, 'gpt-image-2']
+      : ['gpt-image-2']);
   let lastErr = null;
   function attempt(ms) {
     if (!ms.length) {
@@ -15161,19 +18123,42 @@ function generateOpenAIImageEdit(node, imageDataUrl) {
   return attempt(models.slice());
 }
 
-// 收集节点上游传入的真实图片（data: 图片），没有则返回 null
+// 收集节点上游传入的图片地址。旧逻辑只接受 data:image，导致部分模型平台返回
+// https 图片地址时“画布能显示、智能超清却认为未连接图片”。
 function getNodeInputImage(node) {
   const inData = node.inputsData || [];
   const img = inData.find(function(d) {
-    return d && d.type === 'image' && typeof d.value === 'string' && /^data:image/.test(d.value);
+    return d && d.type === 'image' && normalizeImageSrc(d.value);
   });
-  if (img && img.value) return img.value;
-  if (node && typeof node.croppedImage === 'string' && /^data:image/.test(node.croppedImage)) return node.croppedImage;
-  if (node && typeof node.uploadedImage === 'string' && /^data:image/.test(node.uploadedImage)) return node.uploadedImage;
-  const refImg = node && Array.isArray(node.refImages) ? node.refImages.find(r => r && typeof r.src === 'string' && /^data:image/.test(r.src)) : null;
-  if (refImg && refImg.src) return refImg.src;
-  const thumb = node && typeof node.thumb === 'string' && /^data:image/.test(node.thumb) ? node.thumb : null;
-  return thumb;
+  if (img) return normalizeImageSrc(img.value);
+  const cropped = node && normalizeImageSrc(node.croppedImage);
+  if (cropped) return cropped;
+  const uploaded = node && normalizeImageSrc(node.uploadedImage);
+  if (uploaded) return uploaded;
+  const refImg = node && Array.isArray(node.refImages)
+    ? node.refImages.find(r => r && normalizeImageSrc(r.src)) : null;
+  if (refImg) return normalizeImageSrc(refImg.src);
+  return node ? normalizeImageSrc(node.thumb) : null;
+}
+
+// 将远程/Blob 图片转为 data URL，供 images/edits 和本地 Canvas 算法使用。
+// 已经是 data URL 时直接返回；跨域或网络失败时保留原地址，由上层报告具体错误。
+async function materializeImageDataUrl(src) {
+  const normalized = normalizeImageSrc(src);
+  if (!normalized || /^data:image\//i.test(normalized)) return normalized;
+  try {
+    const res = await fetch(normalized);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : normalized);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    return normalized;
+  }
 }
 
 //================ 16b. 循环节点驱动逻辑 ================
@@ -15881,6 +18866,7 @@ function init() {
   // 加载快捷键配置并刷新界面提示
   loadKeybindings();
   updateToolbarTitles();
+  initToolbarEnhancements();
 
   // 恢复 AI 设计助手面板开关状态（默认隐藏，由 localStorage 记忆）
   try {
@@ -15972,8 +18958,9 @@ function init() {
     const nn = prompt('新工作台名称（留空自动命名）', '');
     newWorkbench(nn || '');
   };
-  document.getElementById('btnAssets').onclick = () => {
+  document.getElementById('btnAssets').onclick = async () => {
     toggleAssetPanel();
+    await ensureGlobalAssetImagesLoaded();
   };
   document.getElementById('workflowClose').onclick = () => toggleWorkflowPanel(false);
   document.getElementById('workflowOverlay').onclick = () => toggleWorkflowPanel(false);
@@ -15988,6 +18975,24 @@ function init() {
   document.getElementById('assetClose').onclick = () => toggleAssetPanel(false);
   document.getElementById('assetOverlay').onclick = () => toggleAssetPanel(false);
   document.getElementById('btnRefreshAssets').onclick = () => updateAssetPanel();
+  const previewOrphansBtn = document.getElementById('btnPreviewOrphans');
+  if (previewOrphansBtn) previewOrphansBtn.onclick = () => previewOrphanAssets();
+  const assetViewTabs = document.querySelectorAll('[data-asset-view]');
+  assetViewTabs.forEach(tab => {
+    tab.addEventListener('click', async () => {
+      await ensureGlobalAssetImagesLoaded();
+      _assetView = tab.getAttribute('data-asset-view') === 'saved' ? 'saved' : 'current';
+      assetViewTabs.forEach(t => {
+        const active = t === tab;
+        t.classList.toggle('active', active);
+        t.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      _assetCatFilter = '';
+      const search = document.getElementById('assetSearch');
+      if (search) search.value = '';
+      updateAssetPanel();
+    });
+  });
   const assetFilters = document.getElementById('assetFilters');
   if (assetFilters) {
     assetFilters.addEventListener('click', (e) => {
@@ -16153,6 +19158,7 @@ function init() {
   const restored = restoreFromStorage();
   _initCanvasSig = canvasSignature(); // 记录初始画布签名，防止后台补全覆盖用户现场
   restoreFullAutosaveFromIDB(true); // #13b：后台从 IndexedDB 补全完整大图版本（仅画布未改动时）
+  ensureGlobalAssetImagesLoaded(); // 全局资产真源后台加载，避免大图仍受 localStorage 限制
 
   if (restored !== false && restored > 0) {
     // 有保存数据，恢复成功
@@ -16166,8 +19172,14 @@ function init() {
       showToast(`已恢复 ${restored} 个节点`, 'success');
     }, 300);
   } else {
-    // 无保存数据，创建示例节点
-    createExampleNodes();
+    // 无保存数据时保持空白画布，不再自动创建示例节点/连线组合。
+    // 示例工作流仍可通过「开箱模板」按需添加，避免刷新或首次打开时
+    // 用户被迫看到一组无法区分于真实内容的默认节点。
+    updateStatusbar();
+    updateRecycleUI();
+    updateUndoRedoButtons();
+    applyTransform();
+    markEdgesDirty();
   }
 }
 
@@ -16398,11 +19410,13 @@ var AI_MODEL_NAMES = {
   'gpt-5.4': 'GPT-5.4',
   'gpt-5.4-mini': 'GPT-5.4 Mini',
   'gpt-image-2': 'GPT Image 2',
+  'gpt-image-2.5': 'GPT Image 2.5（需提供方支持）',
   'deepseek-v4-flash': 'DeepSeek V4 Flash'
 };
 function normalizeAiImageModelName(model) {
   var v = String(model || '').trim();
   if (v === 'gpt-image-2' || v === 'GPT Image 2') return 'GPT Image 2';
+  if (v === 'gpt-image-2.5' || v === 'GPT Image 2.5') return 'GPT Image 2.5';
   return v;
 }
 function aiModelLabelForSelect(model) {
@@ -16531,7 +19545,7 @@ var AI_MODELS = Object.keys(AI_MODEL_NAMES).map(function(k) {
   var shorts = {
     'gpt-5.4': 'GPT-5.4', 'gpt-5.4-mini': 'GPT-5.4 Mini',
     'claude-sonnet-4-6': 'Sonnet 4.6', 'gemini-3-flash-preview': 'G3 Flash',
-    'gpt-image-2': 'GPT-Img2', 'deepseek-v4-flash': 'DS V4 Flash'
+    'gpt-image-2': 'GPT-Img2', 'gpt-image-2.5': 'GPT-Img2.5', 'deepseek-v4-flash': 'DS V4 Flash'
   };
   return { value: k, label: AI_MODEL_NAMES[k], shortLabel: shorts[k] || AI_MODEL_NAMES[k] };
 });
@@ -17160,7 +20174,7 @@ function sendAIMessage() {
   }
 
   // GPT Image 2 真实图像生成分支（阶段 9：路由启用时改用路由选中的图片模型）
-  if (aiCurrentModel === 'gpt-image-2') {
+  if (aiCurrentModel === 'gpt-image-2' || aiCurrentModel === 'gpt-image-2.5') {
     var _rImg = _routeModel('image');
     pushAIConversation('user', text);
     generateChatImage(text, bubble, _rImg ? _rImg.model : null, _rImg ? _rImg.provider : null);
@@ -17213,7 +20227,8 @@ function generateChatImage(text, bubble, modelOverride, provider) {
     aiSendBtn.disabled = false;
     return;
   }
-  var _cands = modelOverride ? [modelOverride].concat(OPENAI_IMAGE_MODELS) : OPENAI_IMAGE_MODELS;
+  // 用户明确选择模型时不静默回退到其他模型，避免“下拉显示成功但实际调用的是别的模型”。
+  var _cands = modelOverride ? [modelOverride] : OPENAI_IMAGE_MODELS;
   openAIImageWithFallback(base, key, prompt, 2, undefined, _cands)
   .then(function(imgs) {
     if (!imgs || !imgs.length) throw new Error('未获取到图片');
@@ -17230,7 +20245,7 @@ function generateChatImage(text, bubble, modelOverride, provider) {
   .catch(function(err) {
     setAIBubbleHTML(bubble, '<div class="ai-reply-text" style="color:#E15353">图像生成失败：' + escapeHtml(describeOpenAIError(err)) +
       '（已尝试模型：' + (err.tried || _cands.join(' / ')) + '）。' +
-      '<br>请检查 API Key、⚙ 中自定义 API 地址，或当前服务是否支持 gpt-image-2 / gpt-image-1 / dall-e-3。</div>', '图像生成失败：' + describeOpenAIError(err));
+      '<br>请检查 API Key、⚙ 中自定义 API 地址，或当前服务是否支持 gpt-image-2 / gpt-image-2.5 / gpt-image-1。</div>', '图像生成失败：' + describeOpenAIError(err));
     if (aiConversation.length && aiConversation[aiConversation.length - 1].role === 'user') {
       aiConversation.pop();
     }
@@ -17460,7 +20475,7 @@ function updateAISettingsUI() {
   var settingsTitle = document.getElementById('aiSettingsTitle');
   if (settingsTitle) settingsTitle.textContent = 'API Key 设置';
   if (aiSettingsBtn) {
-    aiSettingsBtn.title = aiCurrentModel === 'deepseek-v4-flash' || aiCurrentModel === 'gpt-image-2'
+    aiSettingsBtn.title = aiCurrentModel === 'deepseek-v4-flash' || aiCurrentModel === 'gpt-image-2' || aiCurrentModel === 'gpt-image-2.5'
       ? '配置 ' + name + ' API Key'
       : 'API 设置（Deepseek / OpenAI）';
   }

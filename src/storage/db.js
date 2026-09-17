@@ -203,3 +203,23 @@ export async function idbBulkPutMulti(storesAndValues) {
     }
   });
 }
+
+// 跨 store 批量删除（单事务，全部成功或全部回滚）。
+export async function idbBulkDeleteMulti(storeKeys) {
+  const groups = Array.isArray(storeKeys) ? storeKeys : [];
+  const usableGroups = groups.filter(g => g && typeof g.store === 'string' && Array.isArray(g.keys) && g.keys.length);
+  // IndexedDB 不接受空的 object store 列表；空输入应当是一个安全的 no-op。
+  if (!usableGroups.length) return 0;
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const storeNames = [...new Set(usableGroups.map(g => g.store))];
+    const t = db.transaction(storeNames, 'readwrite');
+    t.oncomplete = () => resolve(usableGroups.reduce((sum, g) => sum + g.keys.length, 0));
+    t.onerror = () => reject(t.error || new Error('跨 store 批量删除失败（已回滚）'));
+    t.onabort = () => reject(t.error || new Error('跨 store 批量删除被中止（已回滚）'));
+    usableGroups.forEach(({ store, keys }) => {
+      const os = t.objectStore(store);
+      (keys || []).forEach(key => os.delete(key));
+    });
+  });
+}
