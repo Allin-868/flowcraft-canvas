@@ -34,7 +34,7 @@ npm run verify:build
 npm run verify:regression
 ```
 
-`verify:build` 会额外确认 `index.html` 与当前 `src/` 源码严格一致，避免源码改动没有进入部署产物；`verify:security` 与 `verify:regression` 默认运行仓库内 `test/` 的校验脚本。回归闸门包含 63 个不调用真实 AI 的本地 mock/浏览器 smoke test，覆盖真实 / 演示 / 未实现语义、图片比例适配、AI 流水线节点界面、工作流执行机制、编导链路、统一资产底座与设计智能体节点；结果写入 Git 忽略的 `test-results/`。全部用例都在仓库内 `test/` 目录，克隆后自包含，不依赖上层 Workspace 的历史脚本。`test/` 另有 6 个脚本默认不入闸门：性能测量、演示物料生成、需真实 Key 的 3 个属设计如此；其余 3 个为已登记欠债（全部是「用例过期」而非产品缺陷），判定与证据见 `test/DEBT.md`。
+`verify:build` 会额外确认 `index.html` 与当前 `src/` 源码严格一致，避免源码改动没有进入部署产物；`verify:security` 与 `verify:regression` 默认运行仓库内 `test/` 的校验脚本。回归闸门包含 64 个不调用真实 AI 的本地 mock/浏览器 smoke test，覆盖真实 / 演示 / 未实现语义、图片比例适配、AI 流水线节点界面、工作流执行机制、编导链路、统一资产底座与设计智能体节点；结果写入 Git 忽略的 `test-results/`。全部用例都在仓库内 `test/` 目录，克隆后自包含，不依赖上层 Workspace 的历史脚本。`test/` 另有 5 个脚本默认不入闸门：性能测量、演示物料生成、需真实 Key 的 3 个属设计如此；其余 2 个为已登记欠债，判定与证据见 `test/DEBT.md`。清欠债过程中查出并修复了 2 处产品缺陷（状态节点按钮点不到、冷启动节点元素成倍残留），详见 `test/DEBT.md` 的「本轮查出的产品缺陷」。
 
 如果回归输出 `EPERM` 且涉及 `listen`，或 Chrome 输出 `bootstrap_check_in ... Permission denied`，表示当前执行环境禁止本机回环端口或浏览器进程启动，统一记录为“环境阻塞”，不能当作业务测试失败。此时请在本机终端执行：
 

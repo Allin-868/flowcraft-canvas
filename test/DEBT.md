@@ -6,11 +6,12 @@
 ## 口径
 
 - 闸门入口：`test/run-regression.mjs`（`npm run verify:regression`）。
-- 当前闸门条目 **63**，2026-09-18 全绿（`test-results/regression-2026-09-18.md`）。
-- `test/` 目录共 **72** 个脚本文件；未进闸门的 **6** 个 = 设计如此 **3** + 真欠债 **3**。
+- 当前闸门条目 **64**，2026-09-18 全绿（`test-results/regression-2026-09-18.md`）。
+- `test/` 目录共 **72** 个脚本文件；未进闸门的 **5** 个 = 设计如此 **3** + 真欠债 **2**。
 - 本文件登记欠债的判定与证据；`run-regression.mjs` 的注释只列文件名。
-- 2026-09-18 已清 5 条：`verify-asset-dedup` / `verify-char-flow` / `verify-genmeta-retry` /
-  `verify-ctxmenu-lightbox` / `verify-genmeta-bottom`。修法与踩坑见文末「已关闭」。
+- 2026-09-18 已清 6 条：`verify-asset-dedup` / `verify-char-flow` / `verify-genmeta-retry` /
+  `verify-ctxmenu-lightbox` / `verify-genmeta-bottom` / `verify-stage4-character-assets`。
+  修法与踩坑见文末「已关闭」；**清的过程中查出 2 处真产品缺陷并已修**，见「本轮查出的产品缺陷」。
 
 ## 设计如此（永久不入闸门，不算欠债）
 
@@ -20,7 +21,7 @@
 | `reel-char-trial.mjs` | 生成演示物料（逐幕截图），不是断言集 |
 | `verify-real-links.mjs` | 需要真实 AI Key（只从 env 读），CI/本地无凭据必红 |
 
-## 真欠债 3 条（2026-09-17 复跑取证，2026-09-18 已清其中 2 条）
+## 真欠债 2 条（2026-09-17 复跑取证，2026-09-18 已清其中 4 条）
 
 ### A 类｜用例过期（产品行为已有意变更，断言写的是旧契约）
 
@@ -28,7 +29,6 @@
 |---|---|---|---|
 | `verify-composer.mjs` | 14/21 | 失败 7 条：比例 select 写回、生成按钮完成(done)、节点拖动/缩放/平移后跟随、切换选中跟随 | 探针 `probe-composer.mjs`：现行 DOM 里**已无含 `16:9` 的下拉**（比例入口改版）；Composer 已加**避让逻辑**（`verify-composer-avoid.mjs` 在闸门内且通过），`left` 不再等于「节点正下方」公式值 |
 | `verify-auto-connect.mjs` | 7/11 | 失败 4 条：拖动中出现候选预览、端口 compatible 高亮、吸附到 x=272 y=228、间隙 100px 即吸附 | `legacy.js:12547` 明确注释「拖拽过程中只更新位移；吸附和自动连线留到松手时处理，避免每次 mousemove 全图扫描」——**这是已决策的性能优化**，与断言 1/2 的旧契约直接冲突；断言 3/4 还写死了坐标 |
-| `verify-stage4-character-assets.mjs` | 15/16 | 1 条 `locator.click` 超时，`element is not visible`（脚本 187 行） | UI 文案/层级已变，该按钮当前不在可见路径上 |
 
 ### B/C 类｜已清空（见文末「已关闭」）
 
@@ -36,7 +36,7 @@
 
 探针附带排除的一条嫌疑：无 Key 时点生成会拿到 `status=error`，一度以为是「报错无提示」的体验缺陷；核对后确认 `legacy.js:12051 / 12076` 有未配置 Key 的分类与提示，是**探针读错字段**（读了 `msg` 空值），不立案。
 
-## 已关闭（2026-09-18，全部只改测试，未改产品）
+## 已关闭（2026-09-18；前 5 条只改测试，最后 1 条同时修了 2 处产品缺陷）
 
 | 脚本 | 原判定 | 实际修法 | 复跑 |
 |---|---|---|---|
@@ -45,6 +45,7 @@
 | `verify-genmeta-retry.mjs` | **不是待定级，是用例过期** | `page.route('**/images/generations')` 打桩出图 + 注入测试 Key，断言 `status=done` 且**新增** `resultMode=real` | 16/16 |
 | `verify-genmeta-bottom.mjs` | 用例过期（承载节点选错） | fixture 由 `upscale` 换 `aiImage`；信息条只读 genMeta，不需要真出图 | 8/8 |
 | `verify-ctxmenu-lightbox.mjs` | 同上 | 折叠/展开两条换 `aiImage` 承载；「单击不弹大图」+ 右键菜单**仍留** `upscale`（它有 clean-output 预览区而 aiImage 没有）；**新增**反向钉住「高清节点不渲染信息条」 | 5/5 |
+| `verify-stage4-character-assets.mjs` | **判定错了：不是用例过期，是产品有 2 处缺陷**（原判「UI 文案已变」） | 把 `evaluate(b => b.click())` 换成真实 `click()`、把「存在即通过」的 `hasToolbar` 升级为 `actionsReachable`（查 display + 尺寸）；配套修产品（见下节）；用官方 `FlowCraft.editor.moveNode` 把状态节点铺成网格避开副本 40×40 遮挡 | **34/34** |
 
 判定补记（`verify-genmeta-retry` 定级结论）：`legacy.js:16781` 注释与 16798-16801 行表明
 「**AI 绘图节点统一走真实生成，节点上的模型名仅作 UI 标签**」，演示占位图已按 P0-4 语义契约移除
@@ -52,11 +53,21 @@
 无 Key 时 `status=error` + toast「未配置 OpenAI API Key」是**正确的当前行为**。同理
 `verify-composer.mjs` 的「生成按钮触发运行并完成（done）」也是这一条根因，A 类改写时一并处理。
 
-### 可复用的两个坑（写测试前先看）
+## 本轮查出的产品缺陷（已修，提交 3dc466a）
+
+| 缺陷 | 表现 | 根因 | 修法 |
+|---|---|---|---|
+| 角色状态节点 4 个按钮是死控件 | `.node-toolbar` display:none、按钮 0×0、`elementFromPoint` 命中不相干元素；hover 也救不回 | `styles.css:947` 的 image-only 收敛（本意只隐藏「复制链接/发送到画布」等通用按钮）碰上 `legacy.js:7967`「所有 aiImage 都加 `node--image-only`」，把 `legacy.js:10790` 新加的状态按钮一起吞了 | 加一行例外 `.node--image-only .node-toolbar:has(.state-node-action){display:flex}` |
+| 冷启动把整个画布渲染两遍 | `workflow.nodes.size=2` 而 `.node[data-id]` 有 4 个；两条同矩形、都 visible，一条是当前 `node.el` 的孤儿 | `restoreFromStorage()` 启动时被调两次（`legacy.js:19158` 的 `init()` + `compat/main.js:192/242` 的 `restoreWithIDB`），第二遍不清场，`nodes.set()` 只覆盖引用 | 照 `applyWorkflowData:1658` 的做法在写入前清 nodes/edges/order/selection + `recycleBin`，使函数幂等 |
+
+两条都属于「只用 `querySelector` 存在性做断言」时永远发现不了的缺陷 —— 元素在 DOM 里、永远查得到，只是点不到 / 多了一份。
+
+### 可复用的几个坑（写测试前先看）
 
 1. **资产相关写入基本都是 async**：`saveNodeImageAsAsset`、素材库页签 click 处理器内部都要 `await` IndexedDB 水合。`element.click()` 之后视图/数据不会同步变化，必须 `waitForFunction` 等状态落地，否则拿到的是旧视图。
 2. **aiImage 出图断言一律走 `page.route` 打桩**（参照 `verify-provider-models.mjs` 的既有写法）：不 mock 就只会得到「未配置 Key」的 error；直接放宽成 `['done','error'].includes(status)` 则是假绿。
 3. **信息条 `.node-gen-meta` 有类型闸门**（`legacy.js:10875`，只认 `aiImage/comfyui/imageEdit`）：高清、线稿的参数入口是各自下方专属面板。写「信息条/参数详情」类断言前先确认承载节点类型，别默认任何出图节点都有这条。
+4. **`querySelector` 命中 ≠ 用户点得到**：`display:none` 的元素 Playwright 判不可见（真实 `.click()` 会超时），但 `el.querySelector(...)` 照样返回它 —— 本轮 2 处产品缺陷都是这么藏住的。UI 断言优先用真实 `locator.click()`；确需用 `evaluate` 时补一条 display + 尺寸的可显示性判定，别只查存在。同理 `workflow.nodes.size` 与 `.node[data-id]` 元素数不等就说明有孤儿元素，值得单独立一条断言。
 
 ## 处理原则
 
@@ -64,14 +75,15 @@
 2. A 类改写后必须回到闸门并留在里面——它们覆盖的是 Composer 定位、自动连线这类主干交互，弃跑等于裸奔。
 3. B 类是本次最便宜的红利：`await` + 切页签，预计 3 条断言直接转绿。
 4. 坐标写死的断言（`x=272 y=228` 一类）改成「相对目标端口的间隙/对齐」判定，否则每次布局调整都会误报。
-5. 剩余 3 条全是 A 类，建议顺序：**stage4-character-assets（1 条，最便宜）→ auto-connect → composer**。composer 的「生成按钮完成(done)」断言与 genmeta-retry 同根因（出图需 `page.route` 打桩），其「比例下拉写回 / 跟随节点定位」两条则要先确认新版避让逻辑下的正确预期，不能简单放宽。
+5. 剩余 2 条（`verify-auto-connect`、`verify-composer`），建议顺序 auto-connect → composer。composer 的「生成按钮完成(done)」断言与 genmeta-retry 同根因（出图需 `page.route` 打桩），其「比例下拉写回 / 跟随节点定位」两条则要先确认新版避让逻辑下的正确预期，不能简单放宽。
+6. **先假设测试是对的**。本轮教训：stage4 登记时被判为「用例过期、UI 文案已变」，实际是把 `evaluate(b => b.click())` 换成真实 `click()` 后发现的两处产品缺陷。改测试迁就现状前，先问一句「用户真的能用这个功能吗」。
 
 ## 复现命令
 
 ```bash
 cd 部署仓库根目录
 node test/verify-asset-dedup.mjs      # 单跑某条
-node test/run-regression.mjs          # 全量闸门（63）
+node test/run-regression.mjs          # 全量闸门（64）
 ```
 
-分类用的探针脚本未随仓库发布（在开发机 `.flowcraft-patches/` 下）：`probe-debt.mjs`（批量跑欠债脚本取退出码与末段输出）、`probe-composer.mjs`（Composer 现行控件结构与写回行为）、`probe-asset-panel.mjs`（存资产后面板各时点卡片数）、`probe-asset-dom.mjs`（资产面板 DOM 归属）、`probe-genmeta-strip.mjs`（信息条在各类型节点上的渲染情况）、`probe-ctxmenu-dom.mjs`（高清/AI 绘图节点预览区与信息条 DOM 对照 + 右键菜单项清单）。复现 A/B 类判定只需按上表跑对应脚本，再按「证据」列的关键差异对照现行源码。
+分类用的探针脚本未随仓库发布（在开发机 `.flowcraft-patches/` 下）：`probe-debt.mjs`（批量跑欠债脚本取退出码与末段输出）、`probe-composer.mjs`（Composer 现行控件结构与写回行为）、`probe-asset-panel.mjs`（存资产后面板各时点卡片数）、`probe-asset-dom.mjs`（资产面板 DOM 归属）、`probe-genmeta-strip.mjs`（信息条在各类型节点上的渲染情况）、`probe-ctxmenu-dom.mjs`（高清/AI 绘图节点预览区与信息条 DOM 对照 + 右键菜单项清单）、`probe-state-toolbar.mjs`（状态按钮 display/尺寸/命中测试 + 注入修复后的对照）、`probe-reload-toolbar.mjs`（恢复后同 data-id 元素数）、`probe-dup-node-el.mjs`（重复元素的归属链与 isLive 比对）、`probe-coldstart-append.mjs`（在应用脚本前挂 `Node.prototype.appendChild` 钩子，抓冷启动两次 append 的调用栈）。复现 A/B 类判定只需按上表跑对应脚本，再按「证据」列的关键差异对照现行源码。

@@ -139,10 +139,20 @@ try {
       stateId: state && state.id,
       meta: state && state.stateMeta,
       hasToolbar: Boolean(state && state.el && state.el.querySelector('.state-node-action[title="单状态重试"]') && state.el.querySelector('.state-node-action[title="复制此状态"]') && state.el.querySelector('.state-node-action[title*="删除此状态"]')),
+      actionsReachable: (() => {
+        if (!state || !state.el) return false;
+        const bar = state.el.querySelector('.node-toolbar');
+        if (!bar || getComputedStyle(bar).display === 'none') return false;
+        return [...state.el.querySelectorAll('.state-node-action')].every((b) => {
+          const r = b.getBoundingClientRect();
+          return r.width > 8 && r.height > 8;
+        });
+      })(),
       sourceConnected: Boolean(state && [...workflow.edges.values()].some((edge) => edge.from.node === text && edge.to.node === state)),
     };
   }, template.textId);
-  check('状态节点显示单状态重试、复制和删除操作', stateActions.hasToolbar, JSON.stringify(stateActions));
+  check('状态节点显示单状态重试、复制和删除操作', stateActions.hasToolbar === true && stateActions.actionsReachable === true,
+    JSON.stringify({ hasToolbar: stateActions.hasToolbar, reachable: stateActions.actionsReachable }));
   check('状态节点保存来源与状态元数据', Boolean(stateActions.meta && stateActions.meta.sourceId === template.textId && stateActions.meta.label === '日常着装'), JSON.stringify(stateActions.meta));
 
   const copied = await page.evaluate((label) => {
@@ -155,6 +165,15 @@ try {
     };
   }, '日常着装');
   check('状态节点可复制并保持角色来源连线', copied.count === 2 && copied.copied && copied.sourceEdges === 2, JSON.stringify(copied));
+
+  // fixture 卫生：用官方 API 把状态节点铺成两列网格，避开副本 40×40 偏移造成的标题栏遮挡
+  // （duplicateNode 只偏移 40×40，image-only 节点的标题栏是外置胶囊，会压住原件的状态按钮，
+  //  让真实点击命中的是被测对象之外的副本）
+  await page.evaluate(() => {
+    [...workflow.nodes.values()].filter((n) => n.stateMeta)
+      .forEach((n, i) => window.FlowCraft.editor.moveNode(n.id, 120 + (i % 2) * 340, 150 + Math.floor(i / 2) * 360));
+  });
+  await page.waitForTimeout(200);
 
   const retryBefore = await page.evaluate(() => {
     const node = [...workflow.nodes.values()].find((n) => n.stateMeta && n.stateMeta.label === '日常着装');
@@ -170,7 +189,7 @@ try {
     };
     return { id: node.id, status: node.status };
   });
-  await page.locator(`.node[data-id="${retryBefore.id}"] .state-node-action[title="单状态重试"]`).evaluate((button) => button.click());
+  await page.locator(`.node[data-id="${retryBefore.id}"] .state-node-action[title="单状态重试"]`).click();
   await page.waitForTimeout(1400);
   const retryAfter = await page.evaluate((id) => {
     const node = workflow.nodes.get(id);
