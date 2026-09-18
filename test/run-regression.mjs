@@ -54,6 +54,9 @@ const candidates = requested.length ? requested : [
   // 2026-09-19 修好并入：原判「用例过期、与性能决策冲突」实为产品把拖动中反馈弄丢了（见 DEBT.md 第 4 处）；
   // 恢复检测进 rAF 帧后，用例改成真实鼠标拖拽 + computed style 判高亮，18/18
   'verify-auto-connect.mjs',
+  // 2026-09-19 最后一条 A 类欠债结案（7 条失败全在测试侧，0 处产品缺陷）：改成真实鼠标动作 +
+  // 渲染几何相对判据 + route 打桩出图，33/33；比例/分辨率浮层入口此前全仓库 0 覆盖，现由它钉住
+  'verify-composer.mjs',
   // 已知欠债（失败未修，暂不入闸门，判定与证据见同目录 DEBT.md）：
   // verify-composer, verify-auto-connect,
   // verify-real-links（需真实 Key）, verify-perf-baseline（性能基线单独跑）,
