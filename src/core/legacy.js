@@ -12373,14 +12373,14 @@ function selectNode(node, options = {}) {
 //================ 9. 节点拖拽 ================
 let dragContext = null;
 
-// ===== A 拖节点靠近自动连线（面板级吸附）=====
-// 即将靠近节点面板即触发（横向间隙 -30~140px、纵向对齐窗口 90px），
-// 并把拖动的节点「吸附」到端口对齐位置；松手落库。
+// ===== A 拖节点靠近自动连线（面板级候选）=====
+// 拖动中每帧检测候选（横向间隙 -30~140px、纵向对齐窗口 90px），命中即给两处反馈：
+// 画布上的候选虚线（drawEdges 的 __autoConn 分支）+ 目标端口 .compatible 高亮；松手落库。
+// 不搬动节点位置：落点由 snapNodePosition（边/中心对齐 + 24px 网格）决定。
 let __autoConn = null;
 const AUTOCONN_GAP_X_MIN = -30;  // 允许轻微重叠
 const AUTOCONN_GAP_X_MAX = 140;  // 即将靠近面板的距离阈值
 const AUTOCONN_GAP_Y_MAX = 90;   // 纵向对齐窗口
-const AUTOCONN_PORT_GAP = 48;    // 吸附后两节点端口之间的间距
 
 // 端口世界坐标（与 buildNodeBody 端口定位一致：portStartY=48, spacing=28；input 在左缘、output 在右缘）
 function portWorldPos(node, kind, idx) {
@@ -12552,6 +12552,10 @@ function startNodeDrag(e, node) {
       g.n.el.style.top = ny + 'px';
     });
     markEdgesDirty();
+    // 候选检测挂在这一帧（每帧一次，而非每次 mousemove）：100 节点图实测单次 0.012ms，
+    // 代价可忽略，却保住了「候选虚线 + 目标端口兼容高亮」两条用户反馈 —— 少了这句时
+    // __autoConn 只在松手的同一个同步块里被赋值又被清空，预览与高亮一帧都渲染不出来。
+    if (group.length === 1) updateAutoConnect(group[0].n);
     if (__composerNode && group.some(g => g.n === __composerNode)) positionNodeComposer();
   };
   const scheduleDragFrame = () => {
