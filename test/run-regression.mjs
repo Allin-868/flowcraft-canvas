@@ -51,6 +51,9 @@ const candidates = requested.length ? requested : [
   // 用户鼠标点不到（样式隐藏/被遮罩盖住/坐标落在视口外）。三处产品缺陷都源于只用 querySelector
   // 存在性 + 程序内 click 做断言，故把判据（window.__reach）固化成常规闸门，见 DEBT.md。
   'verify-ui-affordance.mjs',
+  // 2026-09-19 修好并入：原判「用例过期、与性能决策冲突」实为产品把拖动中反馈弄丢了（见 DEBT.md 第 4 处）；
+  // 恢复检测进 rAF 帧后，用例改成真实鼠标拖拽 + computed style 判高亮，18/18
+  'verify-auto-connect.mjs',
   // 已知欠债（失败未修，暂不入闸门，判定与证据见同目录 DEBT.md）：
   // verify-composer, verify-auto-connect,
   // verify-real-links（需真实 Key）, verify-perf-baseline（性能基线单独跑）,
