@@ -2743,7 +2743,14 @@ body {
   padding-top: 8px;
 }
 .nc-adv[hidden] { display: none; }
-.nc-actions { display: flex; justify-content: flex-end; }
+.nc-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* 同参重试：次要按钮（主操作仍是「生成」） */
+.nc-retry {
+  background: transparent;
+  border: 1px solid rgba(91, 141, 239, 0.45);
+  color: var(--color-primary);
+}
+.nc-retry:hover { filter: none; background: rgba(91, 141, 239, 0.12); }
 .nc-run {
   padding: 6px 18px;
   border: none;
@@ -15346,6 +15353,19 @@ function buildNodeComposerBody(node) {
     runBtn.title = '运行此节点';
     runBtn.onmousedown = (e) => e.stopPropagation();
     runBtn.onclick = (e) => { e.stopPropagation(); runNode(node); };
+    // 同参重试入口。节点体内不再渲染生成信息条（纯图片视图），而 retrySameParams 原先
+    // 只挂在信息条里（legacy.js:5296/5314）→ 对 aiImage/imageEdit 等于无入口。
+    // 与右键菜单同一套做法，仅在已有成功快照时出现。
+    if (node.genMeta) {
+      const retryBtn = document.createElement('button');
+      retryBtn.type = 'button';
+      retryBtn.className = 'nc-run nc-retry';
+      retryBtn.textContent = '↻ 同参重试';
+      retryBtn.title = '用上次成功生成的完全相同参数（提示词/模型/比例/分辨率/张数）重新运行本节点';
+      retryBtn.onmousedown = (e) => e.stopPropagation();
+      retryBtn.onclick = (e) => { e.stopPropagation(); retrySameParams(node); };
+      actions.appendChild(retryBtn);
+    }
     actions.appendChild(runBtn);
     el.appendChild(actions);
   }
@@ -26744,6 +26764,7 @@ const MENU_ICONS = {
   front:     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="8" height="8" rx="1"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/></svg>',
   back:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="8" height="8" rx="1" opacity="0.4"/><rect x="6" y="6" width="8" height="8" rx="1"/></svg>',
   run:       '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l9 6-9 6z"/></svg>',
+  retry:     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 8a5 5 0 1 1-1.46-3.54M13 2.5V5h-2.5"/></svg>',
   fit:       '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6V3h3M10 3h3v3M13 10v3h-3M6 13H3v-3"/></svg>',
   zoom:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="M10 10l3 3M5 7h4M7 5v4"/></svg>',
   selectAll: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1" stroke-dasharray="2 2"/></svg>',
@@ -26920,6 +26941,9 @@ function showContextMenu(x, y, node) {
     addMenuItem('置于顶层', MENU_ICONS.front, '', () => bringToFront(node));
     addMenuItem('置于底层', MENU_ICONS.back, '', () => sendToBack(node));
     addMenuSeparator();
+    if (node.genMeta) {
+      addMenuItem('同参重试', MENU_ICONS.retry, '', () => retrySameParams(node));
+    }
     if (node.type === 'aiImage' || node.type === 'aiVideo') {
       addMenuItem('运行节点', MENU_ICONS.run, '', () => runNode(node));
     }

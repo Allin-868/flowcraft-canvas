@@ -2730,7 +2730,14 @@ body {
   padding-top: 8px;
 }
 .nc-adv[hidden] { display: none; }
-.nc-actions { display: flex; justify-content: flex-end; }
+.nc-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* 同参重试：次要按钮（主操作仍是「生成」） */
+.nc-retry {
+  background: transparent;
+  border: 1px solid rgba(91, 141, 239, 0.45);
+  color: var(--color-primary);
+}
+.nc-retry:hover { filter: none; background: rgba(91, 141, 239, 0.12); }
 .nc-run {
   padding: 6px 18px;
   border: none;
