@@ -47,6 +47,10 @@ const candidates = requested.length ? requested : [
   // 2026-09-18 转真实交互后并入：该脚本此前卡在一次超时上，后半段 19 条断言从未执行；
   // 转真后顺带查出 2 处产品缺陷（见 DEBT.md「本轮查出的产品缺陷」），现 34/34
   'verify-stage4-character-assets.mjs',
+  // 2026-09-18 新增闸门：可点性体检。它钉住的是同一类盲区——控件在 DOM 里、函数能跑通，但
+  // 用户鼠标点不到（样式隐藏/被遮罩盖住/坐标落在视口外）。三处产品缺陷都源于只用 querySelector
+  // 存在性 + 程序内 click 做断言，故把判据（window.__reach）固化成常规闸门，见 DEBT.md。
+  'verify-ui-affordance.mjs',
   // 已知欠债（失败未修，暂不入闸门，判定与证据见同目录 DEBT.md）：
   // verify-composer, verify-auto-connect,
   // verify-real-links（需真实 Key）, verify-perf-baseline（性能基线单独跑）,

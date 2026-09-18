@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
  * 生成信息条入底部参数区防回退：位于出图区之后、详情可编辑参数回写、含重新生成按钮。
- * 承载节点必须是 aiImage —— 信息条只对生成类节点渲染（legacy.js:10875），
+ * 承载节点必须是 comfyui —— 信息条虽对 aiImage/comfyui/imageEdit 都渲染（legacy.js:10875），
+ * 但 aiImage/imageEdit 带 node--image-only，其信息条被 styles.css:912-922 按设计整体隐藏
+ * （纯图片视图，重试走 composer/右键菜单，见 verify-genmeta-retry），挂在那上面只能验到隐藏 DOM。
  * 高清/线稿节点走自己的下方面板，不在本用例范围内。
  */
 import http from 'node:http';
@@ -23,9 +25,8 @@ await page.waitForFunction(() => window.FlowCraft && workflow && typeof addNode 
 const r = await page.evaluate(async () => {
   const mk = () => { const cv = document.createElement('canvas'); cv.width = 8; cv.height = 8; const x = cv.getContext('2d'); x.fillStyle = '#cc9933'; x.fillRect(0, 0, 8, 8); return cv.toDataURL('image/png'); };
   clearGraph();
-  // 生成信息条按类型渲染（legacy.js:10875 只认 aiImage/comfyui/imageEdit）；高清/线稿的参数
-  // 入口已移入各自下方面板，因此本用例的承载节点必须是 aiImage，且不需要真出图（信息条只读 genMeta）。
-  const up = addNode('aiImage', 400, 100);
+  // 承载节点必须是信息条真正可见的 comfyui（见文件头）；本用例不需要真出图，信息条只读 genMeta。
+  const up = addNode('comfyui', 400, 100);
   up.prompt = '信息条用例：穿白色连衣裙的女孩';
   up.params.model = 'FLUX.1';
   up.params.aspect = '1:1';
@@ -38,10 +39,24 @@ const r = await page.evaluate(async () => {
   buildNodeBody(up.el, up);
   const strip = up.el.querySelector('.node-gen-meta');
   const preview = up.el.querySelector('.node-preview-area') || up.el.querySelector('.node-hero');
-  const bottom = strip && preview ? (strip.getBoundingClientRect().top >= preview.getBoundingClientRect().top) : false;
+  // 主判据用 DOM 顺序：信息条始终追加为宿主最后一个子元素（legacy.js:5368 el.appendChild(strip)），
+  // 即「在底部参数区」；预览区存在时再叠加几何比较（comfyui 没有 .node-preview-area）
+  // 节点体末尾还会追加连接端口（buildNodeBody 里 el.appendChild(port)），判「末尾」要排除它们
+  const contentKids = strip ? [...strip.parentElement.children].filter((c) => !c.classList.contains('node-port')) : [];
+  const lastChild = !!strip && contentKids[contentKids.length - 1] === strip;
+  const belowPreview = !!(strip && preview) && strip.getBoundingClientRect().top >= preview.getBoundingClientRect().top;
+  const bottom = lastChild && (!preview || belowPreview);
   // 展开详情
   const summary = strip && strip.querySelector('.ngm-summary');
   if (summary) summary.click();
+  // 摘要行必须真的对用户可见（此前只在隐藏 DOM 上做断言，属于假绿）
+  const summaryVisible = !!summary && getComputedStyle(summary).display !== 'none';
+  // 反向钉住设计契约：image-only 的 aiImage 节点体内不得出现信息条摘要/详情
+  const aiN = addNode('aiImage', 1000, 100);
+  aiN.prompt = up.prompt; aiN.thumb = up.thumb; aiN.outputsData = up.outputsData; aiN.status = 'done';
+  captureGenMeta(aiN, 1234); buildNodeBody(aiN.el, aiN);
+  const aiSummary = aiN.el.querySelector('.node-gen-meta .ngm-summary');
+  const aiStripHidden = !aiSummary || getComputedStyle(aiSummary).display === 'none';
   const inputs = strip ? [...strip.querySelectorAll('.ngm-edit select')] : [];
   const ta = strip ? strip.querySelector('.ngm-edit textarea') : null;
   const regen = strip ? [...strip.querySelectorAll('button')].find(b => /应用参数并重新生成/.test(b.textContent)) : null;
@@ -57,14 +72,16 @@ const r = await page.evaluate(async () => {
   const allInputs = [...strip.querySelectorAll('.ngm-edit input, .ngm-edit select, .ngm-edit textarea')];
   const maxRight = allInputs.length ? Math.max(...allInputs.map(i => i.getBoundingClientRect().right)) : 0;
   return {
-    hasStrip: !!strip, bottom, inputCount: inputs.length, hasTa: !!ta, hasRegen: !!regen, paramWritten,
+    hasStrip: !!strip, bottom, lastChild, belowPreview, hasPreview: !!preview, summaryVisible, aiStripHidden, inputCount: inputs.length, hasTa: !!ta, hasRegen: !!regen, paramWritten,
     noCorner: !up.el.querySelector('.ngm-corner-retry'),
     overflow: maxRight > nr.right + 1, maxRight: Math.round(maxRight), nodeRight: Math.round(nr.right),
   };
 });
 
 check('生成信息条存在', r.hasStrip === true);
-check('信息条位于预览区之后(底部参数区)', r.bottom === true, JSON.stringify({ bottom: r.bottom }));
+check('comfyui 信息条摘要对用户可见', r.summaryVisible === true, JSON.stringify({ visible: r.summaryVisible }));
+check('aiImage 节点体内信息条按设计隐藏（纯图片视图契约）', r.aiStripHidden === true, JSON.stringify({ hidden: r.aiStripHidden }));
+check('信息条位于节点体末尾(底部参数区)', r.bottom === true, JSON.stringify({ lastChild: r.lastChild, hasPreview: r.hasPreview, belowPreview: r.belowPreview }));
 check('详情含下拉选择(模型/比例/分辨率/张数)', r.inputCount >= 4, 'selects=' + r.inputCount);
 check('详情含提示词编辑框', r.hasTa === true);
 check('含「应用参数并重新生成」按钮', r.hasRegen === true);

@@ -56,6 +56,7 @@
     "verify:lineart-local": "node test/verify-lineart-local.mjs",
     "verify:save-genmeta": "node test/verify-save-genmeta.mjs",
     "verify:genmeta-bottom": "node test/verify-genmeta-bottom.mjs",
+    "verify:ui-affordance": "node test/verify-ui-affordance.mjs",
     "verify:asset-reference-governance": "node test/verify-asset-reference-governance.mjs"
   },
   "devDependencies": {

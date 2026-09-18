@@ -1,13 +1,16 @@
 # 测试欠债登记簿（test/DEBT.md）
 
 > 本文件随 deploy 仓库发布，是回归闸门外脚本的唯一登记处。
-> 闸门入口 `test/run-regression.mjs`（`npm run verify:regression`）；更新日期 2026-09-18。
+> 闸门入口 `test/run-regression.mjs`（`npm run verify:regression`）；更新日期 2026-09-19。
 
 ## 口径
 
 - 闸门入口：`test/run-regression.mjs`（`npm run verify:regression`）。
-- 当前闸门条目 **64**，2026-09-18 全绿（`test-results/regression-2026-09-18.md`）。
-- `test/` 目录共 **72** 个脚本文件；未进闸门的 **5** 个 = 设计如此 **3** + 真欠债 **2**。
+- 当前闸门条目 **65**，2026-09-19 全绿（`test-results/regression-2026-09-19.md`）。
+- `test/` 目录共 **73** 个脚本文件；未进闸门的 **5** 个 = 设计如此 **3** + 真欠债 **2**。
+- 第 65 条 `verify-ui-affordance.mjs` 是 2026-09-18 新增的「可点性体检」闸门：不再问「控件在不在」，
+  而是问「用户鼠标按得到按不到」（`elementFromPoint` 命中 + 祖先链 display/visibility + 自身 pointer-events
+  + 尺寸 + 中心点在视口内）。三处产品缺陷都属于前者通过、后者失败的盲区，故固化为常规闸门。
 - 本文件登记欠债的判定与证据；`run-regression.mjs` 的注释只列文件名。
 - 2026-09-18 已清 6 条：`verify-asset-dedup` / `verify-char-flow` / `verify-genmeta-retry` /
   `verify-ctxmenu-lightbox` / `verify-genmeta-bottom` / `verify-stage4-character-assets`。
@@ -53,7 +56,12 @@
 无 Key 时 `status=error` + toast「未配置 OpenAI API Key」是**正确的当前行为**。同理
 `verify-composer.mjs` 的「生成按钮触发运行并完成（done）」也是这一条根因，A 类改写时一并处理。
 
-## 本轮查出的产品缺陷（已修，提交 3dc466a）
+**上表有一条要打折**（2026-09-18 复核）：那次把 `verify-genmeta-bottom` 的承载由 `upscale` 换成 `aiImage`，
+本身仍是一条假绿 —— aiImage 的信息条按设计就被 CSS 隐藏，用例断言的那些布局属性用户从来看不到。
+本轮改为挂 **comfyui**（当前唯一能让信息条显形的类型）并补「摘要对用户可见」判定 + 反向钉；
+`verify-genmeta-retry` 也补了真实入口点击的场景 2b。两条复跑计数升到 **10/10** 与 **19/19**，教训见坑 5。
+
+## 查出的产品缺陷（第 1、2 处见提交 3dc466a；第 3 处见本节末）
 
 | 缺陷 | 表现 | 根因 | 修法 |
 |---|---|---|---|
@@ -62,12 +70,28 @@
 
 两条都属于「只用 `querySelector` 存在性做断言」时永远发现不了的缺陷 —— 元素在 DOM 里、永远查得到，只是点不到 / 多了一份。
 
+### 第 3 处（2026-09-18 可点性体检查出并已修）
+
+| 缺陷 | 表现 | 根因 | 修法 |
+|---|---|---|---|
+| aiImage / imageEdit 上「同参重试」没有任何用户入口 | 右键菜单无该项、composer 无该按钮、节点内也看不到；`retrySameParams` 的 2 个调用点全在隐藏 DOM 里 | 该函数原先只挂在生成信息条内（`legacy.js:5296` 快捷重试、`5314` 详情内按钮），而 `styles.css:912-922` 对 `.node--image-only` 隐藏整个信息条（`legacy.js:7967` 给所有 aiImage 都加了该类）；`legacy.js:5273` 注释「角落重试特例已移除：统一在底部信息条提供同参重试与参数编辑」——信息条一隐藏，入口就归零 | 按 B 方案把入口搬到用户可达处：composer 参数行加 `.nc-retry` 次要按钮、右键菜单加「同参重试」项（配套 `MENU_ICONS.retry`），两者仅在 `node.genMeta` 存在时出现。**信息条对 image-only 节点继续完全隐藏**（纯图片视图契约不变，另有反向钉住） |
+
+定级过程：`probe-affordance.mjs` 全域体检（27 个节点类型 × 133 个控件）报出 74 个「点不到」，其中 offscreen 24 个是夹具视口不足、blocked-by 3 个压在小地图上、hidden-by 47 个逐个查源码——多数是有意设计（`#aiPanel` 折叠态、text-node keyRow 默认隐藏、image-only 信息条），只有这一条是「两个入口都在隐藏 DOM 里」的功能级不可达。
+
+### 低危（登记不修）
+
+| 项 | 现状 | 判定 |
+|---|---|---|
+| 节点工具栏 4 个空实现占位按钮（复制链接 / 发送到画布 / 发送到对话 / 发送到分镜） | `legacy.js` 的 `tools` 数组里 `btn.onclick = (e) => { e.stopPropagation(); }`，无任何实际行为 | 27 类型 × 选中态实测：这些按钮**从不显形**（一直被 image-only 规则挡在隐藏区），用户看不到也就不会被骗 → 零用户影响，不改产品。已在 `verify-ui-affordance.mjs` 里加反向钉「空实现占位按钮保持隐藏」，将来若有人放开隐藏让死按钮露出来，闸门直接红 |
+| `styles.css:923-945` 的 `.ngm-corner-retry`（角落悬停浮现的同参重试按钮）整套样式是死规则 | `legacy.js` 全文已无该类名、元素从不渲染（对应 `legacy.js:5273`「角落重试特例已移除：统一在底部信息条提供」的残留） | 零行为影响，纯冗余 CSS；且它恰好是「入口归零」这条缺陷的历史成因，留着反而有解释价值。下轮整理样式时连同 `:hover/.selected` 那两条一起删，本轮不动 |
+
 ### 可复用的几个坑（写测试前先看）
 
 1. **资产相关写入基本都是 async**：`saveNodeImageAsAsset`、素材库页签 click 处理器内部都要 `await` IndexedDB 水合。`element.click()` 之后视图/数据不会同步变化，必须 `waitForFunction` 等状态落地，否则拿到的是旧视图。
 2. **aiImage 出图断言一律走 `page.route` 打桩**（参照 `verify-provider-models.mjs` 的既有写法）：不 mock 就只会得到「未配置 Key」的 error；直接放宽成 `['done','error'].includes(status)` 则是假绿。
-3. **信息条 `.node-gen-meta` 有类型闸门**（`legacy.js:10875`，只认 `aiImage/comfyui/imageEdit`）：高清、线稿的参数入口是各自下方专属面板。写「信息条/参数详情」类断言前先确认承载节点类型，别默认任何出图节点都有这条。
+3. **信息条 `.node-gen-meta` 有两道闸门，别只看第一道**：`legacy.js:10875` 决定**渲不渲染**（只认 `aiImage/comfyui/imageEdit`，高清、线稿的参数入口是各自下方专属面板），`styles.css:912-922` 决定**可不可见**（`.node--image-only` 把摘要/快捷重试/详情整体 `display:none`，而所有 aiImage 都带这个类）。合起来的现行契约是：**只有 comfyui 用户能看到信息条**；imageEdit 渲染但同样不可见。所以「信息条布局/摘要内容」类断言只能挂 comfyui，挂 aiImage 就是一条注定假绿的空断言（本轮就为此返工过一次）。
 4. **`querySelector` 命中 ≠ 用户点得到**：`display:none` 的元素 Playwright 判不可见（真实 `.click()` 会超时），但 `el.querySelector(...)` 照样返回它 —— 本轮 2 处产品缺陷都是这么藏住的。UI 断言优先用真实 `locator.click()`；确需用 `evaluate` 时补一条 display + 尺寸的可显示性判定，别只查存在。同理 `workflow.nodes.size` 与 `.node[data-id]` 元素数不等就说明有孤儿元素，值得单独立一条断言。
+5. **弱断言会替产品缺陷打掩护**（本轮修掉的两条假绿，形态各不相同）：`verify-genmeta-retry` 的「节点渲染了生成信息条」只看 DOM 里有没有那个节点，而 CSS 恰好把它藏了；`verify-genmeta-bottom` 拿 aiImage 当信息条布局的承载节点，而 aiImage 恰恰是唯一看不到信息条的那类。修法不是放宽断言，而是三件事一起做：① 换合法承载（**comfyui 是当前唯一能看到信息条的类型**，布局类断言只能挂它）② 加反向钉（`aiStripHidden`：aiImage 节点体内摘要必须仍 `display:none`，把纯图片视图契约钉住，防止有人「为测而显形」）③ 加真实入口动作（`locator.click()` 点 composer 的 `.nc-retry`，断言参数从被改过的值恢复成快照且 `status=done`）。「函数在、调用点在、就是没人能按到」只有把断言换成用户动作才会暴露。另注意判可见性别一刀切：`opacity:0 + :hover/.selected` 显形是本应用既有交互（要先真实 `mouse.move` 悬停），祖先 `pointer-events:none` 也不致命（子元素可 `auto` 重新 opt-in），以 `elementFromPoint` 为真值。
 
 ## 处理原则
 
@@ -83,7 +107,8 @@
 ```bash
 cd 部署仓库根目录
 node test/verify-asset-dedup.mjs      # 单跑某条
-node test/run-regression.mjs          # 全量闸门（64）
+node test/run-regression.mjs          # 全量闸门（65）
+node test/verify-ui-affordance.mjs    # 单跑可点性体检
 ```
 
-分类用的探针脚本未随仓库发布（在开发机 `.flowcraft-patches/` 下）：`probe-debt.mjs`（批量跑欠债脚本取退出码与末段输出）、`probe-composer.mjs`（Composer 现行控件结构与写回行为）、`probe-asset-panel.mjs`（存资产后面板各时点卡片数）、`probe-asset-dom.mjs`（资产面板 DOM 归属）、`probe-genmeta-strip.mjs`（信息条在各类型节点上的渲染情况）、`probe-ctxmenu-dom.mjs`（高清/AI 绘图节点预览区与信息条 DOM 对照 + 右键菜单项清单）、`probe-state-toolbar.mjs`（状态按钮 display/尺寸/命中测试 + 注入修复后的对照）、`probe-reload-toolbar.mjs`（恢复后同 data-id 元素数）、`probe-dup-node-el.mjs`（重复元素的归属链与 isLive 比对）、`probe-coldstart-append.mjs`（在应用脚本前挂 `Node.prototype.appendChild` 钩子，抓冷启动两次 append 的调用栈）。复现 A/B 类判定只需按上表跑对应脚本，再按「证据」列的关键差异对照现行源码。
+分类用的探针脚本未随仓库发布（在开发机 `.flowcraft-patches/` 下）：`probe-debt.mjs`（批量跑欠债脚本取退出码与末段输出）、`probe-composer.mjs`（Composer 现行控件结构与写回行为）、`probe-asset-panel.mjs`（存资产后面板各时点卡片数）、`probe-asset-dom.mjs`（资产面板 DOM 归属）、`probe-genmeta-strip.mjs`（信息条在各类型节点上的渲染情况）、`probe-ctxmenu-dom.mjs`（高清/AI 绘图节点预览区与信息条 DOM 对照 + 右键菜单项清单）、`probe-state-toolbar.mjs`（状态按钮 display/尺寸/命中测试 + 注入修复后的对照）、`probe-reload-toolbar.mjs`（恢复后同 data-id 元素数）、`probe-dup-node-el.mjs`（重复元素的归属链与 isLive 比对）、`probe-coldstart-append.mjs`（在应用脚本前挂 `Node.prototype.appendChild` 钩子，抓冷启动两次 append 的调用栈）、`probe-affordance.mjs`（27 类型 × 133 控件的全域可点性体检，输出 hidden-by/offscreen/blocked-by 分类）、`probe-afford-seed.mjs`（单类型逐个控件的显形对照）、`probe-placeholder-btns.mjs`（空实现占位按钮在各类型选中态下是否显形）、`probe-retry-reach.mjs`（同参重试入口可达性取证：右键菜单项清单 + 悬停选中态下可见控件）、`probe-p53-retry.mjs`（B 方案新入口复验：真实点击后参数是否恢复快照、菜单项是否触发 running）、`probe-ai-panel-chain.mjs`（`#aiSettingsBtn` 的 pointer-events 继承链与 `#btnNewWorkflow` 视口位置）、`probe-workbench-overlay.mjs`（三个抽屉共用 `.recycle-panel`/`.recycle-overlay` 类时的开关与遮罩状态）。其中后四个是 `verify-ui-affordance.mjs` 判据的定标依据：抽屉要开对（`#btnWorkflow` 才含 `#btnNewWorkflow`）、slide 动画要等 700ms、`reload` 会把 AI 面板恢复成展开态遮住节点、节点定位前需 `fitToContent()` 归一视图。复现 A/B 类判定只需按上表跑对应脚本，再按「证据」列的关键差异对照现行源码。

@@ -79,7 +79,9 @@ try {
       chips: strip ? Array.from(strip.querySelectorAll('.ngm-chip')).map((c) => c.textContent) : [],
       hasRetryBtn: !!(strip && strip.querySelector('.ngm-retry')),
       retryTitle: strip && strip.querySelector('.ngm-retry') ? strip.querySelector('.ngm-retry').title : '',
-      stripTitle: strip ? (strip.title || '') : ''
+      stripTitle: strip ? (strip.title || '') : '',
+      // image-only 隐藏摘要行（styles.css:912-922）→ 只查存在性会给不可用功能打掩护
+      stripHidden: (() => { const s = strip && strip.querySelector('.ngm-summary'); return !s || getComputedStyle(s).display === 'none'; })()
     };
   });
   check('genMeta 快照写入（含提示词/模型/比例/张数/耗时/参考图）',
@@ -87,11 +89,12 @@ try {
       && meta1.genMeta.count === '2张' && meta1.genMeta.durationMs === 3250
       && meta1.genMeta.ownPrompt === '测试提示词：穿白色连衣裙的女孩',
     JSON.stringify(meta1.genMeta && { m: meta1.genMeta.model, a: meta1.genMeta.aspect, c: meta1.genMeta.count, d: meta1.genMeta.durationMs, own: (meta1.genMeta.ownPrompt || '').slice(0, 12) }));
-  check('节点渲染「生成信息条」', meta1.hasStrip);
+  check('aiImage 节点渲染信息条 DOM（按设计对用户隐藏，仅 comfyui 可见）', meta1.hasStrip && meta1.stripHidden === true, JSON.stringify({ hasStrip: meta1.hasStrip, hidden: meta1.stripHidden }));
   check('信息条 chips 含 模型/比例/张数/耗时 时间', meta1.hasStrip && meta1.chips.length >= 4
     && meta1.chips.some((c) => c.includes('FLUX.1')) && meta1.chips.some((c) => c === '1:1')
     && meta1.chips.some((c) => c.includes('2张')) && meta1.chips.some((c) => c.includes('3.3s')),
     meta1.chips.join(' | '));
+  // 信息条内的重试按钮只作为 comfyui 的路径保留；aiImage 上的可达性由场景 2b 用真实点击验证
   check('信息条含「同参重试」按钮且带说明', meta1.hasRetryBtn && /同参重试|完全相同/.test(meta1.retryTitle));
   check('信息条 title 携带本次提示词', /白色连衣裙/.test(meta1.stripTitle), meta1.stripTitle.slice(0, 40));
 
@@ -126,6 +129,39 @@ try {
   check('重试出图为真实链路结果（resultMode=real，非占位）', meta2.resultMode === 'real', JSON.stringify(meta2.resultMode));
   check('重跑后 genMeta 刷新为同参快照', meta2.genMeta2 && meta2.genMeta2.model === 'FLUX.1' && meta2.genMeta2.aspect === '1:1',
     JSON.stringify(meta2.genMeta2 && { m: meta2.genMeta2.model, a: meta2.genMeta2.aspect }));
+
+  // —— 场景 2b：重试入口的用户可达性（节点体内信息条隐藏后，入口在 composer 与右键菜单）——
+  const entry = await page.evaluate(() => {
+    const node = [...workflow.nodes.values()].filter((n) => n.type === 'aiImage' && n.genMeta).pop();
+    node.params.model = 'nanoBananaPro';   // 先改参数，再验证入口点击能恢复快照
+    node.params.count = '8张';
+    selectNode(node);                      // 左键选中才会弹 composer
+    const btn = document.querySelector('#nodeComposer .nc-retry');
+    const r = btn && btn.getBoundingClientRect();
+    const hit = r ? document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) : null;
+    return { id: node.id, present: !!btn, reachable: !!(btn && hit && btn.contains(hit)), w: r ? r.width | 0 : 0, snap: { model: node.genMeta.model, count: node.genMeta.count } };
+  });
+  check('composer 提供「同参重试」且真实可点（非隐藏 DOM）', entry.present && entry.reachable, JSON.stringify({ present: entry.present, reachable: entry.reachable, w: entry.w }));
+  await page.locator('#nodeComposer .nc-retry').click();
+  await page.waitForTimeout(2800);
+  const afterEntry = await page.evaluate((id) => { const n = workflow.nodes.get(id); return { model: n.params.model, count: n.params.count, status: n.status }; }, entry.id);
+  check('真实点击 composer 按钮即可恢复快照参数并重跑',
+    afterEntry.model === entry.snap.model && afterEntry.count === entry.snap.count && afterEntry.status === 'done',
+    JSON.stringify({ after: afterEntry, snap: entry.snap }));
+
+  const menuEntry = await page.evaluate((id) => {
+    const el = document.querySelector('.node[data-id="' + id + '"]');
+    const r = el.getBoundingClientRect();
+    // 直接派发 contextmenu：真实右键会因悬停位移落空（见 DEBT.md 坑清单）
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 }));
+    const item = [...document.querySelectorAll('.context-menu .context-menu-item')].find((x) => x.textContent.trim() === '同参重试');
+    if (!item) return { present: false };
+    const q = item.getBoundingClientRect();
+    const hit = document.elementFromPoint(q.x + q.width / 2, q.y + q.height / 2);
+    return { present: true, reachable: !!hit && item.contains(hit) };
+  }, entry.id);
+  check('右键菜单提供「同参重试」且可见可点', menuEntry.present && menuEntry.reachable, JSON.stringify(menuEntry));
+  await page.evaluate(() => hideContextMenu());
 
   // —— 场景 3：无生成记录时重试给出友好提示且不崩 ——
   const meta3 = await page.evaluate(() => {
