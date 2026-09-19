@@ -191,8 +191,8 @@ export const NodeContract = {
       validate() { return { ok: true }; },
     },
     voiceover: {
-      label: '配音', tier: 'demo', runnable: true,
-      note: 'Edge TTS 配音',
+      label: '配音', tier: 'production', runnable: true,
+      note: '配音（有 Key 走 /audio/speech 真实合成 mp3，无 Key 回落浏览器语音试听·不导出文件）',
       inputs: [{ type: 'text', label: '脚本', required: true }],
       outputs: [{ type: 'audio', label: '音频' }],
       validate(params) {
@@ -204,13 +204,12 @@ export const NodeContract = {
     subtitle: {
       label: '字幕', tier: 'local', runnable: true,
       note: '字幕（本地按上游脚本切分句读 + 估算时间轴）',
-      note: '自动生成字幕（演示数据）',
       inputs: [{ type: 'audio', label: '音频', required: true }],
       outputs: [{ type: 'text', label: '字幕' }],
     },
     bgm: {
-      label: '配乐', tier: 'demo', runnable: true,
-      note: '本地音频输入与播放',
+      label: '配乐', tier: 'local', runnable: true,
+      note: '配乐（OfflineAudioContext 本地按情绪真实合成 BGM / 上传本地音频，均可播放与级联合成）',
       inputs: [],
       outputs: [{ type: 'audio', label: '音频' }],
     },

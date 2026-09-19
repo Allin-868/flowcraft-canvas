@@ -8231,9 +8231,9 @@ const NODE_TYPES = {
   // —— 视频生成管线节点 (MoneyPrinterTurbo 画布化) ——
   script:    { label: '脚本',  desc: '本地结构化写稿',        color: 'var(--node-script)',   colorRaw: '#7F77DD', inputs: [{type:'text',label:'主题'}], outputs: [{type:'text',label:'脚本'}], defaultParams: { topic: '', requirements: '', script: '', wordCount: 0 } },
   footage:   { label: '素材',  desc: 'Pexels 匹配',    color: 'var(--node-footage)',   colorRaw: '#378ADD', inputs: [{type:'text',label:'脚本'}], outputs: [{type:'video',label:'素材集'}], defaultParams: { items: [{ seed: 101, duration: '3s' }, { seed: 102, duration: '5s' }, { seed: 103, duration: '4s' }, { seed: 104, duration: '6s' }] } },
-  voiceover: { label: '配音',  desc: 'Edge TTS',       color: 'var(--node-voiceover)', colorRaw: '#1D9E75', inputs: [{type:'text',label:'脚本'}], outputs: [{type:'audio',label:'音频'}], defaultParams: { text: '在这个AI改变一切的时代，有一种职业正在悄然消失...', lang: 'zh-CN', speed: '1.0', voice: '晓晓', duration: '45s' } },
+  voiceover: { label: '配音',  desc: 'TTS 配音',       color: 'var(--node-voiceover)', colorRaw: '#1D9E75', inputs: [{type:'text',label:'脚本'}], outputs: [{type:'audio',label:'音频'}], defaultParams: { text: '在这个AI改变一切的时代，有一种职业正在悄然消失...', lang: 'zh-CN', speed: '1.0', voice: '晓晓', duration: '45s' } },
   subtitle:  { label: '字幕',  desc: '自动生成',       color: 'var(--node-subtitle)',  colorRaw: '#888780', inputs: [{type:'audio',label:'音频'}], outputs: [{type:'text',label:'字幕'}], defaultParams: { lines: [{ time: '00:00', text: '在这个AI改变一切的时代...' }, { time: '00:05', text: '改变一切的时代...' }, { time: '00:10', text: '有一种职业...' }, { time: '00:15', text: '正在悄然消失...' }], style: '白色 · 底部居中 · 24px' } },
-  bgm:       { label: '配乐',  desc: '本地音频',       color: 'var(--node-bgm)',       colorRaw: '#BA7517', inputs: [], outputs: [{type:'audio',label:'音频'}], defaultParams: { name: '', duration: '', volume: 100, mood: '本地音频' } },
+  bgm:       { label: '配乐',  desc: '生成音乐',       color: 'var(--node-bgm)',       colorRaw: '#BA7517', inputs: [], outputs: [{type:'audio',label:'音频'}], defaultParams: { name: '', duration: '', volume: 100, mood: '轻快', loopSeconds: 8 } },
   compose:   { label: '合成',  desc: 'MoviePy',        color: 'var(--node-compose)',   colorRaw: '#D85A30', inputs: [{type:'video',label:'素材'},{type:'audio',label:'配音'},{type:'text',label:'字幕'},{type:'audio',label:'配乐'}], outputs: [{type:'video',label:'视频'}], defaultParams: { progress: 100, resolution: '1080×1920', duration: '45s', size: '12.3MB' } },
   publish:   { label: '发布',  desc: '多平台',         color: 'var(--node-publish)',   colorRaw: '#639922', inputs: [{type:'video',label:'视频'}], outputs: [], defaultParams: { platforms: [{ name: 'TikTok', status: 'published' }, { name: 'YouTube', status: 'published' }, { name: 'Instagram', status: 'pending' }, { name: '小红书', status: 'pending' }] } }
 };
@@ -18738,32 +18738,45 @@ function buildNodeBody(el, node) {
     }
 
     else if (node.type === 'voiceover') {
-      // 配音文本
+      const p = node.params;
       const text = document.createElement('div');
       text.className = 'vg-vo-text';
-      text.textContent = node.params.text || '';
+      text.textContent = p.text || '';
       vbody.appendChild(text);
-      // 参数行
-      const params = document.createElement('div');
-      params.className = 'vg-vo-params';
-      const p = node.params;
-      [p.lang, '语速 ' + p.speed, p.voice, p.duration].forEach(t => {
-        const span = document.createElement('span');
-        span.className = 'vg-vo-param';
-        span.textContent = t;
-        params.appendChild(span);
+      // 音色 / 语速选择（写回参数，下次运行生效）
+      const ctl = document.createElement('div');
+      ctl.className = 'vg-vo-params';
+      const voiceSel = document.createElement('select');
+      voiceSel.className = 'vg-vo-sel';
+      ['晓晓', '晓伊', '云希', '云健', '晓北'].forEach((v) => {
+        const op = document.createElement('option'); op.value = v; op.textContent = v; if (p.voice === v) op.selected = true; voiceSel.appendChild(op);
       });
-      vbody.appendChild(params);
-      // 波形占位
-      const wave = document.createElement('div');
-      wave.className = 'vg-waveform';
-      for (let i = 0; i < 20; i++) {
-        const bar = document.createElement('div');
-        bar.className = 'vg-wave-bar';
-        bar.style.height = (20 + Math.random() * 80) + '%';
-        wave.appendChild(bar);
+      voiceSel.onmousedown = (e) => e.stopPropagation();
+      voiceSel.onchange = (e) => { e.stopPropagation(); p.voice = e.target.value; scheduleAutosave(); if (node.el) buildNodeBody(node.el, node); };
+      ctl.appendChild(voiceSel);
+      const speedSel = document.createElement('select');
+      speedSel.className = 'vg-vo-sel';
+      ['0.75', '1.0', '1.25'].forEach((s) => { const op = document.createElement('option'); op.value = s; op.textContent = '语速 ' + s; if (String(p.speed) === s) op.selected = true; speedSel.appendChild(op); });
+      speedSel.onmousedown = (e) => e.stopPropagation();
+      speedSel.onchange = (e) => { e.stopPropagation(); p.speed = e.target.value; scheduleAutosave(); if (node.el) buildNodeBody(node.el, node); };
+      ctl.appendChild(speedSel);
+      const durSpan = document.createElement('span'); durSpan.className = 'vg-vo-param'; durSpan.textContent = p.duration || '--:--';
+      ctl.appendChild(durSpan);
+      const srcSpan = document.createElement('span'); srcSpan.className = 'vg-vo-param'; srcSpan.textContent = node.uploadedAudio ? 'TTS 真实' : (node._voPreview ? '浏览器试听' : '未运行');
+      ctl.appendChild(srcSpan);
+      vbody.appendChild(ctl);
+      if (node.uploadedAudio) {
+        const player = document.createElement('audio');
+        player.className = 'vg-vo-player'; player.controls = true; player.preload = 'metadata'; player.src = node.uploadedAudio;
+        player.onmousedown = (e) => e.stopPropagation(); player.onclick = (e) => e.stopPropagation();
+        vbody.appendChild(player);
+      } else if (node._voPreview) {
+        const prev = document.createElement('button');
+        prev.type = 'button'; prev.className = 'vg-bgm-btn'; prev.textContent = '▶ 试听（浏览器语音，不导出文件）';
+        prev.onmousedown = (e) => e.stopPropagation();
+        prev.onclick = (e) => { e.stopPropagation(); try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(p.text || ''); u.rate = Number(p.speed) || 1; u.lang = p.lang || 'zh-CN'; window.speechSynthesis.speak(u); } catch (_) { showToast('当前浏览器不支持语音试听', 'warn'); } };
+        vbody.appendChild(prev);
       }
-      vbody.appendChild(wave);
     }
 
     else if (node.type === 'subtitle') {
@@ -18811,7 +18824,7 @@ function buildNodeBody(el, node) {
       if (hasAudio) {
         const mood = document.createElement('span');
         mood.className = 'vg-bgm-mood';
-        mood.textContent = '本地音频';
+        mood.textContent = String(p.name || '').indexOf('AI') === 0 ? p.name : '本地音频';
         meta.appendChild(mood);
       }
       vbody.appendChild(meta);
@@ -18866,6 +18879,28 @@ function buildNodeBody(el, node) {
 
       const actions = document.createElement('div');
       actions.className = 'vg-bgm-actions';
+      const moodSel = document.createElement('select');
+      moodSel.className = 'vg-bgm-moodsel';
+      Object.keys(BGM_MOODS).forEach((m) => { const op = document.createElement('option'); op.value = m; op.textContent = '情绪：' + m; if ((p.mood || '轻快') === m) op.selected = true; moodSel.appendChild(op); });
+      moodSel.onmousedown = (e) => e.stopPropagation();
+      moodSel.onchange = (e) => { e.stopPropagation(); p.mood = e.target.value; scheduleAutosave(); };
+      actions.appendChild(moodSel);
+      const genBtn = document.createElement('button');
+      genBtn.type = 'button'; genBtn.className = 'vg-bgm-btn'; genBtn.textContent = '♪ 生成配乐';
+      genBtn.onmousedown = (e) => e.stopPropagation();
+      genBtn.onclick = (e) => {
+        e.stopPropagation();
+        genBtn.disabled = true; genBtn.textContent = '生成中…';
+        runBgmGenerateNode(node).then((gen) => {
+          genBtn.disabled = false;
+          if (!gen) { genBtn.textContent = '♪ 生成配乐'; showToast('当前浏览器不支持离线音频合成', 'warn'); return; }
+          node.uploadedAudio = gen.src; p.name = gen.name; p.duration = gen.duration; p.mime = gen.mime;
+          node.outputsData = computeNodeOutput(node); setNodeResultMode(node, 'local');
+          if (node.el) buildNodeBody(node.el, node);
+          markEdgesDirty(); scheduleAutosave(); showToast('已生成配乐', 'success');
+        });
+      };
+      actions.appendChild(genBtn);
       const upBtn = document.createElement('button');
       upBtn.type = 'button';
       upBtn.className = 'vg-bgm-btn';
@@ -24493,6 +24528,149 @@ function buildSubtitleLines(text) {
   return lines;
 }
 
+//================ B 批音频节点补齐 · 配音 / 生成音乐（2026-09-19） ================
+function fcArrayBufferToB64(buf) {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  try { return btoa(bin); } catch (e) { return ''; }
+}
+// 配音音色（UI 中文名）→ OpenAI /audio/speech voice id；未知回落 nova
+const VOICEOVER_TTS_VOICE = {
+  '晓晓': 'nova', '晓伊': 'nova', '云希': 'echo', '云健': 'onyx', '云西': 'echo', '晓辰': 'alloy', '晓北': 'shimmer',
+  'alloy': 'alloy', 'echo': 'echo', 'fable': 'fable', 'onyx': 'onyx', 'nova': 'nova', 'shimmer': 'shimmer',
+};
+function mapVoiceoverVoice(v) {
+  const s = String(v || '').trim();
+  if (VOICEOVER_TTS_VOICE[s]) return VOICEOVER_TTS_VOICE[s];
+  const low = s.toLowerCase();
+  return ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'].indexOf(low) >= 0 ? low : 'nova';
+}
+function probeAudioDuration(dataUrl) {
+  return new Promise((res) => {
+    const a = new Audio();
+    const t = setTimeout(() => res(''), 6000);
+    a.preload = 'metadata';
+    a.onloadedmetadata = () => { clearTimeout(t); res(formatAudioDuration(isFinite(a.duration) ? a.duration : 0)); };
+    a.onerror = () => { clearTimeout(t); res(''); };
+    a.src = dataUrl;
+  });
+}
+function estimateSpeechDuration(text, speed) {
+  const secs = Math.ceil(Array.from(String(text)).length / (4.2 * Math.max(0.5, speed || 1)));
+  return formatAudioDuration(Math.max(1, secs));
+}
+// 配音：有 Key 且未走代理时直连 OpenAI 兼容 /audio/speech 真实合成 mp3（二进制→dataURL）；
+// 无 Key / 代理不支持二进制 / 接口报错时回落浏览器 speechSynthesis 试听（不产出文件，语义 local，下游拿不到声，如实反映）。
+async function runVoiceoverNode(node) {
+  const text = String((node.params && node.params.text) || '').trim() || collectUpstreamScriptText(node);
+  if (!text) return null;
+  node.params.text = text;
+  const speed = Math.max(0.5, Math.min(2, Number(node.params && node.params.speed) || 1));
+  const voice = mapVoiceoverVoice(node.params && node.params.voice);
+  const key = localStorage.getItem(OPENAI_KEY_STORAGE);
+  if (key && !_fcProxy()) {
+    const base = normalizeApiBase(localStorage.getItem(OPENAI_BASE_STORAGE));
+    try {
+      const resp = await fetch(base + '/audio/speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify({ model: 'tts-1', input: text.slice(0, 4000), voice: voice, speed: speed, response_format: 'mp3' }),
+      });
+      if (resp.ok) {
+        const buf = await resp.arrayBuffer();
+        if (buf && buf.byteLength > 128) {
+          const b64 = fcArrayBufferToB64(buf);
+          if (b64) {
+            const dataUrl = 'data:audio/mpeg;base64,' + b64;
+            const dur = await probeAudioDuration(dataUrl);
+            return { mode: 'real', src: dataUrl, duration: dur || estimateSpeechDuration(text, speed), mime: 'audio/mpeg', tts: true };
+          }
+        }
+      }
+    } catch (e) { /* 网络/CORS → 回落试听 */ }
+  }
+  return { mode: 'local', src: '', duration: estimateSpeechDuration(text, speed), preview: true, voice: voice, speed: speed };
+}
+// 生成音乐情绪预设：bpm/波形/根音/音阶/是否铺底长音。
+const BGM_MOODS = {
+  '舒缓': { bpm: 70, wave: 'sine', root: 220.0, scale: [0, 2, 4, 7, 9], pad: true },
+  '轻快': { bpm: 104, wave: 'triangle', root: 261.6, scale: [0, 2, 4, 6, 7, 9, 11], pad: false },
+  '紧张': { bpm: 92, wave: 'sawtooth', root: 174.6, scale: [0, 1, 5, 6, 8], pad: false },
+  '欢快': { bpm: 120, wave: 'square', root: 293.7, scale: [0, 2, 4, 7], pad: false },
+  '沉静': { bpm: 60, wave: 'sine', root: 196.0, scale: [0, 3, 5, 7, 10], pad: true },
+};
+function bgmMood(name) { return BGM_MOODS[String(name || '').trim()] || BGM_MOODS['轻快']; }
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function encodeWavDataUrl(audioBuf) {
+  try {
+    const ch = Math.min(2, audioBuf.numberOfChannels);
+    const sr = audioBuf.sampleRate;
+    const frames = audioBuf.length;
+    const blockAlign = ch * 2, dataLen = frames * blockAlign;
+    const buf = new ArrayBuffer(44 + dataLen);
+    const view = new DataView(buf);
+    const wstr = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+    wstr(0, 'RIFF'); view.setUint32(4, 36 + dataLen, true); wstr(8, 'WAVE');
+    wstr(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, ch, true);
+    view.setUint32(24, sr, true); view.setUint32(28, sr * blockAlign, true); view.setUint16(32, blockAlign, true); view.setUint16(34, 16, true);
+    wstr(36, 'data'); view.setUint32(40, dataLen, true);
+    const chans = []; for (let c = 0; c < ch; c++) chans.push(audioBuf.getChannelData(c));
+    let off = 44;
+    for (let i = 0; i < frames; i++) for (let c = 0; c < ch; c++) {
+      let s = Math.max(-1, Math.min(1, chans[c][i]));
+      view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true); off += 2;
+    }
+    return 'data:audio/wav;base64,' + fcArrayBufferToB64(buf);
+  } catch (e) { return null; }
+}
+// 生成音乐：用 OfflineAudioContext 按情绪在浏览器内离线渲染一段免版权循环，编码为 WAV dataURL（纯本地真实出音，零 Key/CORS/超时）。
+async function runBgmGenerateNode(node) {
+  const moodName = String((node.params && node.params.mood) || '').trim() || '轻快';
+  const safeMood = BGM_MOODS[moodName] ? moodName : '轻快';
+  const mood = bgmMood(safeMood);
+  const secs = Math.max(4, Math.min(12, Number(node.params && node.params.loopSeconds) || 8));
+  const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!OfflineCtx) return null;
+  const sr = 22050;
+  let ctx;
+  try { ctx = new OfflineCtx(2, Math.floor(sr * secs), sr); } catch (e) { return null; }
+  const beat = 60 / mood.bpm, note = beat / 2;
+  const master = ctx.createGain(); master.gain.value = 0.9;
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = (mood.wave === 'square' || mood.wave === 'sawtooth') ? 2200 : 5200;
+  master.connect(lp); lp.connect(ctx.destination);
+  const scale = mood.scale;
+  const degFreq = (idx) => { const oct = Math.floor(idx / scale.length); const step = scale[((idx % scale.length) + scale.length) % scale.length]; return mood.root * Math.pow(2, oct + step / 12); };
+  function voiceAt(freq, start, dur, gainVal, type) {
+    try {
+      const o = ctx.createOscillator(); o.type = type || mood.wave; o.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, start);
+      g.gain.linearRampToValueAtTime(gainVal, start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      o.connect(g); g.connect(master);
+      o.start(start); o.stop(start + dur + 0.05);
+    } catch (e) {}
+  }
+  for (let b = 0, t = 0; t < secs - beat * 0.5; b++, t += beat) voiceAt(degFreq(b - 7) , t, beat * 0.9, 0.28, 'sine');
+  let seedv = 0; for (let i = 0; i < safeMood.length; i++) seedv += safeMood.charCodeAt(i);
+  const rnd = mulberry32(seedv + secs * 7919);
+  let dg = 4;
+  for (let n = 0, t = note; t < secs - note * 0.5; n++, t += note) {
+    dg += Math.floor(rnd() * 5) - 2; dg = Math.max(0, Math.min(scale.length * 2, dg));
+    if (rnd() > 0.22) voiceAt(degFreq(dg + 7), t, note * 0.85, 0.16, mood.wave);
+  }
+  if (mood.pad) { voiceAt(degFreq(0), 0, secs, 0.10, 'sine'); voiceAt(degFreq(2), 0, secs, 0.08, 'sine'); }
+  let rendered;
+  try { rendered = await ctx.startRendering(); } catch (e) { return null; }
+  const wav = encodeWavDataUrl(rendered);
+  if (!wav) return null;
+  return { src: wav, duration: formatAudioDuration(secs), name: 'AI·' + safeMood + '配乐', mime: 'audio/wav' };
+}
+
 function computeNodeOutput(node) {
   const def = node.def;
   const outDefs = def.outputs || [];
@@ -25170,6 +25348,60 @@ function executeNodeAsync(node, delay) {
               return;
             }
             if (node.status === 'error') { resolve(); return; } // 真实失败不伪装成占位成功
+          }
+        }
+
+        // 配音：有 Key 直连 /audio/speech 真实合成 mp3；无 Key 回落浏览器试听（B 批补齐，替代纯占位）
+        if (node.type === 'voiceover') {
+          const vo = await runVoiceoverNode(node);
+          if (vo) {
+            if (vo.src) {
+              node.uploadedAudio = vo.src; // 复用与配乐一致的音频管线
+              node.params.duration = vo.duration;
+              node.params.mime = vo.mime;
+              node.params.name = 'AI 配音';
+              delete node._voPreview;
+              node.outputsData = [{ type: 'audio', value: { src: vo.src, name: 'AI 配音', duration: vo.duration, volume: 100, mime: vo.mime } }];
+            } else {
+              node.params.duration = vo.duration;
+              node._voPreview = true; // 仅试听标记（节点体据此渲染试听按钮）
+              node.outputsData = [{ type: 'audio', value: { name: '配音（仅试听·未导出）', duration: vo.duration, volume: 100, preview: true } }];
+            }
+            setNodeResultMode(node, vo.mode);
+            node.status = 'done';
+            captureGenMeta(node, Date.now() - _t0);
+            logRun(node, true, Date.now() - _t0);
+            if (node.el) buildNodeBody(node.el, node);
+            updateNodeStatus(node); markEdgesDirty(); scheduleAutosave();
+            resolve(); return;
+          }
+        }
+
+        // 生成音乐：OfflineAudioContext 真实合成循环（B 批补齐，替代仅手动上传）；已上传音频则如实保留为本地真实声源
+        if (node.type === 'bgm') {
+          if (node.uploadedAudio) {
+            node.outputsData = computeNodeOutput(node);
+            setNodeResultMode(node, 'local');
+            node.status = 'done';
+            logRun(node, true, Date.now() - _t0);
+            if (node.el) buildNodeBody(node.el, node);
+            updateNodeStatus(node); markEdgesDirty(); scheduleAutosave();
+            resolve(); return;
+          }
+          const gen = await runBgmGenerateNode(node);
+          if (gen) {
+            node.uploadedAudio = gen.src;
+            node.params.name = gen.name;
+            node.params.duration = gen.duration;
+            node.params.mime = gen.mime;
+            node.outputsData = computeNodeOutput(node);
+            setNodeResultMode(node, 'local');
+            node.status = 'done';
+            captureGenMeta(node, Date.now() - _t0);
+            logRun(node, true, Date.now() - _t0);
+            if (node.el) buildNodeBody(node.el, node);
+            updateNodeStatus(node); markEdgesDirty(); scheduleAutosave();
+            resolve(); return;
           }
         }
 
@@ -33689,9 +33921,9 @@ init();
       },
       voiceover: {
         label: "\u914D\u97F3",
-        tier: "demo",
+        tier: "production",
         runnable: true,
-        note: "Edge TTS \u914D\u97F3",
+        note: "\u914D\u97F3\uFF08\u6709 Key \u8D70 /audio/speech \u771F\u5B9E\u5408\u6210 mp3\uFF0C\u65E0 Key \u56DE\u843D\u6D4F\u89C8\u5668\u8BED\u97F3\u8BD5\u542C\xB7\u4E0D\u5BFC\u51FA\u6587\u4EF6\uFF09",
         inputs: [{ type: "text", label: "\u811A\u672C", required: true }],
         outputs: [{ type: "audio", label: "\u97F3\u9891" }],
         validate(params) {
@@ -33705,15 +33937,14 @@ init();
         tier: "local",
         runnable: true,
         note: "\u5B57\u5E55\uFF08\u672C\u5730\u6309\u4E0A\u6E38\u811A\u672C\u5207\u5206\u53E5\u8BFB + \u4F30\u7B97\u65F6\u95F4\u8F74\uFF09",
-        note: "\u81EA\u52A8\u751F\u6210\u5B57\u5E55\uFF08\u6F14\u793A\u6570\u636E\uFF09",
         inputs: [{ type: "audio", label: "\u97F3\u9891", required: true }],
         outputs: [{ type: "text", label: "\u5B57\u5E55" }]
       },
       bgm: {
         label: "\u914D\u4E50",
-        tier: "demo",
+        tier: "local",
         runnable: true,
-        note: "\u672C\u5730\u97F3\u9891\u8F93\u5165\u4E0E\u64AD\u653E",
+        note: "\u914D\u4E50\uFF08OfflineAudioContext \u672C\u5730\u6309\u60C5\u7EEA\u771F\u5B9E\u5408\u6210 BGM / \u4E0A\u4F20\u672C\u5730\u97F3\u9891\uFF0C\u5747\u53EF\u64AD\u653E\u4E0E\u7EA7\u8054\u5408\u6210\uFF09",
         inputs: [],
         outputs: [{ type: "audio", label: "\u97F3\u9891" }]
       },
