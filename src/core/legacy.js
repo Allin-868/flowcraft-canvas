@@ -10539,45 +10539,46 @@ function buildNodeBody(el, node) {
     }
 
     else if (node.type === 'voiceover') {
-      const p = node.params;
-      const text = document.createElement('div');
-      text.className = 'vg-vo-text';
-      text.textContent = p.text || '';
-      vbody.appendChild(text);
-      // 音色 / 语速选择（写回参数，下次运行生效）
-      const ctl = document.createElement('div');
-      ctl.className = 'vg-vo-params';
-      const voiceSel = document.createElement('select');
-      voiceSel.className = 'vg-vo-sel';
-      ['晓晓', '晓伊', '云希', '云健', '晓北'].forEach((v) => {
-        const op = document.createElement('option'); op.value = v; op.textContent = v; if (p.voice === v) op.selected = true; voiceSel.appendChild(op);
+      const p = node.params = node.params || {};
+      buildAudioPreview(node, vbody, {
+        emptyText: '\u8F93\u51FA\u5C06\u663E\u793A\u5728\u8FD9\u91CC',
+        canPreview: !node.uploadedAudio && !!node._voPreview,
+        onPreviewSpeak: function () { try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(p.text || ''); u.rate = Number(p.speed) || 1; u.lang = p.lang || 'zh-CN'; window.speechSynthesis.speak(u); } catch (_) { showToast('\u5F53\u524D\u6D4F\u89C8\u5668\u4E0D\u652F\u6301\u8BED\u97F3\u8BD5\u542C', 'warn'); } },
       });
+      const comp = document.createElement('div'); comp.className = 'fc-audio-composer';
+      const ta = document.createElement('textarea'); ta.className = 'fc-audio-text'; ta.rows = 2; ta.placeholder = '\u4E00\u8D77\u5F00\u59CB\u521B\u4F5C\u2026'; ta.value = p.text || '';
+      ta.onmousedown = (e) => e.stopPropagation();
+      const count = document.createElement('div'); count.className = 'fc-audio-count'; count.textContent = (p.text || '').length + ' \u5B57';
+      ta.oninput = () => { p.text = ta.value; count.textContent = ta.value.length + ' \u5B57'; scheduleAutosave(); };
+      comp.appendChild(ta); comp.appendChild(count);
+      const row = document.createElement('div'); row.className = 'fc-audio-chips';
+      const voiceSel = document.createElement('select'); voiceSel.className = 'fc-audio-chip';
+      ['\u6653\u6653', '\u6653\u4F0A', '\u4E91\u5E0C', '\u4E91\u5065', '\u6653\u5317'].forEach((v) => { const op = document.createElement('option'); op.value = v; op.textContent = '\u97F3\u8272\uFF1A' + v; if (p.voice === v) op.selected = true; voiceSel.appendChild(op); });
       voiceSel.onmousedown = (e) => e.stopPropagation();
-      voiceSel.onchange = (e) => { e.stopPropagation(); p.voice = e.target.value; scheduleAutosave(); if (node.el) buildNodeBody(node.el, node); };
-      ctl.appendChild(voiceSel);
-      const speedSel = document.createElement('select');
-      speedSel.className = 'vg-vo-sel';
-      ['0.75', '1.0', '1.25'].forEach((s) => { const op = document.createElement('option'); op.value = s; op.textContent = '语速 ' + s; if (String(p.speed) === s) op.selected = true; speedSel.appendChild(op); });
-      speedSel.onmousedown = (e) => e.stopPropagation();
-      speedSel.onchange = (e) => { e.stopPropagation(); p.speed = e.target.value; scheduleAutosave(); if (node.el) buildNodeBody(node.el, node); };
-      ctl.appendChild(speedSel);
-      const durSpan = document.createElement('span'); durSpan.className = 'vg-vo-param'; durSpan.textContent = p.duration || '--:--';
-      ctl.appendChild(durSpan);
-      const srcSpan = document.createElement('span'); srcSpan.className = 'vg-vo-param'; srcSpan.textContent = node.uploadedAudio ? 'TTS 真实' : (node._voPreview ? '浏览器试听' : '未运行');
-      ctl.appendChild(srcSpan);
-      vbody.appendChild(ctl);
-      if (node.uploadedAudio) {
-        const player = document.createElement('audio');
-        player.className = 'vg-vo-player'; player.controls = true; player.preload = 'metadata'; player.src = node.uploadedAudio;
-        player.onmousedown = (e) => e.stopPropagation(); player.onclick = (e) => e.stopPropagation();
-        vbody.appendChild(player);
-      } else if (node._voPreview) {
-        const prev = document.createElement('button');
-        prev.type = 'button'; prev.className = 'vg-bgm-btn'; prev.textContent = '▶ 试听（浏览器语音，不导出文件）';
-        prev.onmousedown = (e) => e.stopPropagation();
-        prev.onclick = (e) => { e.stopPropagation(); try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(p.text || ''); u.rate = Number(p.speed) || 1; u.lang = p.lang || 'zh-CN'; window.speechSynthesis.speak(u); } catch (_) { showToast('当前浏览器不支持语音试听', 'warn'); } };
-        vbody.appendChild(prev);
-      }
+      voiceSel.onchange = (e) => { e.stopPropagation(); p.voice = e.target.value; scheduleAutosave(); };
+      row.appendChild(voiceSel);
+      const gen = document.createElement('button'); gen.type = 'button'; gen.className = 'fc-audio-gen'; gen.textContent = '\u751F\u6210';
+      gen.onmousedown = (e) => e.stopPropagation();
+      gen.onclick = (e) => { e.stopPropagation(); gen.disabled = true; const old = gen.textContent; gen.textContent = '\u751F\u6210\u4E2D\u2026'; Promise.resolve(executeNodeAsync(node, 0)).then(() => { gen.disabled = false; gen.textContent = old; }, () => { gen.disabled = false; gen.textContent = old; }); };
+      row.appendChild(gen);
+      comp.appendChild(row);
+      vbody.appendChild(comp);
+      buildAdvancedSection(vbody, function (panel) {
+        const sr = document.createElement('div'); sr.className = 'fc-audio-field';
+        const sl = document.createElement('span'); sl.className = 'fc-audio-field-label'; sl.textContent = '\u8BED\u901F';
+        const rng = document.createElement('input'); rng.type = 'range'; rng.className = 'fc-audio-range'; rng.min = '0.5'; rng.max = '2'; rng.step = '0.05'; rng.value = String(Number(p.speed) || 1);
+        const val = document.createElement('span'); val.className = 'fc-audio-field-value'; val.textContent = (Number(p.speed) || 1) + 'x';
+        rng.onmousedown = (e) => e.stopPropagation();
+        rng.oninput = (e) => { e.stopPropagation(); p.speed = String(e.target.value); val.textContent = e.target.value + 'x'; scheduleAutosave(); };
+        sr.appendChild(sl); sr.appendChild(rng); sr.appendChild(val); panel.appendChild(sr);
+        const lg = document.createElement('div'); lg.className = 'fc-audio-field';
+        const ll = document.createElement('span'); ll.className = 'fc-audio-field-label'; ll.textContent = '\u8BD5\u542C\u8BED\u8A00';
+        const ls = document.createElement('select'); ls.className = 'fc-audio-chip'; [['zh-CN', '\u4E2D\u6587'], ['en-US', 'English']].forEach(function (kv) { const op = document.createElement('option'); op.value = kv[0]; op.textContent = kv[1]; if ((p.lang || 'zh-CN') === kv[0]) op.selected = true; ls.appendChild(op); });
+        ls.onmousedown = (e) => e.stopPropagation(); ls.onchange = (e) => { e.stopPropagation(); p.lang = e.target.value; scheduleAutosave(); };
+        lg.appendChild(ll); lg.appendChild(ls); panel.appendChild(lg);
+        const meta = document.createElement('div'); meta.className = 'fc-audio-meta'; meta.textContent = node.uploadedAudio ? '\u6765\u6E90\uFF1ATTS \u771F\u5B9E\u5408\u6210 \u00B7 \u6A21\u578B tts-1\uFF08OpenAI \u517C\u5BB9\uFF09' : (node._voPreview ? '\u6765\u6E90\uFF1A\u6D4F\u89C8\u5668\u8BED\u97F3\u8BD5\u542C\uFF08\u4E0D\u5BFC\u51FA\u6587\u4EF6\uFF09' : '\u672A\u8FD0\u884C');
+        panel.appendChild(meta);
+      });
     }
 
     else if (node.type === 'subtitle') {
@@ -10608,129 +10609,61 @@ function buildNodeBody(el, node) {
     else if (node.type === 'bgm') {
       const p = node.params = node.params || {};
       p.volume = Number(p.volume ?? 100);
-      p.name = typeof p.name === 'string' ? p.name : '';
-      p.duration = typeof p.duration === 'string' ? p.duration : '';
       const hasAudio = typeof node.uploadedAudio === 'string' && node.uploadedAudio.length > 0;
-
-      const name = document.createElement('div');
-      name.className = 'vg-bgm-name';
-      name.textContent = hasAudio ? (p.name || '音频') : '未上传音频';
-      vbody.appendChild(name);
-
-      const meta = document.createElement('div');
-      meta.className = 'vg-bgm-meta';
-      const dur = document.createElement('span');
-      dur.textContent = hasAudio ? (p.duration || '--:--') : '';
-      meta.appendChild(dur);
-      if (hasAudio) {
-        const mood = document.createElement('span');
-        mood.className = 'vg-bgm-mood';
-        mood.textContent = String(p.name || '').indexOf('AI') === 0 ? p.name : '本地音频';
-        meta.appendChild(mood);
-      }
-      vbody.appendChild(meta);
-
-      if (hasAudio) {
-        const player = document.createElement('audio');
-        player.className = 'vg-bgm-player';
-        player.controls = true;
-        player.preload = 'metadata';
-        player.src = node.uploadedAudio;
-        player.volume = Math.min(1, Math.max(0, p.volume / 100));
-        player.onmousedown = (e) => e.stopPropagation();
-        player.onclick = (e) => e.stopPropagation();
-        vbody.appendChild(player);
-
-        const vol = document.createElement('div');
-        vol.className = 'vg-bgm-volume';
-        const volLabel = document.createElement('span');
-        volLabel.className = 'vg-bgm-volume-label';
-        volLabel.textContent = '音量';
-        vol.appendChild(volLabel);
-        const slider = document.createElement('input');
-        slider.type = 'range';
-        slider.className = 'vg-bgm-range';
-        slider.min = '0';
-        slider.max = '100';
-        slider.step = '1';
-        slider.value = String(p.volume);
-        slider.onmousedown = (e) => e.stopPropagation();
-        slider.oninput = (e) => {
-          e.stopPropagation();
-          p.volume = Number(e.target.value);
-          player.volume = Math.min(1, Math.max(0, p.volume / 100));
-          node.outputsData = computeNodeOutput(node);
-          markEdgesDirty();
-          scheduleAutosave();
-        };
-        vol.appendChild(slider);
-        const pct = document.createElement('span');
-        pct.className = 'vg-bgm-volume-value';
-        pct.textContent = p.volume + '%';
-        vol.appendChild(pct);
-        vbody.appendChild(vol);
-      } else {
-        const empty = document.createElement('div');
-        empty.className = 'vg-bgm-empty';
-        empty.textContent = '点击上传本地音频（MP3 / WAV / M4A）';
-        empty.onclick = (e) => { e.stopPropagation(); openAudioFilePicker(node); };
-        empty.onmousedown = (e) => e.stopPropagation();
-        vbody.appendChild(empty);
-      }
-
-      const actions = document.createElement('div');
-      actions.className = 'vg-bgm-actions';
-      const moodSel = document.createElement('select');
-      moodSel.className = 'vg-bgm-moodsel';
-      Object.keys(BGM_MOODS).forEach((m) => { const op = document.createElement('option'); op.value = m; op.textContent = '情绪：' + m; if ((p.mood || '轻快') === m) op.selected = true; moodSel.appendChild(op); });
+      const pv = buildAudioPreview(node, vbody, { emptyText: '\u8F93\u51FA\u5C06\u663E\u793A\u5728\u8FD9\u91CC' });
+      const comp = document.createElement('div'); comp.className = 'fc-audio-composer';
+      const row = document.createElement('div'); row.className = 'fc-audio-chips';
+      const moodSel = document.createElement('select'); moodSel.className = 'fc-audio-chip';
+      Object.keys(BGM_MOODS).forEach((m) => { const op = document.createElement('option'); op.value = m; op.textContent = '\u60C5\u7EEA\uFF1A' + m; if ((p.mood || '\u8F7B\u5FEB') === m) op.selected = true; moodSel.appendChild(op); });
       moodSel.onmousedown = (e) => e.stopPropagation();
       moodSel.onchange = (e) => { e.stopPropagation(); p.mood = e.target.value; scheduleAutosave(); };
-      actions.appendChild(moodSel);
-      const genBtn = document.createElement('button');
-      genBtn.type = 'button'; genBtn.className = 'vg-bgm-btn'; genBtn.textContent = '♪ 生成配乐';
-      genBtn.onmousedown = (e) => e.stopPropagation();
-      genBtn.onclick = (e) => {
-        e.stopPropagation();
-        genBtn.disabled = true; genBtn.textContent = '生成中…';
-        runBgmGenerateNode(node).then((gen) => {
-          genBtn.disabled = false;
-          if (!gen) { genBtn.textContent = '♪ 生成配乐'; showToast('当前浏览器不支持离线音频合成', 'warn'); return; }
-          node.uploadedAudio = gen.src; p.name = gen.name; p.duration = gen.duration; p.mime = gen.mime;
+      row.appendChild(moodSel);
+      const gen = document.createElement('button'); gen.type = 'button'; gen.className = 'fc-audio-gen'; gen.textContent = '\u266A \u751F\u6210';
+      gen.onmousedown = (e) => e.stopPropagation();
+      gen.onclick = (e) => {
+        e.stopPropagation(); gen.disabled = true; gen.textContent = '\u751F\u6210\u4E2D\u2026';
+        runBgmGenerateNode(node).then(function (g) {
+          gen.disabled = false;
+          if (!g) { gen.textContent = '\u266A \u751F\u6210'; showToast('\u5F53\u524D\u6D4F\u89C8\u5668\u4E0D\u652F\u6301\u79BB\u7EBF\u97F3\u9891\u5408\u6210', 'warn'); return; }
+          node.uploadedAudio = g.src; p.name = g.name; p.duration = g.duration; p.mime = g.mime;
           node.outputsData = computeNodeOutput(node); setNodeResultMode(node, 'local');
           if (node.el) buildNodeBody(node.el, node);
-          markEdgesDirty(); scheduleAutosave(); showToast('已生成配乐', 'success');
+          markEdgesDirty(); scheduleAutosave(); showToast('\u5DF2\u751F\u6210\u914D\u4E50', 'success');
         });
       };
-      actions.appendChild(genBtn);
-      const upBtn = document.createElement('button');
-      upBtn.type = 'button';
-      upBtn.className = 'vg-bgm-btn';
-      upBtn.textContent = hasAudio ? '替换音频' : '上传音频';
-      upBtn.onmousedown = (e) => e.stopPropagation();
-      upBtn.onclick = (e) => { e.stopPropagation(); openAudioFilePicker(node); };
-      actions.appendChild(upBtn);
+      row.appendChild(gen);
+      const upBtn = document.createElement('button'); upBtn.type = 'button'; upBtn.className = 'fc-audio-chip btn'; upBtn.textContent = hasAudio ? '\u66FF\u6362' : '\u4E0A\u4F20';
+      upBtn.onmousedown = (e) => e.stopPropagation(); upBtn.onclick = (e) => { e.stopPropagation(); openAudioFilePicker(node); };
+      row.appendChild(upBtn);
       if (hasAudio) {
-        const clearBtn = document.createElement('button');
-        clearBtn.type = 'button';
-        clearBtn.className = 'vg-bgm-btn ghost';
-        clearBtn.textContent = '清空';
-        clearBtn.onmousedown = (e) => e.stopPropagation();
-        clearBtn.onclick = (e) => {
-          e.stopPropagation();
-          node.uploadedAudio = '';
-          p.name = '';
-          p.duration = '';
-          p.mime = '';
-          if (p.assetId) delete p.assetId;
-          node.outputsData = computeNodeOutput(node);
-          if (node.el) buildNodeBody(node.el, node);
-          markEdgesDirty();
-          scheduleAutosave();
-          showToast('音频已清除', 'success');
-        };
-        actions.appendChild(clearBtn);
+        const cl = document.createElement('button'); cl.type = 'button'; cl.className = 'fc-audio-chip btn ghost'; cl.textContent = '\u6E05\u7A7A';
+        cl.onmousedown = (e) => e.stopPropagation();
+        cl.onclick = (e) => { e.stopPropagation(); node.uploadedAudio = ''; p.name = ''; p.duration = ''; p.mime = ''; if (p.assetId) delete p.assetId; fcComputePeaks._c = null; node.outputsData = computeNodeOutput(node); if (node.el) buildNodeBody(node.el, node); markEdgesDirty(); scheduleAutosave(); showToast('\u97F3\u9891\u5DF2\u6E05\u9664', 'success'); };
+        row.appendChild(cl);
       }
-      vbody.appendChild(actions);
+      comp.appendChild(row);
+      const label = document.createElement('div'); label.className = 'fc-audio-sublabel';
+      label.textContent = hasAudio ? (String(p.name || '').indexOf('AI') === 0 ? p.name : '\u672C\u5730\u97F3\u9891') : '\u672A\u9009\u62E9\u97F3\u9891\uFF08MP3 / WAV / M4A\uFF0C\u6216\u672C\u5730\u5408\u6210\uFF09';
+      comp.appendChild(label);
+      vbody.appendChild(comp);
+      buildAdvancedSection(vbody, function (panel) {
+        const dr = document.createElement('div'); dr.className = 'fc-audio-field';
+        const dl = document.createElement('span'); dl.className = 'fc-audio-field-label'; dl.textContent = '\u65F6\u957F';
+        const rng = document.createElement('input'); rng.type = 'range'; rng.className = 'fc-audio-range'; rng.min = '4'; rng.max = '12'; rng.step = '1'; rng.value = String(Math.max(4, Math.min(12, Number(p.loopSeconds) || 8)));
+        const val = document.createElement('span'); val.className = 'fc-audio-field-value'; val.textContent = (Number(p.loopSeconds) || 8) + 's';
+        rng.onmousedown = (e) => e.stopPropagation();
+        rng.oninput = (e) => { e.stopPropagation(); p.loopSeconds = Number(e.target.value); val.textContent = e.target.value + 's'; scheduleAutosave(); };
+        dr.appendChild(dl); dr.appendChild(rng); dr.appendChild(val); panel.appendChild(dr);
+        const vr = document.createElement('div'); vr.className = 'fc-audio-field';
+        const vl = document.createElement('span'); vl.className = 'fc-audio-field-label'; vl.textContent = '\u97F3\u91CF';
+        const vrng = document.createElement('input'); vrng.type = 'range'; vrng.className = 'fc-audio-range'; vrng.min = '0'; vrng.max = '100'; vrng.step = '1'; vrng.value = String(p.volume);
+        const vval = document.createElement('span'); vval.className = 'fc-audio-field-value'; vval.textContent = p.volume + '%';
+        vrng.onmousedown = (e) => e.stopPropagation();
+        vrng.oninput = (e) => { e.stopPropagation(); p.volume = Number(e.target.value); vval.textContent = e.target.value + '%'; if (pv.audio) pv.audio.volume = Math.min(1, Math.max(0, p.volume / 100)); node.outputsData = computeNodeOutput(node); markEdgesDirty(); scheduleAutosave(); };
+        vr.appendChild(vl); vr.appendChild(vrng); vr.appendChild(vval); panel.appendChild(vr);
+        const meta = document.createElement('div'); meta.className = 'fc-audio-meta'; meta.textContent = '\u683C\u5F0F\uFF1AWAV\uFF08\u514D\u7248\u6743\u672C\u5730\u5408\u6210\uFF09\u00B7 \u65F6\u957F/\u60C5\u7EEA\u4E3A\u751F\u6210\u53C2\u6570\uFF0C\u97F3\u91CF\u4E3A\u64AD\u653E\u589E\u76CA';
+        panel.appendChild(meta);
+      });
     }
 
     else if (node.type === 'compose') {
@@ -16427,6 +16360,106 @@ async function runVoiceoverNode(node) {
   }
   return { mode: 'local', src: '', duration: estimateSpeechDuration(text, speed), preview: true, voice: voice, speed: speed };
 }
+// —— D 批：音频节点 UI 重构（借鉴竞品 TTS 面板布局：波形预览区 + Composer + 可折叠「高级设置」）——
+// 原则：只暴露后端真实支持的参数（配音=tts-1 的 voice/speed；配乐=本地合成的 mood/时长/音量），绝不放假滑杆骗人。
+var _fcAudioCtx = null;
+function fcAudioCtx() {
+  if (_fcAudioCtx) return _fcAudioCtx;
+  const C = window.OfflineAudioContext || window.AudioContext || window.webkitAudioContext;
+  if (!C) return null;
+  try { _fcAudioCtx = new C(1, 1, 22050); } catch (e) { _fcAudioCtx = null; }
+  return _fcAudioCtx;
+}
+function fmtClock(s) { s = Math.max(0, Math.floor(s || 0)); const m = Math.floor(s / 60); const ss = s % 60; return m + ':' + (ss < 10 ? '0' : '') + ss; }
+// 解码音频峰值（归一化 0..1），按 src 特征缓存（单条）
+function fcComputePeaks(dataUrl, buckets) {
+  buckets = buckets || 64;
+  return new Promise(function (resolve) {
+    if (!dataUrl) { resolve(null); return; }
+    const key = dataUrl.length + ':' + dataUrl.slice(0, 64);
+    if (fcComputePeaks._c && fcComputePeaks._c.key === key) { resolve(fcComputePeaks._c.val); return; }
+    const ctx = fcAudioCtx();
+    if (!ctx || typeof ctx.decodeAudioData !== 'function') { resolve(null); return; }
+    let ab;
+    fetch(dataUrl).then(function (r) { return r.arrayBuffer(); }).then(function (b) {
+      ab = b;
+      return new Promise(function (res, rej) { try { const pr = ctx.decodeAudioData(ab.slice(0), res, rej); if (pr && pr.then) pr.then(res, rej); } catch (e) { rej(e); } });
+    }).then(function (buf) {
+      const ch = buf.getChannelData(0); const n = ch.length; const size = Math.max(1, Math.floor(n / buckets)); const peaks = [];
+      for (let i = 0; i < buckets; i++) { let m = 0; const s0 = i * size; for (let j = 0; j < size; j += 6) { const v = Math.abs(ch[s0 + j] || 0); if (v > m) m = v; } peaks.push(m); }
+      const mx = peaks.reduce(function (a, b) { return b > a ? b : a; }, 0.0001);
+      const norm = peaks.map(function (v) { return Math.max(0.05, v / mx); });
+      fcComputePeaks._c = { key: key, val: norm };
+      resolve(norm);
+    }).catch(function () { resolve(null); });
+  });
+}
+function fcDrawWave(canvas, peaks, progress, placeholder) {
+  const ctx = canvas.getContext && canvas.getContext('2d'); if (!ctx) return;
+  const w = canvas.width, h = canvas.height; ctx.clearRect(0, 0, w, h);
+  const data = peaks || placeholder || [];
+  const n = Math.max(1, data.length); const bw = w / n; const mid = h / 2;
+  let accent = '#5b8a72';
+  try { const a = (getComputedStyle(canvas).getPropertyValue('--type-color') || '').trim(); if (a) accent = a; } catch (e) {}
+  for (let i = 0; i < n; i++) {
+    const amp = data[i] || 0.05; const bh = Math.max(2, amp * (h * 0.82));
+    const x = i * bw + bw * 0.2; const bwid = Math.max(1.5, bw * 0.6);
+    ctx.fillStyle = (((i + 0.5) / n) <= (progress || 0)) ? accent : 'rgba(140,146,155,0.42)';
+    ctx.fillRect(x, mid - bh / 2, bwid, bh);
+  }
+}
+// 波形预览区：canvas + 播放按钮 + 时间；隐藏 <audio> 驱动播放/进度。无文件时画占位波形（配音可挂试听按钮）。
+function buildAudioPreview(node, vbody, opts) {
+  opts = opts || {};
+  const src = (typeof node.uploadedAudio === 'string' && node.uploadedAudio) || '';
+  const box = document.createElement('div'); box.className = 'fc-audio-preview';
+  const canvas = document.createElement('canvas'); canvas.className = 'fc-audio-wave'; canvas.width = 560; canvas.height = 92;
+  box.appendChild(canvas);
+  const play = document.createElement('button'); play.type = 'button'; play.className = 'fc-audio-play'; play.textContent = '\u25B6';
+  const time = document.createElement('span'); time.className = 'fc-audio-time';
+  box.appendChild(play); box.appendChild(time);
+  vbody.appendChild(box);
+  const placeholder = (function () { const a = []; for (let i = 0; i < 64; i++) { a.push(0.12 + 0.08 * Math.abs(Math.sin(i * 0.5)) + (i % 5 === 0 ? 0.1 : 0)); } return a; })();
+  if (!src) {
+    fcDrawWave(canvas, null, 0, placeholder);
+    if (opts.canPreview && opts.onPreviewSpeak) {
+      play.classList.add('is-preview'); time.textContent = '\u8BD5\u542C';
+      play.onmousedown = function (e) { e.stopPropagation(); };
+      play.onclick = function (e) { e.stopPropagation(); opts.onPreviewSpeak(); };
+    } else {
+      play.disabled = true; time.textContent = (node.params && node.params.duration) || (opts.emptyText || '\u8F93\u51FA\u5C06\u663E\u793A\u5728\u8FD9\u91CC');
+    }
+    return { canvas: canvas, audio: null };
+  }
+  const audio = document.createElement('audio'); audio.preload = 'metadata'; audio.src = src; audio.style.display = 'none'; box.appendChild(audio);
+  let peaks = null, progress = 0;
+  const redraw = function () { fcDrawWave(canvas, peaks, progress, placeholder); };
+  fcComputePeaks(src, 64).then(function (p) { peaks = p; redraw(); });
+  redraw();
+  play.onmousedown = function (e) { e.stopPropagation(); };
+  play.onclick = function (e) {
+    e.stopPropagation();
+    if (audio.paused) { const pr = audio.play(); if (pr && pr.then) pr.then(function () { play.textContent = '\u275A\u275A'; }, function () {}); else play.textContent = '\u275A\u275A'; }
+    else { audio.pause(); play.textContent = '\u25B6'; }
+  };
+  audio.ontimeupdate = function () { progress = audio.duration ? audio.currentTime / audio.duration : 0; time.textContent = fmtClock(audio.currentTime) + ' / ' + (isFinite(audio.duration) && audio.duration ? fmtClock(audio.duration) : ((node.params && node.params.duration) || '')); redraw(); };
+  audio.onloadedmetadata = function () { time.textContent = '0:00 / ' + (isFinite(audio.duration) && audio.duration ? fmtClock(audio.duration) : ((node.params && node.params.duration) || '')); };
+  audio.onended = function () { progress = 0; play.textContent = '\u25B6'; redraw(); };
+  return { canvas: canvas, audio: audio };
+}
+// 可折叠「高级设置」：首次展开时才构建内容（懒构建，避免节点体频繁重建）
+function buildAdvancedSection(vbody, buildFn) {
+  const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'fc-audio-adv-toggle';
+  const lab = document.createElement('span'); lab.textContent = '\u9AD8\u7EA7\u8BBE\u7F6E ';
+  const caret = document.createElement('span'); caret.className = 'fc-audio-adv-caret'; caret.textContent = '\u25BE';
+  toggle.appendChild(lab); toggle.appendChild(caret);
+  const panel = document.createElement('div'); panel.className = 'fc-audio-adv'; panel.hidden = true;
+  toggle.onmousedown = function (e) { e.stopPropagation(); };
+  toggle.onclick = function (e) { e.stopPropagation(); panel.hidden = !panel.hidden; toggle.classList.toggle('open', !panel.hidden); if (!panel.hidden && !panel.dataset.built) { panel.dataset.built = '1'; buildFn(panel); } };
+  vbody.appendChild(toggle); vbody.appendChild(panel);
+  return panel;
+}
+
 // 生成音乐情绪预设：bpm/波形/根音/音阶/是否铺底长音。
 const BGM_MOODS = {
   '舒缓': { bpm: 70, wave: 'sine', root: 220.0, scale: [0, 2, 4, 7, 9], pad: true },

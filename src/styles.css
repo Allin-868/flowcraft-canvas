@@ -6344,6 +6344,73 @@ body {
 }
 .vg-bgm-volume-value { min-width: 30px; text-align: right; color: var(--text-2); font-size: 10.5px; }
 
+/* —— D 批：音频节点统一 UI（voiceover / bgm 共用；借鉴竞品 TTS 面板布局） —— */
+.fc-audio-preview {
+  position: relative;
+  width: 100%;
+  height: 92px;
+  border-radius: 10px;
+  background: rgba(91, 138, 114, 0.08);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--type-color, #5b8a72) 12%, transparent), transparent);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.fc-audio-wave { position: absolute; inset: 0; width: 100%; height: 100%; }
+.fc-audio-play {
+  position: absolute; left: 10px; bottom: 8px;
+  width: 30px; height: 30px; border-radius: 50%; border: none;
+  background: var(--type-color, #5b8a72); color: #fff;
+  font-size: 11px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+.fc-audio-play:disabled { background: var(--text-3); cursor: default; opacity: 0.6; }
+.fc-audio-play.is-preview { background: var(--color-primary); }
+.fc-audio-time {
+  position: absolute; right: 10px; bottom: 12px;
+  font-size: 10.5px; color: var(--text-2); font-family: var(--font-mono);
+  max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fc-audio-composer { display: flex; flex-direction: column; gap: 6px; }
+.fc-audio-text {
+  width: 100%; resize: vertical; min-height: 42px; box-sizing: border-box;
+  background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: 8px;
+  color: var(--text-1); font-size: var(--text-meta); line-height: 1.5; padding: 6px 8px;
+  font-family: inherit;
+}
+.fc-audio-text:focus { outline: none; border-color: var(--color-primary); }
+.fc-audio-count { align-self: flex-end; font-size: 10px; color: var(--text-3); }
+.fc-audio-sublabel { font-size: 10.5px; color: var(--text-3); }
+.fc-audio-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.fc-audio-chip {
+  height: 26px; border: 1px solid var(--border-default); border-radius: var(--radius-full);
+  background: var(--bg-button); color: var(--text-1); font-size: 11px; padding: 0 10px; cursor: pointer;
+}
+.fc-audio-chip.btn.ghost { color: var(--text-2); }
+.fc-audio-gen {
+  height: 26px; border: none; border-radius: var(--radius-full);
+  background: var(--type-color, #5b8a72); color: #fff; font-size: 11px; font-weight: 600;
+  padding: 0 16px; cursor: pointer;
+}
+.fc-audio-gen:disabled { opacity: 0.6; cursor: default; }
+.fc-audio-adv-toggle {
+  margin-top: 8px; width: 100%; text-align: left; background: none;
+  border: none; border-top: 1px solid var(--border-subtle); padding: 7px 2px 0;
+  color: var(--text-2); font-size: 11px; cursor: pointer;
+}
+.fc-audio-adv-caret { display: inline-block; transition: transform 0.15s ease; }
+.fc-audio-adv-toggle.open .fc-audio-adv-caret { transform: rotate(180deg); }
+.fc-audio-adv { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+.fc-audio-field { display: flex; align-items: center; gap: 8px; }
+.fc-audio-field-label { font-size: 11px; color: var(--text-2); min-width: 30px; flex-shrink: 0; }
+.fc-audio-field-value { font-size: 10.5px; color: var(--text-3); min-width: 36px; text-align: right; font-family: var(--font-mono); }
+.fc-audio-range { flex: 1; height: 4px; appearance: none; background: var(--border-default); border-radius: 99px; }
+.fc-audio-range::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--type-color, #5b8a72); cursor: pointer; }
+.fc-audio-range::-moz-range-thumb { width: 12px; height: 12px; border: none; border-radius: 50%; background: var(--type-color, #5b8a72); cursor: pointer; }
+.fc-audio-meta { font-size: 10px; color: var(--text-3); line-height: 1.4; }
+
+
 /* —— 合成节点 (compose) —— */
 .vg-compose-progress {
   display: flex;
