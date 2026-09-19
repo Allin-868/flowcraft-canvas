@@ -6,8 +6,8 @@
 ## 口径
 
 - 闸门入口：`test/run-regression.mjs`（`npm run verify:regression`）。
-- 当前闸门条目 **67**，2026-09-19 全绿（`test-results/regression-2026-09-19.md`）。
-- `test/` 目录共 **73** 个脚本文件；闸门外 **6** 个 = 设计如此 **3**（性能测量 / 演示物料 / 需真实 Key）
+- 当前闸门条目 **68**，2026-09-19 全绿（`test-results/regression-2026-09-19.md`）。
+- `test/` 目录共 **74** 个脚本文件；闸门外 **6** 个 = 设计如此 **3**（性能测量 / 演示物料 / 需真实 Key）
   + 单跑入口 **3**（`run-regression.mjs` 是闸门本身、`verify-current-build` 与 `verify-security`
   由 `npm run verify:build` / `verify:security` 单独调）。**真欠债 0 条**（2026-09-19 结案最后一条 A 类）。
 - 第 65 条 `verify-ui-affordance.mjs` 是 2026-09-18 新增的「可点性体检」闸门：不再问「控件在不在」，
@@ -104,6 +104,12 @@
 
 顺带补上一处覆盖空白：**比例/分辨率浮层（用户改比例的唯一入口）此前全仓库没有任何用例碰过**（`grep aiSpecPopover test/` 为 0 命中），旧用例只按 `.nc-select` 下标取控件，等于这个入口坏了也照样绿。现由 `verify-composer.mjs` 钉住「浮层真实弹出 + 11 个卡片可点 + 点 16:9 写回 + 触发器文案同步 + 节点按新比例重排」。
 
+### 第 5 处缺陷（2026-09-19 用户真机报告）：开箱模板面板没有点外部 / Esc 关闭路径
+
+症状：打开「开箱模板」抽屉后点画布区域毫无反应，只能点右上 X 或再点工具栏按钮关闭。探针 `probe-p67-tpl-close.mjs` 取证：应用内其它浮层全有关闭契约——比例浮层 / 批量规格 / 宫格拆分 / 提示词库 / 提供方模型面板是 document mousedown 点外部关，工作流 / 工作台抽屉是遮罩点击关，全局 Esc 链也收 workflow / asset 抽屉——唯独 `#templatePanel` 三条路都没有，属契约缺口而非设计如此。
+
+修复：`legacy.js` 给模板面板加捕获阶段 mousedown 点外部关（排除面板自身与 `#btnTemplates`——否则 mousedown 先关、click 又 toggle 开，工具栏按钮将永远关不掉面板），全局 Esc 链补模板面板一档（与 workflow / asset 抽屉同档）。闸门 `verify-template-panel-close.mjs` 7 条断言全用真实鼠标/键盘：画布空白点击关、面板内部（落点先经 elementFromPoint 确认非按钮）不关、Esc 关、工具栏 toggle 不坏、关后画布选中不受牵连；修复前反向验证恰好「画布点击关 / Esc 关」2 条红、其余 5 条绿。
+
 ### 低危（登记不修）
 
 | 项 | 现状 | 判定 |
@@ -141,6 +147,7 @@ node test/run-regression.mjs          # 全量闸门（67）
 node test/verify-ui-affordance.mjs    # 单跑可点性体检
 node test/verify-auto-connect.mjs       # 单跑拖动靠近自动连线
 node test/verify-composer.mjs         # 单跑节点下方 Composer（含比例浮层与打桩出图）
+node test/verify-template-panel-close.mjs  # 单跑模板面板关闭契约（点外部/Esc）
 ```
 
-分类用的探针脚本未随仓库发布（在开发机 `.flowcraft-patches/` 下）：`probe-debt.mjs`（批量跑欠债脚本取退出码与末段输出）、`probe-composer.mjs`（Composer 现行控件结构与写回行为）、`probe-asset-panel.mjs`（存资产后面板各时点卡片数）、`probe-asset-dom.mjs`（资产面板 DOM 归属）、`probe-genmeta-strip.mjs`（信息条在各类型节点上的渲染情况）、`probe-ctxmenu-dom.mjs`（高清/AI 绘图节点预览区与信息条 DOM 对照 + 右键菜单项清单）、`probe-state-toolbar.mjs`（状态按钮 display/尺寸/命中测试 + 注入修复后的对照）、`probe-reload-toolbar.mjs`（恢复后同 data-id 元素数）、`probe-dup-node-el.mjs`（重复元素的归属链与 isLive 比对）、`probe-coldstart-append.mjs`（在应用脚本前挂 `Node.prototype.appendChild` 钩子，抓冷启动两次 append 的调用栈）、`probe-affordance.mjs`（27 类型 × 133 控件的全域可点性体检，输出 hidden-by/offscreen/blocked-by 分类）、`probe-afford-seed.mjs`（单类型逐个控件的显形对照）、`probe-placeholder-btns.mjs`（空实现占位按钮在各类型选中态下是否显形）、`probe-retry-reach.mjs`（同参重试入口可达性取证：右键菜单项清单 + 悬停选中态下可见控件）、`probe-p53-retry.mjs`（B 方案新入口复验：真实点击后参数是否恢复快照、菜单项是否触发 running）、`probe-ai-panel-chain.mjs`（`#aiSettingsBtn` 的 pointer-events 继承链与 `#btnNewWorkflow` 视口位置）、`probe-workbench-overlay.mjs`（三个抽屉共用 `.recycle-panel`/`.recycle-overlay` 类时的开关与遮罩状态）、`probe-p64-composer.mjs`（Composer 跟随/比例浮层/生成三处事实取样）、`probe-p64b-run.mjs` 与 `probe-p64c-model.mjs`（生成报错文案、外发 URL、`selectOption` 写回是否成立）、`probe-p64d-run-hang.mjs`（按新用例序列复现「卡在 running」并打印逐帧状态与网络）。其中后四个是 `verify-ui-affordance.mjs` 判据的定标依据：抽屉要开对（`#btnWorkflow` 才含 `#btnNewWorkflow`）、slide 动画要等 700ms、`reload` 会把 AI 面板恢复成展开态遮住节点、节点定位前需 `fitToContent()` 归一视图。复现 A/B 类判定只需按上表跑对应脚本，再按「证据」列的关键差异对照现行源码。
+分类用的探针脚本未随仓库发布（在开发机 `.flowcraft-patches/` 下）：`probe-debt.mjs`（批量跑欠债脚本取退出码与末段输出）、`probe-composer.mjs`（Composer 现行控件结构与写回行为）、`probe-asset-panel.mjs`（存资产后面板各时点卡片数）、`probe-asset-dom.mjs`（资产面板 DOM 归属）、`probe-genmeta-strip.mjs`（信息条在各类型节点上的渲染情况）、`probe-ctxmenu-dom.mjs`（高清/AI 绘图节点预览区与信息条 DOM 对照 + 右键菜单项清单）、`probe-state-toolbar.mjs`（状态按钮 display/尺寸/命中测试 + 注入修复后的对照）、`probe-reload-toolbar.mjs`（恢复后同 data-id 元素数）、`probe-dup-node-el.mjs`（重复元素的归属链与 isLive 比对）、`probe-coldstart-append.mjs`（在应用脚本前挂 `Node.prototype.appendChild` 钩子，抓冷启动两次 append 的调用栈）、`probe-affordance.mjs`（27 类型 × 133 控件的全域可点性体检，输出 hidden-by/offscreen/blocked-by 分类）、`probe-afford-seed.mjs`（单类型逐个控件的显形对照）、`probe-placeholder-btns.mjs`（空实现占位按钮在各类型选中态下是否显形）、`probe-retry-reach.mjs`（同参重试入口可达性取证：右键菜单项清单 + 悬停选中态下可见控件）、`probe-p53-retry.mjs`（B 方案新入口复验：真实点击后参数是否恢复快照、菜单项是否触发 running）、`probe-ai-panel-chain.mjs`（`#aiSettingsBtn` 的 pointer-events 继承链与 `#btnNewWorkflow` 视口位置）、`probe-workbench-overlay.mjs`（三个抽屉共用 `.recycle-panel`/`.recycle-overlay` 类时的开关与遮罩状态）、`probe-p64-composer.mjs`（Composer 跟随/比例浮层/生成三处事实取样）、`probe-p64b-run.mjs` 与 `probe-p64c-model.mjs`（生成报错文案、外发 URL、`selectOption` 写回是否成立）、`probe-p64d-run-hang.mjs`（按新用例序列复现「卡在 running」并打印逐帧状态与网络）、`probe-p67-tpl-close.mjs`（模板面板关闭路径修复前后事实取样，带 after 参数按修复后预期判定）。其中后四个是 `verify-ui-affordance.mjs` 判据的定标依据：抽屉要开对（`#btnWorkflow` 才含 `#btnNewWorkflow`）、slide 动画要等 700ms、`reload` 会把 AI 面板恢复成展开态遮住节点、节点定位前需 `fitToContent()` 归一视图。复现 A/B 类判定只需按上表跑对应脚本，再按「证据」列的关键差异对照现行源码。

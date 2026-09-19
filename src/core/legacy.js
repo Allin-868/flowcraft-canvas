@@ -18978,6 +18978,16 @@ function init() {
   document.getElementById('btnTemplates').onclick = () => toggleTemplatePanel();
   document.getElementById('templateClose').onclick = () => closeTemplatePanel();
   bindTemplateEvents();
+  // 点面板外（画布区域、工具栏等）即关：与应用内其它浮层的点外部契约一致（比例浮层/批量规格/
+  // 宫格拆分/提示词库/提供方模型面板均为 document mousedown 点外部关）。排除工具栏开关按钮自身：
+  // 否则 mousedown 先关、click 又 toggle 开，按钮将永远关不掉面板。
+  document.addEventListener('mousedown', (e) => {
+    const panel = document.getElementById('templatePanel');
+    if (!panel || !panel.classList.contains('show')) return;
+    if (panel.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('#btnTemplates')) return;
+    closeTemplatePanel();
+  }, true);
 
   // 工作流管理 / 素材库 面板
   document.getElementById('btnWorkflow').onclick = () => {
@@ -19151,8 +19161,10 @@ function init() {
       } else {
         const wf = document.getElementById('workflowPanel');
         const ap = document.getElementById('assetPanel');
+        const tp = document.getElementById('templatePanel');
         if (wf && wf.classList.contains('show')) toggleWorkflowPanel(false);
         if (ap && ap.classList.contains('show')) toggleAssetPanel(false);
+        if (tp && tp.classList.contains('show')) closeTemplatePanel();
       }
     } else if (imageLightbox && imageLightbox.classList.contains('show')) {
       // 多图查看：左右方向键切换
