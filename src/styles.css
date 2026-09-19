@@ -6409,6 +6409,13 @@ body {
 .fc-audio-range::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--type-color, #5b8a72); cursor: pointer; }
 .fc-audio-range::-moz-range-thumb { width: 12px; height: 12px; border: none; border-radius: 50%; background: var(--type-color, #5b8a72); cursor: pointer; }
 .fc-audio-meta { font-size: 10px; color: var(--text-3); line-height: 1.4; }
+.fc-audio-tabs { display: flex; gap: 4px; margin-bottom: 8px; padding: 2px; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-button); }
+.fc-audio-tab {
+  flex: 1; height: 24px; border: 0; border-radius: calc(var(--radius-md) - 2px); background: transparent;
+  color: var(--text-3); font-size: 11px; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.fc-audio-tab:hover { color: var(--text-1); }
+.fc-audio-tab.active { background: var(--type-color, var(--accent)); color: #fff; font-weight: 600; }
 
 
 /* —— 合成节点 (compose) —— */

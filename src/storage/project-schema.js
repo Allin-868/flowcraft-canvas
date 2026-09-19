@@ -9,7 +9,7 @@ export const KNOWN_NODE_TYPES = new Set([
   'image', 'videoInput', 'text', 'stateList', 'aiImage', 'imageEdit', 'aiVideo', 'upscale',
   'compare', 'videoBreak', 'reversePrompt', 'save', 'lineart', 'aiSet', 'material',
   'light', 'layout', 'loop', 'comfyui', 'script', 'footage', 'voiceover', 'subtitle',
-  'bgm', 'compose', 'publish',
+  'bgm', 'audio', 'compose', 'publish',
 ]);
 
 function issue(path, message) { return `${path}：${message}`; }

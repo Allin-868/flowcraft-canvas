@@ -213,6 +213,18 @@ export const NodeContract = {
       inputs: [],
       outputs: [{ type: 'audio', label: '音频' }],
     },
+    audio: {
+      label: '音频', tier: 'production', runnable: true,
+      note: '配音/配乐整合节点：配音模式=有 Key 走 /audio/speech 真实合成·无 Key 浏览器语音试听；配乐模式=OfflineAudioContext 本地合成/上传音频（本地）',
+      inputs: [{ type: 'text', label: '脚本', required: false }],
+      outputs: [{ type: 'audio', label: '音频' }],
+      validate(params) {
+        if (params && params.audioMode === 'bgm') return { ok: true };
+        const t = (params && params.text) || '';
+        if (!String(t).trim()) return { ok: false, errors: ['配音文本为空：需连接脚本文本或填写文本'] };
+        return { ok: true };
+      },
+    },
     compose: {
       label: '合成', tier: 'local', runnable: true,
       note: '合成（浏览器端真实合成：抽素材帧重绘 + 字幕烧制 + 配音/配乐混音 → webm；轻量抽帧非全帧率精修）',

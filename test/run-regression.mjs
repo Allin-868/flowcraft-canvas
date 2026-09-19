@@ -66,7 +66,7 @@ const candidates = requested.length ? requested : [
   'verify-batch-a-nodes.mjs',
   'verify-batch-b-audio.mjs',
   'verify-batch-c-compose-publish.mjs',   // 第 73 条：C 批浏览器端真实 compose/publish
-  'verify-audio-node-ui.mjs',                 // 第 74 条：D 批音频节点 UI 重构（波形预览+Composer+高级设置，参数不虚标）
+  'verify-audio-node-ui.mjs',                 // 第 74 条：D+E 批音频整合节点（audio 单节点配音/配乐 tab+波形预览+Composer+高级设置不虚标+v5→v6 迁移）
   // 已知欠债（失败未修，暂不入闸门，判定与证据见同目录 DEBT.md）：
   // verify-composer, verify-auto-connect,
   // verify-real-links（需真实 Key）, verify-perf-baseline（性能基线单独跑）,

@@ -35,6 +35,7 @@ const NODE_TYPES = {
   voiceover: { label: '配音',  desc: 'TTS 配音',       color: 'var(--node-voiceover)', colorRaw: '#1D9E75', inputs: [{type:'text',label:'脚本'}], outputs: [{type:'audio',label:'音频'}], defaultParams: { text: '在这个AI改变一切的时代，有一种职业正在悄然消失...', lang: 'zh-CN', speed: '1.0', voice: '晓晓', duration: '45s' } },
   subtitle:  { label: '字幕',  desc: '自动生成',       color: 'var(--node-subtitle)',  colorRaw: '#888780', inputs: [{type:'audio',label:'音频'}], outputs: [{type:'text',label:'字幕'}], defaultParams: { lines: [{ time: '00:00', text: '在这个AI改变一切的时代...' }, { time: '00:05', text: '改变一切的时代...' }, { time: '00:10', text: '有一种职业...' }, { time: '00:15', text: '正在悄然消失...' }], style: '白色 · 底部居中 · 24px' } },
   bgm:       { label: '配乐',  desc: '生成音乐',       color: 'var(--node-bgm)',       colorRaw: '#BA7517', inputs: [], outputs: [{type:'audio',label:'音频'}], defaultParams: { name: '', duration: '', volume: 100, mood: '轻快', loopSeconds: 8 } },
+  audio:     { label: '音频',  desc: '配音 / 配乐（一个节点二合一·模式切换）', color: 'var(--node-voiceover)', colorRaw: '#1D9E75', inputs: [{type:'text',label:'脚本'}], outputs: [{type:'audio',label:'音频'}], defaultParams: { audioMode: 'voiceover', text: '', lang: 'zh-CN', speed: '1.0', voice: '晓晓', duration: '', name: '', volume: 100, mood: '轻快', loopSeconds: 8 } },
   compose:   { label: '合成',  desc: '本地合成',        color: 'var(--node-compose)',   colorRaw: '#D85A30', inputs: [{type:'video',label:'素材'},{type:'audio',label:'配音'},{type:'text',label:'字幕'},{type:'audio',label:'配乐'}], outputs: [{type:'video',label:'视频'}], defaultParams: { progress: 100, resolution: '1080×1920', duration: '45s', size: '12.3MB' } },
   publish:   { label: '发布',  desc: '发布包',         color: 'var(--node-publish)',   colorRaw: '#639922', inputs: [{type:'video',label:'视频'}], outputs: [], defaultParams: { platforms: [{ name: 'TikTok', status: 'published' }, { name: 'YouTube', status: 'published' }, { name: 'Instagram', status: 'pending' }, { name: '小红书', status: 'pending' }] } }
 };
@@ -64,6 +65,7 @@ const NODE_ICONS = {
   voiceover: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="2" width="4" height="7" rx="2"/><path d="M4 8a4 4 0 008 0M8 12v2"/></svg>',
   subtitle:  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="8" rx="1.5"/><path d="M4 10h3M9 10h3M4 7.5h8"/></svg>',
   bgm:       '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 11V3l6-1v8"/><circle cx="4.5" cy="11" r="1.5"/><circle cx="10.5" cy="10" r="1.5"/></svg>',
+  audio:     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h1.2M5.5 4.5v7M8.5 2.5v11M11.5 5.5v5M14 8h-1"/></svg>',
   compose:   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="5" height="5" rx="1"/><rect x="9" y="3" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="4" rx="1"/><path d="M9 9h5v4H9z"/><path d="M11 6l2 2M11 11l2-2"/></svg>',
   publish:   '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 12V3M5 6l3-3 3 3M3 12v2h10v-2"/></svg>',
   loop:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8a5 5 0 1 1 1.6 3.7"/><path d="M4 12V8h4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -718,7 +720,7 @@ function bindEditHistory(elm) {
 const AUTOSAVE_KEY = 'flowcraft:autosave:v1';
 // 自动保存数据结构版本。每次改变节点/工作流存储结构时 +1，
 // 旧版本数据在 restoreFromStorage 中经 migrateAutosave 平滑迁移，避免整页崩溃或用户数据丢失。
-const CURRENT_AUTOSAVE_VERSION = 5;
+const CURRENT_AUTOSAVE_VERSION = 6;
 let autosaveTimer = null;
 // 自动保存体积安全上限（localStorage 约 5MB，预留余量在超限前主动剥离大图）
 const SAFE_AUTOSAVE_LIMIT = 4_500_000;
@@ -1122,6 +1124,15 @@ function migrateAutosave(parsed, fromVersion) {
   parsed.assets = parsed.assets.map(normalizeAssetRecord);
   // 编导容器是向后兼容字段：旧项目没有它时保持空，不覆盖原有脚本内容。
   parsed.director = normalizeDirectorData(parsed.director);
+  // v5 → v6：配音/配乐整合为单一「音频」节点（模式切换）。旧类型保留为兼容别名，
+  // 但存档中的既有实例统一迁移为 audio，避免画布/节点库出现两套音频节点。
+  if (v < 6) {
+    (parsed.nodes || []).forEach(nd => {
+      if (!nd) return;
+      if (nd.type === 'voiceover') { nd.type = 'audio'; nd.params = nd.params || {}; nd.params.audioMode = 'voiceover'; }
+      else if (nd.type === 'bgm') { nd.type = 'audio'; nd.params = nd.params || {}; nd.params.audioMode = 'bgm'; }
+    });
+  }
   parsed.version = CURRENT_AUTOSAVE_VERSION;
   return parsed;
 }
@@ -2633,9 +2644,9 @@ const TEMPLATES = [
     nodes: [
       { type: 'script', x: -1080, y: 120, title: '写脚本', params: {} },
       { type: 'footage', x: -780, y: 120, title: '匹配素材', params: {} },
-      { type: 'voiceover', x: -480, y: 120, title: 'AI 配音', params: {} },
+      { type: 'audio', x: -480, y: 120, title: 'AI 配音', params: { audioMode: 'voiceover' } },
       { type: 'subtitle', x: -180, y: 120, title: '生成字幕', params: {} },
-      { type: 'bgm', x: 120, y: 120, title: '添加配乐', params: {} },
+      { type: 'audio', x: 120, y: 120, title: '添加配乐', params: { audioMode: 'bgm' } },
       { type: 'compose', x: 420, y: 120, title: '合成视频', params: {} },
       { type: 'publish', x: 720, y: 120, title: '多平台发布', params: {} }
     ],
@@ -7575,7 +7586,7 @@ function restoreFromRecycle(index) {
   node.status = nd.status;
   node.previewOnly = !!nd.previewOnly;
   node.previewSourceId = typeof nd.previewSourceId === 'string' ? nd.previewSourceId : '';
-  if (['videoInput', 'image', 'bgm'].includes(node.type)) {
+  if (['videoInput', 'image', 'bgm', 'audio'].includes(node.type)) {
     node.outputsData = computeNodeOutput(node);
   }
   const el = createNodeElement(node);
@@ -7853,7 +7864,7 @@ function buildSidebar() {
   videoLabel.textContent = '视频生成';
   list.appendChild(videoLabel);
 
-  ['script', 'footage', 'voiceover', 'subtitle', 'bgm', 'compose', 'publish'].forEach(type => {
+  ['script', 'footage', 'audio', 'subtitle', 'compose', 'publish'].forEach(type => {
     list.appendChild(createLibraryItem(type));
   });
 }
@@ -10271,7 +10282,7 @@ function buildNodeBody(el, node) {
 
 
   // —— 视频生成节点 body ——
-  const videoTypes = ['script', 'footage', 'voiceover', 'subtitle', 'bgm', 'compose', 'publish'];
+  const videoTypes = ['script', 'footage', 'voiceover', 'subtitle', 'bgm', 'audio', 'compose', 'publish'];
   if (videoTypes.includes(node.type)) {
     const vbody = document.createElement('div');
     vbody.className = 'node-body node-body-video';
@@ -10538,48 +10549,7 @@ function buildNodeBody(el, node) {
       vbody.appendChild(grid);
     }
 
-    else if (node.type === 'voiceover') {
-      const p = node.params = node.params || {};
-      buildAudioPreview(node, vbody, {
-        emptyText: '\u8F93\u51FA\u5C06\u663E\u793A\u5728\u8FD9\u91CC',
-        canPreview: !node.uploadedAudio && !!node._voPreview,
-        onPreviewSpeak: function () { try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(p.text || ''); u.rate = Number(p.speed) || 1; u.lang = p.lang || 'zh-CN'; window.speechSynthesis.speak(u); } catch (_) { showToast('\u5F53\u524D\u6D4F\u89C8\u5668\u4E0D\u652F\u6301\u8BED\u97F3\u8BD5\u542C', 'warn'); } },
-      });
-      const comp = document.createElement('div'); comp.className = 'fc-audio-composer';
-      const ta = document.createElement('textarea'); ta.className = 'fc-audio-text'; ta.rows = 2; ta.placeholder = '\u4E00\u8D77\u5F00\u59CB\u521B\u4F5C\u2026'; ta.value = p.text || '';
-      ta.onmousedown = (e) => e.stopPropagation();
-      const count = document.createElement('div'); count.className = 'fc-audio-count'; count.textContent = (p.text || '').length + ' \u5B57';
-      ta.oninput = () => { p.text = ta.value; count.textContent = ta.value.length + ' \u5B57'; scheduleAutosave(); };
-      comp.appendChild(ta); comp.appendChild(count);
-      const row = document.createElement('div'); row.className = 'fc-audio-chips';
-      const voiceSel = document.createElement('select'); voiceSel.className = 'fc-audio-chip';
-      ['\u6653\u6653', '\u6653\u4F0A', '\u4E91\u5E0C', '\u4E91\u5065', '\u6653\u5317'].forEach((v) => { const op = document.createElement('option'); op.value = v; op.textContent = '\u97F3\u8272\uFF1A' + v; if (p.voice === v) op.selected = true; voiceSel.appendChild(op); });
-      voiceSel.onmousedown = (e) => e.stopPropagation();
-      voiceSel.onchange = (e) => { e.stopPropagation(); p.voice = e.target.value; scheduleAutosave(); };
-      row.appendChild(voiceSel);
-      const gen = document.createElement('button'); gen.type = 'button'; gen.className = 'fc-audio-gen'; gen.textContent = '\u751F\u6210';
-      gen.onmousedown = (e) => e.stopPropagation();
-      gen.onclick = (e) => { e.stopPropagation(); gen.disabled = true; const old = gen.textContent; gen.textContent = '\u751F\u6210\u4E2D\u2026'; Promise.resolve(executeNodeAsync(node, 0)).then(() => { gen.disabled = false; gen.textContent = old; }, () => { gen.disabled = false; gen.textContent = old; }); };
-      row.appendChild(gen);
-      comp.appendChild(row);
-      vbody.appendChild(comp);
-      buildAdvancedSection(vbody, function (panel) {
-        const sr = document.createElement('div'); sr.className = 'fc-audio-field';
-        const sl = document.createElement('span'); sl.className = 'fc-audio-field-label'; sl.textContent = '\u8BED\u901F';
-        const rng = document.createElement('input'); rng.type = 'range'; rng.className = 'fc-audio-range'; rng.min = '0.5'; rng.max = '2'; rng.step = '0.05'; rng.value = String(Number(p.speed) || 1);
-        const val = document.createElement('span'); val.className = 'fc-audio-field-value'; val.textContent = (Number(p.speed) || 1) + 'x';
-        rng.onmousedown = (e) => e.stopPropagation();
-        rng.oninput = (e) => { e.stopPropagation(); p.speed = String(e.target.value); val.textContent = e.target.value + 'x'; scheduleAutosave(); };
-        sr.appendChild(sl); sr.appendChild(rng); sr.appendChild(val); panel.appendChild(sr);
-        const lg = document.createElement('div'); lg.className = 'fc-audio-field';
-        const ll = document.createElement('span'); ll.className = 'fc-audio-field-label'; ll.textContent = '\u8BD5\u542C\u8BED\u8A00';
-        const ls = document.createElement('select'); ls.className = 'fc-audio-chip'; [['zh-CN', '\u4E2D\u6587'], ['en-US', 'English']].forEach(function (kv) { const op = document.createElement('option'); op.value = kv[0]; op.textContent = kv[1]; if ((p.lang || 'zh-CN') === kv[0]) op.selected = true; ls.appendChild(op); });
-        ls.onmousedown = (e) => e.stopPropagation(); ls.onchange = (e) => { e.stopPropagation(); p.lang = e.target.value; scheduleAutosave(); };
-        lg.appendChild(ll); lg.appendChild(ls); panel.appendChild(lg);
-        const meta = document.createElement('div'); meta.className = 'fc-audio-meta'; meta.textContent = node.uploadedAudio ? '\u6765\u6E90\uFF1ATTS \u771F\u5B9E\u5408\u6210 \u00B7 \u6A21\u578B tts-1\uFF08OpenAI \u517C\u5BB9\uFF09' : (node._voPreview ? '\u6765\u6E90\uFF1A\u6D4F\u89C8\u5668\u8BED\u97F3\u8BD5\u542C\uFF08\u4E0D\u5BFC\u51FA\u6587\u4EF6\uFF09' : '\u672A\u8FD0\u884C');
-        panel.appendChild(meta);
-      });
-    }
+    else if (node.type === 'voiceover') buildVoiceoverBody(node, vbody);
 
     else if (node.type === 'subtitle') {
       // 字幕列表
@@ -10606,64 +10576,17 @@ function buildNodeBody(el, node) {
       vbody.appendChild(style);
     }
 
-    else if (node.type === 'bgm') {
+    else if (node.type === 'bgm') buildBgmBody(node, vbody);
+
+    else if (node.type === 'audio') {
       const p = node.params = node.params || {};
-      p.volume = Number(p.volume ?? 100);
-      const hasAudio = typeof node.uploadedAudio === 'string' && node.uploadedAudio.length > 0;
-      const pv = buildAudioPreview(node, vbody, { emptyText: '\u8F93\u51FA\u5C06\u663E\u793A\u5728\u8FD9\u91CC' });
-      const comp = document.createElement('div'); comp.className = 'fc-audio-composer';
-      const row = document.createElement('div'); row.className = 'fc-audio-chips';
-      const moodSel = document.createElement('select'); moodSel.className = 'fc-audio-chip';
-      Object.keys(BGM_MOODS).forEach((m) => { const op = document.createElement('option'); op.value = m; op.textContent = '\u60C5\u7EEA\uFF1A' + m; if ((p.mood || '\u8F7B\u5FEB') === m) op.selected = true; moodSel.appendChild(op); });
-      moodSel.onmousedown = (e) => e.stopPropagation();
-      moodSel.onchange = (e) => { e.stopPropagation(); p.mood = e.target.value; scheduleAutosave(); };
-      row.appendChild(moodSel);
-      const gen = document.createElement('button'); gen.type = 'button'; gen.className = 'fc-audio-gen'; gen.textContent = '\u266A \u751F\u6210';
-      gen.onmousedown = (e) => e.stopPropagation();
-      gen.onclick = (e) => {
-        e.stopPropagation(); gen.disabled = true; gen.textContent = '\u751F\u6210\u4E2D\u2026';
-        runBgmGenerateNode(node).then(function (g) {
-          gen.disabled = false;
-          if (!g) { gen.textContent = '\u266A \u751F\u6210'; showToast('\u5F53\u524D\u6D4F\u89C8\u5668\u4E0D\u652F\u6301\u79BB\u7EBF\u97F3\u9891\u5408\u6210', 'warn'); return; }
-          node.uploadedAudio = g.src; p.name = g.name; p.duration = g.duration; p.mime = g.mime;
-          node.outputsData = computeNodeOutput(node); setNodeResultMode(node, 'local');
-          if (node.el) buildNodeBody(node.el, node);
-          markEdgesDirty(); scheduleAutosave(); showToast('\u5DF2\u751F\u6210\u914D\u4E50', 'success');
-        });
-      };
-      row.appendChild(gen);
-      const upBtn = document.createElement('button'); upBtn.type = 'button'; upBtn.className = 'fc-audio-chip btn'; upBtn.textContent = hasAudio ? '\u66FF\u6362' : '\u4E0A\u4F20';
-      upBtn.onmousedown = (e) => e.stopPropagation(); upBtn.onclick = (e) => { e.stopPropagation(); openAudioFilePicker(node); };
-      row.appendChild(upBtn);
-      if (hasAudio) {
-        const cl = document.createElement('button'); cl.type = 'button'; cl.className = 'fc-audio-chip btn ghost'; cl.textContent = '\u6E05\u7A7A';
-        cl.onmousedown = (e) => e.stopPropagation();
-        cl.onclick = (e) => { e.stopPropagation(); node.uploadedAudio = ''; p.name = ''; p.duration = ''; p.mime = ''; if (p.assetId) delete p.assetId; fcComputePeaks._c = null; node.outputsData = computeNodeOutput(node); if (node.el) buildNodeBody(node.el, node); markEdgesDirty(); scheduleAutosave(); showToast('\u97F3\u9891\u5DF2\u6E05\u9664', 'success'); };
-        row.appendChild(cl);
-      }
-      comp.appendChild(row);
-      const label = document.createElement('div'); label.className = 'fc-audio-sublabel';
-      label.textContent = hasAudio ? (String(p.name || '').indexOf('AI') === 0 ? p.name : '\u672C\u5730\u97F3\u9891') : '\u672A\u9009\u62E9\u97F3\u9891\uFF08MP3 / WAV / M4A\uFF0C\u6216\u672C\u5730\u5408\u6210\uFF09';
-      comp.appendChild(label);
-      vbody.appendChild(comp);
-      buildAdvancedSection(vbody, function (panel) {
-        const dr = document.createElement('div'); dr.className = 'fc-audio-field';
-        const dl = document.createElement('span'); dl.className = 'fc-audio-field-label'; dl.textContent = '\u65F6\u957F';
-        const rng = document.createElement('input'); rng.type = 'range'; rng.className = 'fc-audio-range'; rng.min = '4'; rng.max = '12'; rng.step = '1'; rng.value = String(Math.max(4, Math.min(12, Number(p.loopSeconds) || 8)));
-        const val = document.createElement('span'); val.className = 'fc-audio-field-value'; val.textContent = (Number(p.loopSeconds) || 8) + 's';
-        rng.onmousedown = (e) => e.stopPropagation();
-        rng.oninput = (e) => { e.stopPropagation(); p.loopSeconds = Number(e.target.value); val.textContent = e.target.value + 's'; scheduleAutosave(); };
-        dr.appendChild(dl); dr.appendChild(rng); dr.appendChild(val); panel.appendChild(dr);
-        const vr = document.createElement('div'); vr.className = 'fc-audio-field';
-        const vl = document.createElement('span'); vl.className = 'fc-audio-field-label'; vl.textContent = '\u97F3\u91CF';
-        const vrng = document.createElement('input'); vrng.type = 'range'; vrng.className = 'fc-audio-range'; vrng.min = '0'; vrng.max = '100'; vrng.step = '1'; vrng.value = String(p.volume);
-        const vval = document.createElement('span'); vval.className = 'fc-audio-field-value'; vval.textContent = p.volume + '%';
-        vrng.onmousedown = (e) => e.stopPropagation();
-        vrng.oninput = (e) => { e.stopPropagation(); p.volume = Number(e.target.value); vval.textContent = e.target.value + '%'; if (pv.audio) pv.audio.volume = Math.min(1, Math.max(0, p.volume / 100)); node.outputsData = computeNodeOutput(node); markEdgesDirty(); scheduleAutosave(); };
-        vr.appendChild(vl); vr.appendChild(vrng); vr.appendChild(vval); panel.appendChild(vr);
-        const meta = document.createElement('div'); meta.className = 'fc-audio-meta'; meta.textContent = '\u683C\u5F0F\uFF1AWAV\uFF08\u514D\u7248\u6743\u672C\u5730\u5408\u6210\uFF09\u00B7 \u65F6\u957F/\u60C5\u7EEA\u4E3A\u751F\u6210\u53C2\u6570\uFF0C\u97F3\u91CF\u4E3A\u64AD\u653E\u589E\u76CA';
-        panel.appendChild(meta);
-      });
+      p.audioMode = (p.audioMode === 'bgm') ? 'bgm' : 'voiceover';
+      const tabs = document.createElement('div'); tabs.className = 'fc-audio-tabs';
+      const mkTab = (mode, label) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'fc-audio-tab' + (p.audioMode === mode ? ' active' : ''); b.textContent = label; b.onmousedown = (e) => e.stopPropagation(); b.onclick = (e) => { e.stopPropagation(); if (p.audioMode === mode) return; p.audioMode = mode; scheduleAutosave(); if (node.el) buildNodeBody(node.el, node); }; return b; };
+      tabs.appendChild(mkTab('voiceover', '\uD83C\uDFA4 \u914D\u97F3'));
+      tabs.appendChild(mkTab('bgm', '\uD83C\uDFB5 \u914D\u4E50'));
+      vbody.appendChild(tabs);
+      if (p.audioMode === 'bgm') buildBgmBody(node, vbody); else buildVoiceoverBody(node, vbody);
     }
 
     else if (node.type === 'compose') {
@@ -15559,7 +15482,7 @@ function renderConnectionNodeMenu() {
     { key: 'ai',      label: 'AI 生成', class: 'hud-group-ai',      types: ['aiImage', 'aiVideo', 'aiSet'] },
     { key: 'process', label: '处理',    class: 'hud-group-process', types: ['upscale', 'compare', 'material', 'light', 'layout', 'lineart'] },
     { key: 'output',  label: '输出',    class: 'hud-group-output',  types: ['save'] },
-    { key: 'video',   label: '视频',    class: 'hud-group-video',   types: ['videoBreak', 'script', 'footage', 'voiceover', 'subtitle', 'bgm', 'compose', 'publish'] },
+    { key: 'video',   label: '视频',    class: 'hud-group-video',   types: ['videoBreak', 'script', 'footage', 'audio', 'subtitle', 'compose', 'publish'] },
   ];
 
   // 收集所有可连接节点并附加分组
@@ -16273,7 +16196,7 @@ function collectUpstreamScriptText(node, depth) {
   for (const s of srcs) {
     if (!s || s === node) continue;
     if (s.type === 'script' && String(s.params && s.params.script || '').trim()) return String(s.params.script).trim();
-    if (s.type === 'voiceover' && String(s.params && s.params.text || '').trim()) return String(s.params.text).trim();
+    if ((s.type === 'voiceover' || (s.type === 'audio' && s.params && s.params.audioMode !== 'bgm')) && String(s.params && s.params.text || '').trim()) return String(s.params.text).trim();
     if (s.type === 'text') { const t = nodeFullText(s).trim(); if (t && t !== '(空文本)') return t; }
     const deeper = collectUpstreamScriptText(s, depth + 1);
     if (deeper) return deeper;
@@ -16458,6 +16381,109 @@ function buildAdvancedSection(vbody, buildFn) {
   toggle.onclick = function (e) { e.stopPropagation(); panel.hidden = !panel.hidden; toggle.classList.toggle('open', !panel.hidden); if (!panel.hidden && !panel.dataset.built) { panel.dataset.built = '1'; buildFn(panel); } };
   vbody.appendChild(toggle); vbody.appendChild(panel);
   return panel;
+}
+
+function buildVoiceoverBody(node, vbody) {
+      const p = node.params = node.params || {};
+      buildAudioPreview(node, vbody, {
+        emptyText: '\u8F93\u51FA\u5C06\u663E\u793A\u5728\u8FD9\u91CC',
+        canPreview: !node.uploadedAudio && !!node._voPreview,
+        onPreviewSpeak: function () { try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(p.text || ''); u.rate = Number(p.speed) || 1; u.lang = p.lang || 'zh-CN'; window.speechSynthesis.speak(u); } catch (_) { showToast('\u5F53\u524D\u6D4F\u89C8\u5668\u4E0D\u652F\u6301\u8BED\u97F3\u8BD5\u542C', 'warn'); } },
+      });
+      const comp = document.createElement('div'); comp.className = 'fc-audio-composer';
+      const ta = document.createElement('textarea'); ta.className = 'fc-audio-text'; ta.rows = 2; ta.placeholder = '\u4E00\u8D77\u5F00\u59CB\u521B\u4F5C\u2026'; ta.value = p.text || '';
+      ta.onmousedown = (e) => e.stopPropagation();
+      const count = document.createElement('div'); count.className = 'fc-audio-count'; count.textContent = (p.text || '').length + ' \u5B57';
+      ta.oninput = () => { p.text = ta.value; count.textContent = ta.value.length + ' \u5B57'; scheduleAutosave(); };
+      comp.appendChild(ta); comp.appendChild(count);
+      const row = document.createElement('div'); row.className = 'fc-audio-chips';
+      const voiceSel = document.createElement('select'); voiceSel.className = 'fc-audio-chip';
+      ['\u6653\u6653', '\u6653\u4F0A', '\u4E91\u5E0C', '\u4E91\u5065', '\u6653\u5317'].forEach((v) => { const op = document.createElement('option'); op.value = v; op.textContent = '\u97F3\u8272\uFF1A' + v; if (p.voice === v) op.selected = true; voiceSel.appendChild(op); });
+      voiceSel.onmousedown = (e) => e.stopPropagation();
+      voiceSel.onchange = (e) => { e.stopPropagation(); p.voice = e.target.value; scheduleAutosave(); };
+      row.appendChild(voiceSel);
+      const gen = document.createElement('button'); gen.type = 'button'; gen.className = 'fc-audio-gen'; gen.textContent = '\u751F\u6210';
+      gen.onmousedown = (e) => e.stopPropagation();
+      gen.onclick = (e) => { e.stopPropagation(); gen.disabled = true; const old = gen.textContent; gen.textContent = '\u751F\u6210\u4E2D\u2026'; Promise.resolve(executeNodeAsync(node, 0)).then(() => { gen.disabled = false; gen.textContent = old; }, () => { gen.disabled = false; gen.textContent = old; }); };
+      row.appendChild(gen);
+      comp.appendChild(row);
+      vbody.appendChild(comp);
+      buildAdvancedSection(vbody, function (panel) {
+        const sr = document.createElement('div'); sr.className = 'fc-audio-field';
+        const sl = document.createElement('span'); sl.className = 'fc-audio-field-label'; sl.textContent = '\u8BED\u901F';
+        const rng = document.createElement('input'); rng.type = 'range'; rng.className = 'fc-audio-range'; rng.min = '0.5'; rng.max = '2'; rng.step = '0.05'; rng.value = String(Number(p.speed) || 1);
+        const val = document.createElement('span'); val.className = 'fc-audio-field-value'; val.textContent = (Number(p.speed) || 1) + 'x';
+        rng.onmousedown = (e) => e.stopPropagation();
+        rng.oninput = (e) => { e.stopPropagation(); p.speed = String(e.target.value); val.textContent = e.target.value + 'x'; scheduleAutosave(); };
+        sr.appendChild(sl); sr.appendChild(rng); sr.appendChild(val); panel.appendChild(sr);
+        const lg = document.createElement('div'); lg.className = 'fc-audio-field';
+        const ll = document.createElement('span'); ll.className = 'fc-audio-field-label'; ll.textContent = '\u8BD5\u542C\u8BED\u8A00';
+        const ls = document.createElement('select'); ls.className = 'fc-audio-chip'; [['zh-CN', '\u4E2D\u6587'], ['en-US', 'English']].forEach(function (kv) { const op = document.createElement('option'); op.value = kv[0]; op.textContent = kv[1]; if ((p.lang || 'zh-CN') === kv[0]) op.selected = true; ls.appendChild(op); });
+        ls.onmousedown = (e) => e.stopPropagation(); ls.onchange = (e) => { e.stopPropagation(); p.lang = e.target.value; scheduleAutosave(); };
+        lg.appendChild(ll); lg.appendChild(ls); panel.appendChild(lg);
+        const meta = document.createElement('div'); meta.className = 'fc-audio-meta'; meta.textContent = node.uploadedAudio ? '\u6765\u6E90\uFF1ATTS \u771F\u5B9E\u5408\u6210 \u00B7 \u6A21\u578B tts-1\uFF08OpenAI \u517C\u5BB9\uFF09' : (node._voPreview ? '\u6765\u6E90\uFF1A\u6D4F\u89C8\u5668\u8BED\u97F3\u8BD5\u542C\uFF08\u4E0D\u5BFC\u51FA\u6587\u4EF6\uFF09' : '\u672A\u8FD0\u884C');
+        panel.appendChild(meta);
+      });
+}
+
+function buildBgmBody(node, vbody) {
+      const p = node.params = node.params || {};
+      p.volume = Number(p.volume ?? 100);
+      const hasAudio = typeof node.uploadedAudio === 'string' && node.uploadedAudio.length > 0;
+      const pv = buildAudioPreview(node, vbody, { emptyText: '\u8F93\u51FA\u5C06\u663E\u793A\u5728\u8FD9\u91CC' });
+      const comp = document.createElement('div'); comp.className = 'fc-audio-composer';
+      const row = document.createElement('div'); row.className = 'fc-audio-chips';
+      const moodSel = document.createElement('select'); moodSel.className = 'fc-audio-chip';
+      Object.keys(BGM_MOODS).forEach((m) => { const op = document.createElement('option'); op.value = m; op.textContent = '\u60C5\u7EEA\uFF1A' + m; if ((p.mood || '\u8F7B\u5FEB') === m) op.selected = true; moodSel.appendChild(op); });
+      moodSel.onmousedown = (e) => e.stopPropagation();
+      moodSel.onchange = (e) => { e.stopPropagation(); p.mood = e.target.value; scheduleAutosave(); };
+      row.appendChild(moodSel);
+      const gen = document.createElement('button'); gen.type = 'button'; gen.className = 'fc-audio-gen'; gen.textContent = '\u266A \u751F\u6210';
+      gen.onmousedown = (e) => e.stopPropagation();
+      gen.onclick = (e) => {
+        e.stopPropagation(); gen.disabled = true; gen.textContent = '\u751F\u6210\u4E2D\u2026';
+        runBgmGenerateNode(node).then(function (g) {
+          gen.disabled = false;
+          if (!g) { gen.textContent = '\u266A \u751F\u6210'; showToast('\u5F53\u524D\u6D4F\u89C8\u5668\u4E0D\u652F\u6301\u79BB\u7EBF\u97F3\u9891\u5408\u6210', 'warn'); return; }
+          node.uploadedAudio = g.src; p.name = g.name; p.duration = g.duration; p.mime = g.mime;
+          node.outputsData = computeNodeOutput(node); setNodeResultMode(node, 'local');
+          if (node.el) buildNodeBody(node.el, node);
+          markEdgesDirty(); scheduleAutosave(); showToast('\u5DF2\u751F\u6210\u914D\u4E50', 'success');
+        });
+      };
+      row.appendChild(gen);
+      const upBtn = document.createElement('button'); upBtn.type = 'button'; upBtn.className = 'fc-audio-chip btn'; upBtn.textContent = hasAudio ? '\u66FF\u6362' : '\u4E0A\u4F20';
+      upBtn.onmousedown = (e) => e.stopPropagation(); upBtn.onclick = (e) => { e.stopPropagation(); openAudioFilePicker(node); };
+      row.appendChild(upBtn);
+      if (hasAudio) {
+        const cl = document.createElement('button'); cl.type = 'button'; cl.className = 'fc-audio-chip btn ghost'; cl.textContent = '\u6E05\u7A7A';
+        cl.onmousedown = (e) => e.stopPropagation();
+        cl.onclick = (e) => { e.stopPropagation(); node.uploadedAudio = ''; p.name = ''; p.duration = ''; p.mime = ''; if (p.assetId) delete p.assetId; fcComputePeaks._c = null; node.outputsData = computeNodeOutput(node); if (node.el) buildNodeBody(node.el, node); markEdgesDirty(); scheduleAutosave(); showToast('\u97F3\u9891\u5DF2\u6E05\u9664', 'success'); };
+        row.appendChild(cl);
+      }
+      comp.appendChild(row);
+      const label = document.createElement('div'); label.className = 'fc-audio-sublabel';
+      label.textContent = hasAudio ? (String(p.name || '').indexOf('AI') === 0 ? p.name : '\u672C\u5730\u97F3\u9891') : '\u672A\u9009\u62E9\u97F3\u9891\uFF08MP3 / WAV / M4A\uFF0C\u6216\u672C\u5730\u5408\u6210\uFF09';
+      comp.appendChild(label);
+      vbody.appendChild(comp);
+      buildAdvancedSection(vbody, function (panel) {
+        const dr = document.createElement('div'); dr.className = 'fc-audio-field';
+        const dl = document.createElement('span'); dl.className = 'fc-audio-field-label'; dl.textContent = '\u65F6\u957F';
+        const rng = document.createElement('input'); rng.type = 'range'; rng.className = 'fc-audio-range'; rng.min = '4'; rng.max = '12'; rng.step = '1'; rng.value = String(Math.max(4, Math.min(12, Number(p.loopSeconds) || 8)));
+        const val = document.createElement('span'); val.className = 'fc-audio-field-value'; val.textContent = (Number(p.loopSeconds) || 8) + 's';
+        rng.onmousedown = (e) => e.stopPropagation();
+        rng.oninput = (e) => { e.stopPropagation(); p.loopSeconds = Number(e.target.value); val.textContent = e.target.value + 's'; scheduleAutosave(); };
+        dr.appendChild(dl); dr.appendChild(rng); dr.appendChild(val); panel.appendChild(dr);
+        const vr = document.createElement('div'); vr.className = 'fc-audio-field';
+        const vl = document.createElement('span'); vl.className = 'fc-audio-field-label'; vl.textContent = '\u97F3\u91CF';
+        const vrng = document.createElement('input'); vrng.type = 'range'; vrng.className = 'fc-audio-range'; vrng.min = '0'; vrng.max = '100'; vrng.step = '1'; vrng.value = String(p.volume);
+        const vval = document.createElement('span'); vval.className = 'fc-audio-field-value'; vval.textContent = p.volume + '%';
+        vrng.onmousedown = (e) => e.stopPropagation();
+        vrng.oninput = (e) => { e.stopPropagation(); p.volume = Number(e.target.value); vval.textContent = e.target.value + '%'; if (pv.audio) pv.audio.volume = Math.min(1, Math.max(0, p.volume / 100)); node.outputsData = computeNodeOutput(node); markEdgesDirty(); scheduleAutosave(); };
+        vr.appendChild(vl); vr.appendChild(vrng); vr.appendChild(vval); panel.appendChild(vr);
+        const meta = document.createElement('div'); meta.className = 'fc-audio-meta'; meta.textContent = '\u683C\u5F0F\uFF1AWAV\uFF08\u514D\u7248\u6743\u672C\u5730\u5408\u6210\uFF09\u00B7 \u65F6\u957F/\u60C5\u7EEA\u4E3A\u751F\u6210\u53C2\u6570\uFF0C\u97F3\u91CF\u4E3A\u64AD\u653E\u589E\u76CA';
+        panel.appendChild(meta);
+      });
 }
 
 // 生成音乐情绪预设：bpm/波形/根音/音阶/是否铺底长音。
@@ -16878,6 +16904,12 @@ function computeNodeOutput(node) {
     case 'voiceover':
       out[0] = { type: 'audio', value: { name: '配音', duration: node.params.duration } };
       break;
+    case 'audio': {
+      const amode = (node.params && node.params.audioMode) === 'bgm' ? 'bgm' : 'voiceover';
+      if (amode === 'bgm') out[0] = { type: 'audio', value: { src: node.uploadedAudio || '', name: node.params.name || '', duration: node.params.duration || '', volume: Number(node.params.volume ?? 100), mime: node.params.mime || '' } };
+      else out[0] = { type: 'audio', value: { name: '配音', duration: node.params.duration } };
+      break;
+    }
     case 'subtitle':
       out[0] = { type: 'text', value: (node.params.lines || []).map(l => l.text).join(' / ') };
       break;
@@ -17567,6 +17599,34 @@ function executeNodeAsync(node, delay) {
             if (node.el) buildNodeBody(node.el, node);
             updateNodeStatus(node); markEdgesDirty(); scheduleAutosave();
             resolve(); return;
+          }
+        }
+
+        // 音频节点（配音/配乐二合一·按 audioMode 分派；整合批）
+        if (node.type === 'audio') {
+          const amode = (node.params && node.params.audioMode) === 'bgm' ? 'bgm' : 'voiceover';
+          if (amode === 'bgm') {
+            if (node.uploadedAudio) {
+              node.outputsData = computeNodeOutput(node); setNodeResultMode(node, 'local'); node.status = 'done';
+              logRun(node, true, Date.now() - _t0); if (node.el) buildNodeBody(node.el, node);
+              updateNodeStatus(node); markEdgesDirty(); scheduleAutosave(); resolve(); return;
+            }
+            const agen = await runBgmGenerateNode(node);
+            if (agen) {
+              node.uploadedAudio = agen.src; node.params.name = agen.name; node.params.duration = agen.duration; node.params.mime = agen.mime;
+              node.outputsData = computeNodeOutput(node); setNodeResultMode(node, 'local'); node.status = 'done';
+              captureGenMeta(node, Date.now() - _t0); logRun(node, true, Date.now() - _t0); if (node.el) buildNodeBody(node.el, node);
+              refreshConnectedSavePreviews(node); updateNodeStatus(node); markEdgesDirty(); scheduleAutosave(); resolve(); return;
+            }
+          } else {
+            const avo = await runVoiceoverNode(node);
+            if (avo) {
+              if (avo.src) { node.uploadedAudio = avo.src; node.params.duration = avo.duration; node.params.mime = avo.mime; node.params.name = 'AI 配音'; delete node._voPreview; node.outputsData = [{ type: 'audio', value: { src: avo.src, name: 'AI 配音', duration: avo.duration, volume: 100, mime: avo.mime } }]; }
+              else { node.params.duration = avo.duration; node._voPreview = true; node.outputsData = [{ type: 'audio', value: { name: '配音（仅试听·未导出）', duration: avo.duration, volume: 100, preview: true } }]; }
+              setNodeResultMode(node, avo.mode); node.status = 'done';
+              captureGenMeta(node, Date.now() - _t0); logRun(node, true, Date.now() - _t0); if (node.el) buildNodeBody(node.el, node);
+              refreshConnectedSavePreviews(node); updateNodeStatus(node); markEdgesDirty(); scheduleAutosave(); resolve(); return;
+            }
           }
         }
 
@@ -19492,7 +19552,7 @@ const CTX_NODE_SECTIONS = [
   { label: 'AI 生成', types: ['aiImage', 'imageEdit', 'aiVideo', 'aiSet'] },
   { label: '文本 / 提示词', types: ['text', 'script'] },
   { label: '素材 / 处理', types: ['image', 'videoInput', 'lineart', 'upscale', 'compare', 'material', 'light', 'layout'] },
-  { label: '视频成片', types: ['videoBreak', 'footage', 'voiceover', 'subtitle', 'bgm', 'compose', 'publish'] },
+  { label: '视频成片', types: ['videoBreak', 'footage', 'audio', 'subtitle', 'compose', 'publish'] },
   { label: '高级 / 本地', types: ['loop', 'comfyui'] },
   { label: '输出', types: ['save'] },
 ];
