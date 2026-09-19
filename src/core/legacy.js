@@ -18956,6 +18956,16 @@ function init() {
   // 场景分组面板
   document.getElementById('btnScenes').onclick = () => toggleScenePanel();
   document.getElementById('sceneClose').onclick = () => toggleScenePanel(false);
+  // 点面板外（画布空白、其它 UI）即关：与模板面板/其它浮层同契约。但有一条例外——点节点本体
+  // （.node）不关：场景卡上的「加入选中(N)」依赖「面板开着 → 画布点选节点 → 回面板点加入」这条
+  // 主流程，点节点即关会把它打断；工具栏开关按钮自身同样排除以保 toggle。
+  document.addEventListener('mousedown', (e) => {
+    const panel = document.getElementById('scenePanel');
+    if (!panel || !panel.classList.contains('show')) return;
+    if (panel.contains(e.target)) return;
+    if (e.target.closest && (e.target.closest('#btnScenes') || e.target.closest('.node'))) return;
+    toggleScenePanel(false);
+  }, true);
   document.getElementById('sceneNew').onclick = () => {
     const name = prompt('场景名称', '场景 ' + (workflow.scenes.length + 1));
     if (name !== null) createScene(name.trim() || ('场景 ' + (workflow.scenes.length + 1)));
@@ -19162,9 +19172,11 @@ function init() {
         const wf = document.getElementById('workflowPanel');
         const ap = document.getElementById('assetPanel');
         const tp = document.getElementById('templatePanel');
+        const sp = document.getElementById('scenePanel');
         if (wf && wf.classList.contains('show')) toggleWorkflowPanel(false);
         if (ap && ap.classList.contains('show')) toggleAssetPanel(false);
         if (tp && tp.classList.contains('show')) closeTemplatePanel();
+        if (sp && sp.classList.contains('show')) toggleScenePanel(false);
       }
     } else if (imageLightbox && imageLightbox.classList.contains('show')) {
       // 多图查看：左右方向键切换
