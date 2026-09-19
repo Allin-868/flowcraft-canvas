@@ -172,8 +172,8 @@ const tiers = await page.evaluate(() => {
 const tierOk = tiers.upscale === 'production' && tiers.lineart === 'production' && tiers.save === 'local' && tiers.reversePrompt === 'production'
   && tiers.compare === 'local' && tiers.videoBreak === 'local' && tiers.subtitle === 'local'
   && tiers.aiSet === 'production' && tiers.material === 'production' && tiers.light === 'production' && tiers.layout === 'production'
-  && tiers.footage === 'demo' && tiers.compose === 'demo' && tiers.publish === 'demo';
-check('registry 徽标与能力对齐（11 升档 + B 批 3 个如实保留 demo）', tierOk, JSON.stringify(tiers));
+  && tiers.footage === 'demo' && tiers.compose === 'local' && tiers.publish === 'local'; // C 批 compose/publish 升 local，仅 footage 保留 demo
+check('registry 徽标与能力对齐（11 升档 + compose/publish C 批升 local、footage 如实保留 demo）', tierOk, JSON.stringify(tiers));
 
 // ⑩ sidebar 节点库徽标与 registry tier 一致（钉第 9 处缺陷：lib 徽标曾在 registry 加载前同步渲染，永远吃 fallback）
 const libBadges = await page.evaluate(() => {

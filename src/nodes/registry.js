@@ -214,8 +214,8 @@ export const NodeContract = {
       outputs: [{ type: 'audio', label: '音频' }],
     },
     compose: {
-      label: '合成', tier: 'demo', runnable: true,
-      note: 'MoviePy 合成（演示数据）',
+      label: '合成', tier: 'local', runnable: true,
+      note: '合成（浏览器端真实合成：抽素材帧重绘 + 字幕烧制 + 配音/配乐混音 → webm；轻量抽帧非全帧率精修）',
       inputs: [
         { type: 'video', label: '素材', required: true },
         { type: 'audio', label: '配音', required: false },
@@ -225,8 +225,8 @@ export const NodeContract = {
       outputs: [{ type: 'video', label: '视频' }],
     },
     publish: {
-      label: '发布', tier: 'demo', runnable: true,
-      note: '多平台发布（演示数据）',
+      label: '发布', tier: 'local', runnable: true,
+      note: '发布（浏览器端真实交付包：成片引用 + 标题/简介/标签 + 封面 + 各平台上传深链，登录手动上传·不伪装已发布）',
       inputs: [{ type: 'video', label: '视频', required: true }],
       outputs: [],
     },

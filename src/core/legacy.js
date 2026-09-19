@@ -35,8 +35,8 @@ const NODE_TYPES = {
   voiceover: { label: '配音',  desc: 'TTS 配音',       color: 'var(--node-voiceover)', colorRaw: '#1D9E75', inputs: [{type:'text',label:'脚本'}], outputs: [{type:'audio',label:'音频'}], defaultParams: { text: '在这个AI改变一切的时代，有一种职业正在悄然消失...', lang: 'zh-CN', speed: '1.0', voice: '晓晓', duration: '45s' } },
   subtitle:  { label: '字幕',  desc: '自动生成',       color: 'var(--node-subtitle)',  colorRaw: '#888780', inputs: [{type:'audio',label:'音频'}], outputs: [{type:'text',label:'字幕'}], defaultParams: { lines: [{ time: '00:00', text: '在这个AI改变一切的时代...' }, { time: '00:05', text: '改变一切的时代...' }, { time: '00:10', text: '有一种职业...' }, { time: '00:15', text: '正在悄然消失...' }], style: '白色 · 底部居中 · 24px' } },
   bgm:       { label: '配乐',  desc: '生成音乐',       color: 'var(--node-bgm)',       colorRaw: '#BA7517', inputs: [], outputs: [{type:'audio',label:'音频'}], defaultParams: { name: '', duration: '', volume: 100, mood: '轻快', loopSeconds: 8 } },
-  compose:   { label: '合成',  desc: 'MoviePy',        color: 'var(--node-compose)',   colorRaw: '#D85A30', inputs: [{type:'video',label:'素材'},{type:'audio',label:'配音'},{type:'text',label:'字幕'},{type:'audio',label:'配乐'}], outputs: [{type:'video',label:'视频'}], defaultParams: { progress: 100, resolution: '1080×1920', duration: '45s', size: '12.3MB' } },
-  publish:   { label: '发布',  desc: '多平台',         color: 'var(--node-publish)',   colorRaw: '#639922', inputs: [{type:'video',label:'视频'}], outputs: [], defaultParams: { platforms: [{ name: 'TikTok', status: 'published' }, { name: 'YouTube', status: 'published' }, { name: 'Instagram', status: 'pending' }, { name: '小红书', status: 'pending' }] } }
+  compose:   { label: '合成',  desc: '本地合成',        color: 'var(--node-compose)',   colorRaw: '#D85A30', inputs: [{type:'video',label:'素材'},{type:'audio',label:'配音'},{type:'text',label:'字幕'},{type:'audio',label:'配乐'}], outputs: [{type:'video',label:'视频'}], defaultParams: { progress: 100, resolution: '1080×1920', duration: '45s', size: '12.3MB' } },
+  publish:   { label: '发布',  desc: '发布包',         color: 'var(--node-publish)',   colorRaw: '#639922', inputs: [{type:'video',label:'视频'}], outputs: [], defaultParams: { platforms: [{ name: 'TikTok', status: 'published' }, { name: 'YouTube', status: 'published' }, { name: 'Instagram', status: 'pending' }, { name: '小红书', status: 'pending' }] } }
 };
 
 // 节点库图标 (内联 SVG)
@@ -10735,54 +10735,69 @@ function buildNodeBody(el, node) {
 
     else if (node.type === 'compose') {
       const p = node.params;
-      // 进度条
-      const prog = document.createElement('div');
-      prog.className = 'vg-compose-progress';
-      const track = document.createElement('div');
-      track.className = 'vg-progress-track';
-      const fill = document.createElement('div');
-      fill.className = 'vg-progress-fill';
-      fill.style.width = (p.progress || 0) + '%';
-      track.appendChild(fill);
-      prog.appendChild(track);
-      const plabel = document.createElement('span');
-      plabel.className = 'vg-progress-label';
-      plabel.textContent = (p.progress || 0) + '%';
-      prog.appendChild(plabel);
-      vbody.appendChild(prog);
-      // 缩略图
+      const compUrl = node._compositedUrl;
+      // 预览：已合成 → 真实播放器；否则占位缩略
       const thumb = document.createElement('div');
       thumb.className = 'vg-compose-thumb';
-      thumb.innerHTML = '<img src="' + createPlaceholderDataURL(120, 70, 200, '') + '">';
+      if (compUrl) {
+        const ve = document.createElement('video');
+        ve.className = 'vg-compose-video';
+        ve.controls = true; ve.src = compUrl; ve.playsInline = true;
+        ve.onmousedown = (e) => e.stopPropagation();
+        thumb.appendChild(ve);
+      } else {
+        thumb.innerHTML = '<img src="' + (node.thumb || createPlaceholderDataURL(120, 70, 200, '')) + '">';
+      }
       vbody.appendChild(thumb);
-      // 信息
+      // 信息（真实优先，未合成回落参数占位）
       const info = document.createElement('div');
       info.className = 'vg-compose-info';
-      [p.resolution, p.duration, p.size].forEach(t => {
+      [p.resolution, p.duration, p.size].filter(Boolean).forEach(t => {
         const item = document.createElement('span');
         item.className = 'vg-compose-info-item';
         item.textContent = t;
         info.appendChild(item);
       });
       vbody.appendChild(info);
-      // 合成按钮
+      // 合成 / 重新合成按钮：真实驱动一次浏览器端合成
       const btn = document.createElement('button');
       btn.className = 'vg-compose-btn';
-      btn.textContent = '合成视频';
-      btn.onclick = (e) => { e.stopPropagation(); };
+      btn.textContent = compUrl ? '重新合成' : '合成视频';
       btn.onmousedown = (e) => e.stopPropagation();
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        if (btn.dataset.busy) return;
+        btn.dataset.busy = '1'; const old = btn.textContent; btn.textContent = '合成中…'; btn.disabled = true;
+        executeNodeAsync(node, 0).then(() => { btn.dataset.busy = ''; }).catch(() => { btn.dataset.busy = ''; btn.textContent = old; btn.disabled = false; });
+      };
       vbody.appendChild(btn);
     }
 
     else if (node.type === 'publish') {
-      // 平台列表
+      const pack = node.params.publishPack;
+      if (pack) {
+        // 真实封面 + 标题/简介/标签摘要
+        if (pack.cover) {
+          const cov = document.createElement('div');
+          cov.className = 'vg-publish-cover';
+          cov.innerHTML = '<img src="' + pack.cover + '">';
+          vbody.appendChild(cov);
+        }
+        const meta = document.createElement('div');
+        meta.className = 'vg-publish-meta';
+        const mt = document.createElement('div'); mt.className = 'vg-publish-title-line'; mt.textContent = pack.title; meta.appendChild(mt);
+        if (pack.description) { const md = document.createElement('div'); md.className = 'vg-publish-desc'; md.textContent = pack.description; meta.appendChild(md); }
+        if (pack.tags && pack.tags.length) { const tg = document.createElement('div'); tg.className = 'vg-publish-tags'; tg.textContent = pack.tags.map((x) => '#' + x).join(' '); meta.appendChild(tg); }
+        vbody.appendChild(meta);
+      }
+      // 平台上传深链（真实可点入口，手动上传口径，不伪装已发布）
       const plist = document.createElement('div');
       plist.className = 'vg-publish-list';
-      (node.params.platforms || []).forEach(pf => {
+      ((pack && pack.platforms) || (node.params.platforms || [])).forEach(pf => {
         const item = document.createElement('div');
         item.className = 'vg-publish-item';
         const dot = document.createElement('span');
-        dot.className = 'vg-publish-dot ' + pf.status;
+        dot.className = 'vg-publish-dot ' + (pack ? 'ready' : 'pending');
         item.appendChild(dot);
         const nm = document.createElement('span');
         nm.className = 'vg-publish-name';
@@ -10790,17 +10805,33 @@ function buildNodeBody(el, node) {
         item.appendChild(nm);
         const st = document.createElement('span');
         st.className = 'vg-publish-status';
-        st.textContent = pf.status === 'published' ? '已发布' : (pf.status === 'failed' ? '失败' : '待发布');
+        const url = pf.uploadUrl || publishUploadUrl(pf.name);
+        if (url) {
+          st.textContent = '上传 ›'; st.className = 'vg-publish-status link';
+          st.onclick = (e) => { e.stopPropagation(); try { window.open(url, '_blank', 'noopener'); } catch (err) {} };
+        } else {
+          st.textContent = pack ? '需手动上传' : '待发布';
+        }
         item.appendChild(st);
         plist.appendChild(item);
       });
       vbody.appendChild(plist);
-      // 发布按钮
+      // 生成 / 导出发布包按钮
       const btn = document.createElement('button');
       btn.className = 'vg-publish-btn';
-      btn.textContent = '一键发布';
-      btn.onclick = (e) => { e.stopPropagation(); };
       btn.onmousedown = (e) => e.stopPropagation();
+      if (pack) {
+        btn.textContent = '导出发布包';
+        btn.onclick = (e) => { e.stopPropagation(); downloadPublishPack(pack); };
+      } else {
+        btn.textContent = '生成交付包';
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          if (btn.dataset.busy) return;
+          btn.dataset.busy = '1'; btn.textContent = '生成中…';
+          executeNodeAsync(node, 0).then(() => {}).catch(() => { btn.dataset.busy = ''; btn.textContent = '生成交付包'; });
+        };
+      }
       vbody.appendChild(btn);
     }
 
@@ -16472,7 +16503,263 @@ async function runBgmGenerateNode(node) {
   return { src: wav, duration: formatAudioDuration(secs), name: 'AI·' + safeMood + '配乐', mime: 'audio/wav' };
 }
 
+// ============ C 批：合成 / 发布 —— 浏览器端真实本地能力（零服务端 / 零密钥） ============
+// 合成不再吐假 progress:100：抽上游素材片段的关键帧 → 逐帧重绘到目标画布 + 烧制字幕 →
+// canvas.captureStream(0) 手动投帧 + MediaRecorder 录制为 webm；配音/配乐经 AudioContext 混音，
+// 录制墙钟等于片段总时长，音画对齐。轻量抽帧重绘（非全帧率 ffmpeg 精修），故如实标 local。
+function fcSleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function fcLoadImage(dUrl) {
+  return new Promise(function (resolve, reject) {
+    const im = new Image();
+    const to = setTimeout(function () { reject(new Error("图片解码超时")); }, 10000);
+    im.onload = function () { clearTimeout(to); resolve(im); };
+    im.onerror = function () { clearTimeout(to); reject(new Error("图片解码失败")); };
+    im.src = dUrl;
+  });
+}
+function fcParseRes(s) {
+  const m = String(s || "").match(/(\d+)\s*[\u00d7xX*]\s*(\d+)/);
+  let w = m ? +m[1] : 720, h = m ? +m[2] : 1280;
+  const scale = Math.min(1, 720 / Math.max(w, h));
+  w = Math.max(2, Math.round(w * scale / 2) * 2);
+  h = Math.max(2, Math.round(h * scale / 2) * 2);
+  return { w: w, h: h };
+}
+function fcPickRecorderMime() {
+  const list = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+  for (let i = 0; i < list.length; i++) {
+    try { if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(list[i])) return list[i]; } catch (e) {}
+  }
+  return "";
+}
+function fcFormatBytes(n) {
+  n = Number(n) || 0;
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + "MB";
+  if (n >= 1024) return Math.round(n / 1024) + "KB";
+  return n + "B";
+}
+function fcDrawCover(ctx, img, w, h) {
+  const ir = (img.width && img.height) ? img.width / img.height : 1, cr = w / h;
+  let dw = w, dh = h, dx = 0, dy = 0;
+  if (ir > cr) { dh = h; dw = Math.round(h * ir); dx = Math.round((w - dw) / 2); }
+  else { dw = w; dh = Math.round(w / ir); dy = Math.round((h - dh) / 2); }
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+  try { ctx.drawImage(img, dx, dy, dw, dh); } catch (e) {}
+}
+function fcDrawCaption(ctx, text, w, h) {
+  const t = String(text || "").trim(); if (!t) return;
+  const px = Math.max(16, Math.round(w * 0.048));
+  const maxChars = Math.max(6, Math.floor((w * 0.86) / px));
+  const out = []; for (let i = 0; i < t.length; i += maxChars) out.push(t.slice(i, i + maxChars));
+  const shown = out.slice(0, 3); const lh = Math.round(px * 1.28); const boxH = shown.length * lh + Math.round(px * 0.7);
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(0, h - boxH, w, boxH);
+  ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+  ctx.font = "600 " + px + "px -apple-system, PingFang SC, system-ui, sans-serif";
+  shown.forEach(function (ln, i) { ctx.fillText(ln, Math.round(w / 2), h - Math.round(px * 0.35) - (shown.length - 1 - i) * lh); });
+  ctx.restore();
+}
+function fcLoadVideo(src) {
+  return new Promise(function (resolve, reject) {
+    const v = document.createElement("video");
+    try { v.crossOrigin = "anonymous"; } catch (e) {}
+    v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = src;
+    const to = setTimeout(function () { reject(new Error("视频加载超时")); }, 15000);
+    v.onloadedmetadata = function () { clearTimeout(to); resolve(v); };
+    v.onerror = function () { clearTimeout(to); reject(new Error("视频加载失败")); };
+  });
+}
+// 上游视频片段（素材 / 已上传 / compose 产物）：统一成 [{src,poster,duration,name}]
+function collectUpstreamVideos(node) {
+  const out = [];
+  gatherInputs(node);
+  (node.inputsData || []).forEach(function (d) {
+    if (!d || d.type !== "video") return;
+    const v = d.value;
+    if (v && typeof v === "object" && v.src) out.push(v);
+    else if (typeof v === "string" && v) out.push({ src: v });
+  });
+  return out;
+}
+function collectUpstreamAudios(node) {
+  const out = [];
+  gatherInputs(node);
+  (node.inputsData || []).forEach(function (d) {
+    if (!d || d.type !== "audio") return;
+    const v = d.value;
+    if (v && typeof v === "object" && v.src) out.push(v);
+    else if (typeof v === "string" && v) out.push({ src: v });
+  });
+  return out;
+}
+// 字幕：优先上游 subtitle 节点 params.lines（带时间轴），否则退化到 text 端口按分隔切分
+function collectComposeCaptions(node) {
+  const lines = [];
+  try {
+    [...workflow.edges.values()].forEach(function (e) {
+      if (e.to.node !== node) return;
+      const src = e.from.node;
+      if (src && src.type === "subtitle" && Array.isArray(src.params.lines)) {
+        src.params.lines.forEach(function (l) { if (l && l.text) lines.push({ start: +l.start || 0, end: +l.end || 0, text: String(l.text) }); });
+      }
+    });
+  } catch (err) {}
+  if (!lines.length) {
+    const t = collectUpstreamScriptText(node);
+    String(t || "").split(/[\/\n\r\u3002\uff1b;\uff01!\uff1f?]+/).map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (s) { lines.push({ text: s }); });
+  }
+  return lines;
+}
+async function runComposeNode(node) {
+  const clips = collectUpstreamVideos(node);
+  if (!clips.length) return null;
+  const canvasProbe = document.createElement("canvas");
+  if (typeof canvasProbe.captureStream !== "function" || typeof MediaRecorder === "undefined") return null;
+  const mime = fcPickRecorderMime();
+  if (!mime) return null;
+  const res = fcParseRes(node.params.resolution);
+  const canvas = document.createElement("canvas"); canvas.width = res.w; canvas.height = res.h;
+  const ctx = canvas.getContext("2d");
+  const captions = collectComposeCaptions(node);
+  const audios = collectUpstreamAudios(node);
+  // 预取每个片段的有限时长 + 抽帧（复用反推抽帧管线，含 duration 鲁棒处理）
+  const MAX_CLIPS = 6, MAX_TOTAL = 45, FPS = 12, MAX_SAMPLES = 60;
+  const segs = []; let total = 0;
+  for (let i = 0; i < Math.min(clips.length, MAX_CLIPS); i++) {
+    let dur = clips[i].duration;
+    let frames = null, useDur = 0;
+    try {
+      const v = await fcLoadVideo(clips[i].src);
+      if (!(isFinite(v.duration) && v.duration > 0)) { try { await new Promise(function (rs, rj) { const t = setTimeout(rj, 6000); v.onloadedmetadata = function () { clearTimeout(t); rs(); }; v.onerror = function () { clearTimeout(t); rj(); }; }); } catch (e) {} }
+      dur = (isFinite(v.duration) && v.duration > 0) ? v.duration : (+dur || 0);
+      if (dur <= 0 || !v.videoWidth) continue;
+      if (total >= MAX_TOTAL) break;
+      useDur = Math.min(dur, MAX_TOTAL - total);
+      const count = Math.max(1, Math.min(MAX_SAMPLES, Math.round(useDur * FPS)));
+      try { frames = await extractUniformFrames(v, count, Math.max(res.w, res.h)); } catch (e) { frames = null; }
+    } catch (e) { continue; }
+    if (!frames || !frames.length) {
+      if (clips[i].poster) frames = [clips[i].poster]; else continue;
+    }
+    const step = useDur / frames.length;
+    segs.push({ frames: frames, step: step, start: total });
+    total += useDur;
+  }
+  if (!segs.length || total <= 0) return null;
+  // 字幕时间轴：有显式 start/end 用之，否则在总时长内均分
+  const hasTime = captions.length > 0 && captions.every(function (c) { return c.end > c.start; });
+  if (!hasTime && captions.length) { const cstep = total / captions.length; captions.forEach(function (c, i) { c.start = i * cstep; c.end = (i + 1) * cstep; }); }
+  function captionAt(t) { for (let i = 0; i < captions.length; i++) { if (t >= captions[i].start && t < captions[i].end) return captions[i].text; } return ""; }
+  // 音频混音（可选，尽力而为）
+  let audioCtx = null, audioDest = null, audioBuffers = [];   
+  if (audios.length && typeof AudioContext !== "undefined") {
+    try {
+      audioCtx = new AudioContext(); audioDest = audioCtx.createMediaStreamDestination();
+      for (let i = 0; i < Math.min(audios.length, 2); i++) {
+        try { const r = await fetch(audios[i].src); const ab = await r.arrayBuffer(); const d = await audioCtx.decodeAudioData(ab.slice(0)); if (d) audioBuffers.push(d); } catch (e) {}
+      }
+      if (!audioBuffers.length) { audioCtx.close(); audioCtx = null; audioDest = null; }
+    } catch (e) { audioCtx = null; audioDest = null; }
+  }
+  const stream = canvas.captureStream(30);
+  const track = stream.getVideoTracks()[0];
+  if (audioDest) { try { audioDest.stream.getAudioTracks().forEach(function (t) { stream.addTrack(t); }); } catch (e) {} }
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2500000 });
+  const chunks = [];
+  rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+  const stopped = new Promise(function (r) { rec.onstop = r; });
+  let audioSources = [];
+  try {
+    rec.start(200);
+    if (audioCtx) {
+      try { await audioCtx.resume(); } catch (e) {}
+      audioBuffers.forEach(function (b) { try { const s = audioCtx.createBufferSource(); s.buffer = b; s.connect(audioDest); s.start(); audioSources.push(s); } catch (e) {} });
+    }
+    for (let si = 0; si < segs.length; si++) {
+      const seg = segs[si];
+      for (let fi = 0; fi < seg.frames.length; fi++) {
+        let img = null; try { img = await fcLoadImage(seg.frames[fi]); } catch (e) {}
+        if (img) fcDrawCover(ctx, img, res.w, res.h); else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, res.w, res.h); }
+        fcDrawCaption(ctx, captionAt(seg.start + fi * seg.step), res.w, res.h);
+        try { if (track && track.requestFrame) track.requestFrame(); } catch (e) {}
+        await fcSleep(Math.max(28, Math.round(seg.step * 1000)));
+      }
+    }
+    await fcSleep(120);
+  } finally {
+    try { rec.stop(); } catch (e) {}
+    await stopped;
+    audioSources.forEach(function (s) { try { s.stop(); } catch (e) {} });
+    if (audioCtx) { try { await audioCtx.close(); } catch (e) {} }
+    try { stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+  }
+  const blob = new Blob(chunks, { type: mime.split(";")[0] });
+  if (!blob || blob.size < 512) return null;
+  const url = URL.createObjectURL(blob);
+  // 封面：末帧已绘于 canvas，直接导出（同帧含字幕，作真实缩略）
+  let poster = ""; try { poster = canvas.toDataURL("image/jpeg", 0.72); } catch (e) {}
+  const wActual = res.w, hActual = res.h;
+  return { url: url, poster: poster, duration: total, bytes: blob.size, w: wActual, h: hActual, mime: mime.split(";")[0] };
+}
+// 发布：产出真实「发布包」（成片引用 + 标题/简介/标签 + 封面 + 各平台上传深链），手动上传口径，不伪装已发布
+var PUBLISH_PLATFORMS = {
+  "YouTube": "https://studio.youtube.com/", "youtube": "https://studio.youtube.com/",
+  "TikTok": "https://www.tiktok.com/upload", "tiktok": "https://www.tiktok.com/upload",
+  "\u6296\u97f3": "https://www.douyin.com/creator-micro/content/upload",
+  "B\u7ad9": "https://member.bilibili.com/platform/upload/video/frame", "bilibili": "https://member.bilibili.com/platform/upload/video/frame", "\u55b5\u7ad9": "https://member.bilibili.com/platform/upload/video/frame",
+  "\u5c0f\u7ea2\u4e66": "https://creator.xiaohongshu.com/publish/publish", "xiaohongshu": "https://creator.xiaohongshu.com/publish/publish",
+  "Instagram": "https://www.instagram.com/", "instagram": "https://www.instagram.com/",
+  "\u89c6\u9891\u53f7": "https://channels.weixin.qq.com/platform/post/create"
+};
+function publishUploadUrl(name) { return PUBLISH_PLATFORMS[String(name || "").trim()] || PUBLISH_PLATFORMS[String(name || "").trim().toLowerCase()] || ""; }
+async function runPublishNode(node) {
+  gatherInputs(node);
+  let video = null;
+  (node.inputsData || []).forEach(function (d) {
+    if (!d || d.type !== "video" || video) return;
+    const v = d.value;
+    if (v && typeof v === "object" && v.src) video = v; else if (typeof v === "string" && v) video = { src: v };
+  });
+  if (!video) return null;
+  const title = String(node.params.title || node.title || "FlowCraft \u6210\u7247").trim();
+  const desc = String(node.params.description || collectUpstreamScriptText(node) || "").trim();
+  const tags = Array.isArray(node.params.tags) ? node.params.tags.filter(Boolean) : String(node.params.tags || "").split(/[,\s\uff0c\u3001]+/).filter(Boolean);
+  const platSrc = (Array.isArray(node.params.platforms) && node.params.platforms.length) ? node.params.platforms : [{ name: "YouTube" }, { name: "\u6296\u97f3" }, { name: "B\u7ad9" }, { name: "\u5c0f\u7ea2\u4e66" }];
+  const platforms = platSrc.map(function (p) { const name = String(p.name || p || "").trim(); return { name: name, uploadUrl: publishUploadUrl(name) }; });
+  let cover = "";
+  try { const v = await fcLoadVideo(video.src); const fr = await extractUniformFrames(v, 1, 640); if (fr && fr[0]) cover = fr[0]; } catch (e) { cover = ""; }
+  const pack = {
+    title: title, description: desc, tags: tags, platforms: platforms, cover: cover,
+    videoSrc: video.src, videoPoster: video.poster || cover, duration: video.duration || "",
+    fileName: title.replace(/[\\/:*?"<>|]/g, "_"), createdAt: new Date().toISOString(),
+  };
+  node.params.publishPack = pack;
+  return pack;
+}
+function buildPublishPackText(pack) {
+  const L = [];
+  L.push("\u6807\u9898\uff1a" + pack.title);
+  L.push("\u7b80\u4ecb\uff1a" + (pack.description || "\uff08\u65e0\uff09"));
+  L.push("\u6807\u7b7e\uff1a" + (pack.tags && pack.tags.length ? pack.tags.map(function (t) { return "#" + t; }).join(" ") : "\uff08\u65e0\uff09"));
+  if (pack.duration) L.push("\u65f6\u957f\uff1a" + pack.duration);
+  L.push("\u5bfc\u51fa\u65f6\u95f4\uff1a" + pack.createdAt);
+  L.push("", "\u2014\u2014 \u5404\u5e73\u53f0\u4e0a\u4f20\u5165\u53e3\uff08\u767b\u5f55\u540e\u70b9\u5f00\u5373\u53ef\u4f20\u8f93\u672c\u6210\u7247\uff09 \u2014\u2014");
+  (pack.platforms || []).forEach(function (p) { L.push(p.name + "\uff1a" + (p.uploadUrl || "\uff08\u65e0\u516c\u5f00\u4e0a\u4f20\u5165\u53e3\uff0c\u9700\u624b\u52a8\u4e0a\u4f20\uff09")); });
+  return L.join("\n");
+}
+async function downloadPublishPack(pack) {
+  if (!pack) return false;
+  let done = 0;
+  try { if (await downloadDataUrl("data:text/plain;charset=utf-8," + encodeURIComponent(buildPublishPackText(pack)), pack.fileName + "-\u53d1\u5e03\u6587\u6848.txt")) done++; } catch (e) {}
+  if (pack.cover) { try { if (await downloadDataUrl(pack.cover, pack.fileName + "-\u5c01\u9762.jpg")) done++; } catch (e) {} }
+  try { if (await downloadDataUrl(pack.videoSrc, pack.fileName + ".mp4")) done++; } catch (e) {}
+  try { await navigator.clipboard.writeText(pack.title + "\n\n" + (pack.description || "") + "\n\n" + (pack.tags || []).map(function (t) { return "#" + t; }).join(" ")); } catch (e) {}
+  if (typeof showToast === "function") showToast("\u5df2\u751f\u6210\u53d1\u5e03\u5305\uff1a\u6210\u7247 + \u6587\u6848 + \u5c01\u9762\uff08\u5171 " + done + " \u9879\uff09\uff0c\u767b\u5f55\u540e\u70b9\u5404\u5e73\u53f0\u5165\u53e3\u4f20\u8f93", "success");
+  return done > 0;
+}
+
 function computeNodeOutput(node) {
+
   const def = node.def;
   const outDefs = def.outputs || [];
   const inputs = node.inputsData || [];
@@ -17059,6 +17346,50 @@ function executeNodeAsync(node, delay) {
           scheduleAutosave();
           resolve();
           return;
+        }
+
+        // 合成节点：浏览器端真实合成成片（C 批补齐，替代假 progress:100）
+        if (node.type === "compose") {
+          const cp = await runComposeNode(node);
+          if (cp) {
+            node._compositedUrl = cp.url;
+            node.thumb = cp.poster || node.thumb;
+            node.params.progress = 100;
+            node.params.duration = Math.round(cp.duration) + "s";
+            node.params.resolution = cp.w + "\u00d7" + cp.h;
+            node.params.size = fcFormatBytes(cp.bytes);
+            node.outputsData = [{ type: "video", value: { src: cp.url, poster: cp.poster, duration: cp.duration, name: (node.title || "compose") + ".webm" } }];
+            setNodeResultMode(node, "local");
+            node.status = "done";
+            captureGenMeta(node, Date.now() - _t0);
+            logRun(node, true, Date.now() - _t0);
+            if (node.el) buildNodeBody(node.el, node);
+            refreshConnectedSavePreviews(node);
+            updateNodeStatus(node);
+            markEdgesDirty();
+            scheduleAutosave();
+            resolve();
+            return;
+          }
+          // 无真实视频输入 → 落下方 computeNodeOutput 占位兜底（如实 demo）
+        }
+
+        // 发布节点：真实生成交付包（C 批补齐，替代假 status:published）
+        if (node.type === "publish") {
+          const pk = await runPublishNode(node);
+          if (pk) {
+            node.outputsData = [];
+            setNodeResultMode(node, "local");
+            node.status = "done";
+            captureGenMeta(node, Date.now() - _t0);
+            logRun(node, true, Date.now() - _t0);
+            if (node.el) buildNodeBody(node.el, node);
+            updateNodeStatus(node);
+            markEdgesDirty();
+            scheduleAutosave();
+            resolve();
+            return;
+          }
         }
 
         // 对比节点：真实拼接上游两张图（A 批补齐，替代「原/果」占位图）

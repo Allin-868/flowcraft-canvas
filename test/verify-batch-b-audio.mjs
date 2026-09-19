@@ -113,8 +113,8 @@ const tiers = await page.evaluate(() => {
   const g = (t) => window.FlowCraft.nodes.getNodeMeta(t).tier;
   return { voiceover: g('voiceover'), bgm: g('bgm'), compose: g('compose'), publish: g('publish'), footage: g('footage') };
 });
-check('registry 徽标对齐（voiceover→production、bgm→local；剩余服务端类如实 demo）',
-  tiers.voiceover === 'production' && tiers.bgm === 'local' && tiers.compose === 'demo' && tiers.publish === 'demo' && tiers.footage === 'demo', JSON.stringify(tiers));
+check('registry 徽标对齐（voiceover→production、bgm→local；C 批 compose/publish→local；footage 如实 demo）',
+  tiers.voiceover === 'production' && tiers.bgm === 'local' && tiers.compose === 'local' && tiers.publish === 'local' && tiers.footage === 'demo', JSON.stringify(tiers));
 
 // ⑦ 无 pageerror
 check('全程无 pageerror', errors.length === 0, errors.slice(0, 2).join(' | '));
