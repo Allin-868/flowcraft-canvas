@@ -4298,6 +4298,22 @@ body {
    右滑入动画保留：收起态 translate(calc(100% + 12px), -50%)，展开态 translateY(-50%)。 */
 .scene-panel { position: fixed; top:50%; right:12px; width:340px; max-width:92vw; max-height:80vh; background:var(--bg-panel); border:1px solid var(--border-subtle); border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.35); transform: translate(calc(100% + 12px), -50%); transition: transform .2s ease; z-index:160; display:flex; flex-direction:column; overflow:hidden; }
 .scene-panel.show { transform: translateY(-50%); }
+/* 应用内对话框（第 7 处缺陷修复）：遮罩 + 画面正中的卡片，替代原生 prompt 的左上角定位 */
+.app-dialog-overlay { position:fixed; inset:0; z-index:420; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; }
+.app-dialog { width:min(420px,92vw); max-height:80vh; overflow:auto; background:var(--bg-panel); border:1px solid var(--border-subtle); border-radius:12px; box-shadow:0 16px 48px rgba(0,0,0,.45); padding:16px; display:flex; flex-direction:column; gap:10px; }
+.app-dialog-title { font-size:14px; font-weight:600; color:var(--text-1); }
+.app-dialog-label { font-size:12px; color:var(--text-3); line-height:1.5; }
+.app-dialog-input { height:34px; padding:0 10px; background:var(--bg-input); color:var(--text-1); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); outline:none; font-size:13px; }
+.app-dialog-input:focus { border-color:#5B8DEF; }
+.app-dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:2px; }
+.app-dialog-btn { height:30px; padding:0 14px; background:transparent; color:var(--text-2); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; font-size:13px; }
+.app-dialog-btn:hover { background:var(--bg-button); color:var(--text-1); }
+.app-dialog-btn.primary { background:#5B8DEF; border-color:#5B8DEF; color:#fff; }
+.app-dialog-btn.primary:hover { background:#4A7DE0; color:#fff; }
+.app-dialog-choices { display:flex; flex-direction:column; gap:6px; max-height:46vh; overflow:auto; }
+.app-dialog-choice { display:flex; align-items:center; gap:8px; padding:8px 10px; background:transparent; color:var(--text-1); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); cursor:pointer; font-size:13px; text-align:left; }
+.app-dialog-choice:hover { background:var(--bg-button); }
+.app-dialog-choice em { margin-left:auto; font-style:normal; font-size:11px; color:var(--text-3); }
 .scene-header { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border-subtle); gap:8px; }
 .scene-title { font-size:13px; font-weight:600; color:var(--text-1); }
 .scene-count { background:var(--bg-input); color:var(--text-2); border-radius:10px; padding:1px 7px; font-size:11px; margin-left:4px; }

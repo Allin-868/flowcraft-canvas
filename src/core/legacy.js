@@ -3810,6 +3810,66 @@ function bindTemplateEvents() {
   });
 }
 
+//================ 应用内对话框（替代浏览器原生 prompt，2026-09-19 第 7 处缺陷修复） ================
+// 原生 prompt 被 Chrome 钉在窗口左上角（用户截图：太靠近画布顶部、要到画面中心），
+// 样式不受应用控制、也无法移位，唯一解是应用内浮层。契约与既有浮层对齐：Esc/点遮罩/取消
+// 关闭；Esc 在捕获阶段 stopPropagation，避免连带关掉后面的场景面板（全局 Esc 链不吃到它）。
+function showAppInputDialog(opts) {
+  const o = opts || {};
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'app-dialog-overlay';
+    const box = document.createElement('div');
+    box.className = 'app-dialog';
+    box.innerHTML =
+      '<div class="app-dialog-title">' + esc(o.title || '请输入') + '</div>' +
+      (o.label ? '<div class="app-dialog-label">' + esc(o.label) + '</div>' : '') +
+      '<input class="app-dialog-input" type="text" autocomplete="off" spellcheck="false" />' +
+      '<div class="app-dialog-actions"><button class="app-dialog-btn" data-role="cancel">取消</button><button class="app-dialog-btn primary" data-role="ok">' + esc(o.confirmText || '确定') + '</button></div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    const input = box.querySelector('.app-dialog-input');
+    input.value = o.value || '';
+    const done = (v) => { document.removeEventListener('keydown', onKey, true); overlay.remove(); resolve(v); };
+    const onKey = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); done(input.value); }
+      else if (e.key === 'Escape') { e.stopPropagation(); done(null); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) done(null); });
+    box.querySelector('[data-role="cancel"]').onclick = () => done(null);
+    box.querySelector('[data-role="ok"]').onclick = () => done(input.value);
+    requestAnimationFrame(() => { input.focus(); input.select(); });
+  });
+}
+// 选择型：把候选渲染成可点卡片（替代「输入序号」这种反直觉的原生 prompt）
+function showAppChoiceDialog(title, hint, items) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'app-dialog-overlay';
+    const box = document.createElement('div');
+    box.className = 'app-dialog';
+    box.innerHTML =
+      '<div class="app-dialog-title">' + esc(title) + '</div>' +
+      (hint ? '<div class="app-dialog-label">' + esc(hint) + '</div>' : '') +
+      '<div class="app-dialog-choices"></div>' +
+      '<div class="app-dialog-actions"><button class="app-dialog-btn" data-role="cancel">取消</button></div>';
+    const listEl = box.querySelector('.app-dialog-choices');
+    listEl.innerHTML = items.map((it) =>
+      '<button class="app-dialog-choice" data-id="' + esc(it.id) + '">' +
+      (it.color ? '<span class="scene-dot" style="background:' + esc(it.color) + '"></span>' : '') +
+      '<span>' + esc(it.label) + '</span>' + (it.meta ? '<em>' + esc(it.meta) + '</em>' : '') + '</button>').join('');
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    const done = (v) => { document.removeEventListener('keydown', onKey, true); overlay.remove(); resolve(v); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(null); } };
+    document.addEventListener('keydown', onKey, true);
+    overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) done(null); });
+    box.querySelector('[data-role="cancel"]').onclick = () => done(null);
+    listEl.addEventListener('click', (e) => { const b = e.target.closest('.app-dialog-choice'); if (b) done(b.getAttribute('data-id')); });
+  });
+}
+
 function renderScenePanel() {
   const list = document.getElementById('sceneList');
   const count = document.getElementById('sceneCount');
@@ -3837,17 +3897,20 @@ function renderScenePanel() {
   }).join('');
 }
 
-function assignSelectedToScenePrompt() {
+function assignSelectedToScenePicker() {
   if (workflow.scenes.length === 0) { showToast('请先在场景面板新建一个场景', 'info'); return; }
-  const sel = [...workflow.selection].map(n => n.id);
+  const sel = [...workflow.selection]; // selection 存的就是 id 字符串，旧代码 .map(n=>n.id) 恒得 undefined（第 8 处缺陷）
   if (sel.length === 0) { showToast('请先选中要归入场景的节点', 'info'); return; }
-  const lines = workflow.scenes.map((s, i) => (i + 1) + '. ' + s.name).join('\n');
-  const ans = prompt('把这 ' + sel.length + ' 个节点加入哪个场景？\n输入序号：\n' + lines);
-  if (!ans) return;
-  const idx = parseInt(ans) - 1;
-  if (isNaN(idx) || !workflow.scenes[idx]) { showToast('无效的选择', 'danger'); return; }
-  addNodesToScene(workflow.scenes[idx].id, sel);
-  showToast('已加入场景「' + workflow.scenes[idx].name + '」', 'success');
+  showAppChoiceDialog('加入场景', '把选中的 ' + sel.length + ' 个节点加入哪个场景？点击选择',
+    workflow.scenes.map(s => ({ id: s.id, label: s.name, color: s.color,
+      meta: (s.nodeIds || []).filter(id => workflow.nodes.has(id)).length + ' 个成员' })))
+    .then((id) => {
+      if (!id) return;
+      const scene = workflow.scenes.find(s => s.id === id);
+      if (!scene) { showToast('无效的选择', 'danger'); return; }
+      addNodesToScene(scene.id, sel);
+      showToast('已加入场景「' + scene.name + '」', 'success');
+    });
 }
 
 function renderShotPanel() {
@@ -18774,7 +18837,7 @@ function showContextMenu(x, y, node) {
       addMenuItem('运行选中子图', MENU_ICONS.run, '', () => runWorkflow({ scope: 'selection' }));
     }
     addMenuItem('从该节点运行到末端', MENU_ICONS.run, '', () => runWorkflow({ scope: 'fromNode', seed: node }));
-    addMenuItem('加入场景', MENU_ICONS.selectAll, '', () => assignSelectedToScenePrompt());
+    addMenuItem('加入场景', MENU_ICONS.selectAll, '', () => assignSelectedToScenePicker());
   } else {
     // —— 画布上下文菜单 ——
     addMenuItem('适应内容', MENU_ICONS.fit, getShortcutDisplay(keybindings.fitContent), () => fitToContent());
@@ -18963,12 +19026,14 @@ function init() {
     const panel = document.getElementById('scenePanel');
     if (!panel || !panel.classList.contains('show')) return;
     if (panel.contains(e.target)) return;
-    if (e.target.closest && (e.target.closest('#btnScenes') || e.target.closest('.node'))) return;
+    if (e.target.closest && (e.target.closest('#btnScenes') || e.target.closest('.node') || e.target.closest('.app-dialog-overlay'))) return;
     toggleScenePanel(false);
   }, true);
   document.getElementById('sceneNew').onclick = () => {
-    const name = prompt('场景名称', '场景 ' + (workflow.scenes.length + 1));
-    if (name !== null) createScene(name.trim() || ('场景 ' + (workflow.scenes.length + 1)));
+    const fallback = '场景 ' + (workflow.scenes.length + 1);
+    showAppInputDialog({ title: '新建场景', label: '场景名称', value: fallback }).then((name) => {
+      if (name !== null) createScene(name.trim() || fallback);
+    });
   };
   document.getElementById('sceneList').addEventListener('click', (e) => {
     const btn = e.target.closest('.mini-btn');
@@ -18978,7 +19043,7 @@ function init() {
     if (act === 'focus') focusScene(id);
     else if (act === 'del') deleteScene(id);
     else if (act === 'add') {
-      const ids = [...workflow.selection].map(n => n.id);
+      const ids = [...workflow.selection]; // 同第 8 处缺陷：selection 元素是 id 字符串不是节点对象
       if (ids.length) addNodesToScene(id, ids);
     }
   });

@@ -62,6 +62,7 @@ const candidates = requested.length ? requested : [
   // 2026-09-19 第 6 处产品缺陷（用户真机报告）：场景分组面板点画布不关；补点外部/Esc 关，
   // 但点节点不关——「选节点→加入选中」主流程必须保住
   'verify-scene-panel-close.mjs',
+  'verify-scene-dialogs.mjs',
   // 已知欠债（失败未修，暂不入闸门，判定与证据见同目录 DEBT.md）：
   // verify-composer, verify-auto-connect,
   // verify-real-links（需真实 Key）, verify-perf-baseline（性能基线单独跑）,
