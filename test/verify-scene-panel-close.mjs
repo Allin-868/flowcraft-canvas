@@ -48,6 +48,15 @@ await page.click('#btnScenes');
 await page.waitForTimeout(300);
 check('工具栏按钮打开场景面板', await shown());
 
+// ①b 布局契约（2026-09-19 用户反馈「太靠近画布顶部」后改版）：右侧垂直居中浮窗，
+// 中心偏差 ≤40px 且不贴顶（top>40px 把旧「贴顶全高抽屉」钉住，修复前必红），完整在视口内
+const geo = await page.evaluate(() => {
+  const r = document.getElementById('scenePanel').getBoundingClientRect();
+  return { t: r.top, b: r.bottom, l: r.left, rt: r.right, vh: innerHeight, vw: innerWidth };
+});
+const off = Math.abs((geo.t + geo.b) / 2 - geo.vh / 2);
+check('场景面板垂直居中浮窗（不贴顶、在视口内）', off <= 40 && geo.t > 40 && geo.b <= geo.vh && geo.l >= 0 && geo.rt <= geo.vw, `中心偏差=${Math.round(off)}px top=${Math.round(geo.t)}`);
+
 // ② 真实鼠标点画布空白区 → 应关
 await page.mouse.click(500, 700);
 await page.waitForTimeout(300);

@@ -4306,8 +4306,11 @@ body {
 .comfy-range-val { margin-left: 0; min-width: 28px; text-align: right; }
 
 /* —— 场景分组面板 —— */
-.scene-panel { position: fixed; top:0; right:0; bottom:0; width:340px; max-width:92vw; background:var(--bg-panel); border-left:1px solid var(--border-subtle); transform: translateX(100%); transition: transform .2s ease; z-index:160; display:flex; flex-direction:column; }
-.scene-panel.show { transform: translateX(0); }
+/* 场景分组：贴顶全高抽屉 → 右侧垂直居中浮窗（2026-09-19 用户反馈「太靠近画布顶部」）。
+   仍靠右停靠：主流程「画布点选节点→加入选中」要求画布可见；内容多时由 .scene-list 滚动（max-height 80vh）。
+   右滑入动画保留：收起态 translate(calc(100% + 12px), -50%)，展开态 translateY(-50%)。 */
+.scene-panel { position: fixed; top:50%; right:12px; width:340px; max-width:92vw; max-height:80vh; background:var(--bg-panel); border:1px solid var(--border-subtle); border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.35); transform: translate(calc(100% + 12px), -50%); transition: transform .2s ease; z-index:160; display:flex; flex-direction:column; overflow:hidden; }
+.scene-panel.show { transform: translateY(-50%); }
 .scene-header { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border-subtle); gap:8px; }
 .scene-title { font-size:13px; font-weight:600; color:var(--text-1); }
 .scene-count { background:var(--bg-input); color:var(--text-2); border-radius:10px; padding:1px 7px; font-size:11px; margin-left:4px; }
