@@ -66,6 +66,8 @@ async function launchBrowser() {
   // 1) 节点库徽标与新建节点初始语义。
   // 产品现状：aiVideo 已于 2026-08-27 交互调整中从 stub 迁为 demo（带代理真实通道），
   // 因此这里的期望是「演示」；「未实现」语义改由下方合成 stub 用例覆盖。
+  // 2026-09-19 p75 徽标纠正：upscale 升 production（有 Key/代理图生图、无 Key 本地 2x），期望改「真实」；
+  // 且 lib 徽标与节点徽标一致性由第 9 处缺陷修复（refreshLibraryTierBadges）保证。
   const initial = await page.evaluate(() => {
     const badgeText = (type) => document.querySelector(`.node-library-item[data-type="${type}"] .lib-tier-badge`)?.textContent?.trim() || '';
     const { editor } = window.FlowCraft;
@@ -210,11 +212,11 @@ async function launchBrowser() {
   const ok =
     initial.lib.text === '输入' &&
     initial.lib.aiImage === '真实' &&
-    initial.lib.upscale === '演示' &&
+    initial.lib.upscale === '真实' &&
     initial.lib.aiVideo === '演示' &&
     initial.nodes.text.tier === '输入' && initial.nodes.text.result === '未运行' &&
     initial.nodes.aiImage.tier === '真实' && initial.nodes.aiImage.result === '未运行' &&
-    initial.nodes.upscale.tier === '演示' && initial.nodes.upscale.result === '未运行' &&
+    initial.nodes.upscale.tier === '真实' && initial.nodes.upscale.result === '未运行' &&
     initial.nodes.aiVideo.tier === '演示' && initial.nodes.aiVideo.result === '未运行' &&
     demoRun.resultMode === 'demo' && demoRun.pill === '演示' && demoRun.status === 'done' &&
     stubRun.resultMode === 'unimplemented' && stubRun.pill === '未实现' && stubRun.status === 'error' &&

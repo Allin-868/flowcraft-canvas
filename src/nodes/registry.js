@@ -83,14 +83,14 @@ export const NodeContract = {
       outputs: [{ type: 'video', label: '视频' }],
     },
     upscale: {
-      label: '智能超清', tier: 'demo', runnable: true,
-      note: '图片无损放大（有 Key 走 images/edits，否则透传原图）',
+      label: '智能超清', tier: 'production', runnable: true,
+      note: '智能超清（有 Key/代理走图生图超清，无 Key 本地 2x 算法超清）',
       inputs: [{ type: 'image', label: '图片', required: false }],
       outputs: [{ type: 'image', label: '图片' }],
     },
     compare: {
-      label: '对比', tier: 'demo', runnable: true,
-      note: '左右对比展示',
+      label: '对比', tier: 'local', runnable: true,
+      note: '对比（canvas 真实拼接上游两张图）',
       inputs: [
         { type: 'image', label: '原图', required: false },
         { type: 'image', label: '结果', required: false },
@@ -98,8 +98,8 @@ export const NodeContract = {
       outputs: [{ type: 'image', label: '对比图' }],
     },
     videoBreak: {
-      label: '视频拆解', tier: 'demo', runnable: true,
-      note: '拆解视频为关键帧/片段',
+      label: '视频拆解', tier: 'local', runnable: true,
+      note: '拆解视频为关键帧/片段（真实抽帧，复用反推管线）',
       inputs: [{ type: 'video', label: '视频', required: false }],
       outputs: [
         { type: 'image', label: '关键帧' },
@@ -107,14 +107,14 @@ export const NodeContract = {
       ],
     },
     reversePrompt: {
-      label: '反推提示词', tier: 'demo', runnable: true,
-      note: '视频反推中文电影级提示词（前端抽帧 + AI 扩写）',
+      label: '反推提示词', tier: 'production', runnable: true,
+      note: '视频反推中文电影级提示词（前端真实抽帧 + 视觉模型扩写）',
       inputs: [],
       outputs: [{ type: 'text', label: '提示词' }],
     },
     save: {
-      label: '保存', tier: 'demo', runnable: true,
-      note: '下载到本地',
+      label: '保存', tier: 'local', runnable: true,
+      note: '保存（真实触发本地下载）',
       inputs: [
         { type: 'image', label: '图片', required: false },
         { type: 'text', label: '文本', required: false },
@@ -122,14 +122,14 @@ export const NodeContract = {
       outputs: [],
     },
     lineart: {
-      label: '线稿', tier: 'demo', runnable: true,
-      note: '提取/上传线稿图',
+      label: '线稿', tier: 'production', runnable: true,
+      note: '线稿（有 Key 模型线稿，无 Key 本地 Sobel 边缘提取）',
       inputs: [{ type: 'image', label: '参考图', required: false }],
       outputs: [{ type: 'image', label: '线稿' }],
     },
     aiSet: {
-      label: 'AI 图集', tier: 'demo', runnable: true,
-      note: '批量生成图片集',
+      label: 'AI 图集', tier: 'production', runnable: true,
+      note: 'AI 图集（批量真实生成 N 张，无 Key 回退占位）',
       inputs: [
         { type: 'image', label: '参考图', required: false },
         { type: 'text', label: '提示词', required: false },
@@ -137,20 +137,20 @@ export const NodeContract = {
       outputs: [{ type: 'image', label: '图集' }],
     },
     material: {
-      label: '材质', tier: 'demo', runnable: true,
-      note: '材质贴图与参数',
+      label: '材质', tier: 'production', runnable: true,
+      note: '材质（图生图换材质，无 Key 透传原图）',
       inputs: [{ type: 'image', label: '参考图', required: false }],
       outputs: [{ type: 'image', label: '材质' }],
     },
     light: {
-      label: '灯光', tier: 'demo', runnable: true,
-      note: '灯光效果与氛围',
+      label: '灯光', tier: 'production', runnable: true,
+      note: '灯光（图生图重打光，无 Key 透传原图）',
       inputs: [{ type: 'image', label: '参考图', required: false }],
       outputs: [{ type: 'image', label: '效果图' }],
     },
     layout: {
-      label: '布局方案', tier: 'demo', runnable: true,
-      note: '生成平面布局方案',
+      label: '布局方案', tier: 'production', runnable: true,
+      note: '布局方案（参考图+需求图生图，无 Key 透传占位）',
       inputs: [
         { type: 'image', label: '参考图', required: false },
         { type: 'text', label: '需求', required: false },
@@ -202,7 +202,8 @@ export const NodeContract = {
       },
     },
     subtitle: {
-      label: '字幕', tier: 'demo', runnable: true,
+      label: '字幕', tier: 'local', runnable: true,
+      note: '字幕（本地按上游脚本切分句读 + 估算时间轴）',
       note: '自动生成字幕（演示数据）',
       inputs: [{ type: 'audio', label: '音频', required: true }],
       outputs: [{ type: 'text', label: '字幕' }],

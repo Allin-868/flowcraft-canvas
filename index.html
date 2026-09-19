@@ -8221,7 +8221,7 @@ const NODE_TYPES = {
   reversePrompt: { label: '反推提示词', desc: '视频反推中文电影级提示词', color: 'var(--node-video-break)', colorRaw: '#7C5CFF', inputs: [], outputs: [{type:'text',label:'提示词'}], defaultParams: { frameCount: 5, frameMode: 'content', history: [], visionModel: 'gpt-4o-mini' } },
   save:     { label: '保存',     desc: '下载到本地',         color: 'var(--node-save)',     colorRaw: '#9AA0A8', inputs: [{type:'image',label:'图片'},{type:'text',label:'文本'}], outputs: [], defaultParams: { filename: '' } },
   lineart:  { label: '线稿',     desc: '提取/上传线稿图',    color: 'var(--node-lineart)',  colorRaw: '#F2A0E0', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'线稿'}], defaultParams: { aspect: '1:1', resolution: '高清1K' } },
-  aiSet:    { label: 'AI 图集',  desc: '批量生成图片集',     color: 'var(--node-ai-set)',   colorRaw: '#FF8A65', inputs: [{type:'image',label:'参考图'},{type:'text',label:'提示词'}], outputs: [{type:'image',label:'图集'}] },
+  aiSet:    { label: 'AI 图集',  desc: '批量生成图片集',     color: 'var(--node-ai-set)',   colorRaw: '#FF8A65', inputs: [{type:'image',label:'参考图'},{type:'text',label:'提示词'}], outputs: [{type:'image',label:'图集'}], defaultParams: { count: 4 } },
   material: { label: '材质',     desc: '材质贴图与参数',     color: 'var(--node-material)', colorRaw: '#8D6E63', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'材质'}] },
   light:    { label: '灯光',     desc: '灯光效果与氛围',     color: 'var(--node-light)',    colorRaw: '#FFD54F', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'效果图'}] },
   layout:   { label: '布局方案', desc: '生成平面布局方案',   color: 'var(--node-layout)',   colorRaw: '#26A69A', inputs: [{type:'image',label:'参考图'},{type:'text',label:'需求'}], outputs: [{type:'image',label:'布局'}] },
@@ -16107,6 +16107,23 @@ function getNodeSemantic(typeOrNode) {
   const type = typeof typeOrNode === 'string' ? typeOrNode : (typeOrNode && typeOrNode.type) || '';
   const tier = getNodeSemanticTier(type);
   return { tier, label: getNodeSemanticLabel(tier), className: getNodeSemanticClass(tier) };
+}
+// 第 9 处缺陷修复：buildSidebar() 在 legacy.js 顶层同步执行时，registry（随 compat 打包）还没运行，
+// getNodeSemanticTier 只能吃 fallback，凡 tier 与 fallback 不一致的节点徽标就与 registry 脱节。
+// DOMContentLoaded 在全部同步脚本之后触发，此时 registry 必已就绪，据此刷新一次节点库徽标。
+function refreshLibraryTierBadges() {
+  document.querySelectorAll('.node-library-item').forEach((item) => {
+    const badge = item.querySelector('.lib-tier-badge');
+    if (!badge) return;
+    const semantic = getNodeSemantic(item.dataset && item.dataset.type);
+    badge.className = 'lib-tier-badge ' + semantic.className;
+    badge.textContent = semantic.label;
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', refreshLibraryTierBadges);
+} else {
+  refreshLibraryTierBadges();
 }
 function getNodeResultLabel(mode) {
   return ({ pending: '未运行', real: '真实', local: '本地', demo: '演示', failed: '失败', unimplemented: '未实现' })[mode] || '未运行';
@@ -24387,6 +24404,95 @@ function loadAudioFile(file, node) {
 }
 
 // 根据节点类型 + 输入 + 参数，计算本节点输出载荷
+//================ A 批节点补齐 · 本地真实能力（2026-09-19） ================
+// 对比节点：把上游两张图真实左右拼接（等高缩放、中间分隔线），少于两张返回 null 走占位兜底。
+async function runCompareNode(node) {
+  const srcs = (node.inputsData || []).filter(d => d && d.type === 'image' && typeof d.value === 'string' && d.value).slice(0, 2);
+  if (srcs.length < 2) return null;
+  const [ma, mb] = await Promise.all([materializeImageDataUrl(srcs[0].value), materializeImageDataUrl(srcs[1].value)]);
+  if (!ma || !mb) return null;
+  const load = (src) => new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  const [ia, ib] = await Promise.all([load(ma), load(mb)]);
+  if (!ia || !ib || !ia.naturalWidth || !ib.naturalWidth) return null;
+  const H = Math.min(ia.naturalHeight, ib.naturalHeight, 1024);
+  const wa = Math.max(1, Math.round(ia.naturalWidth * H / ia.naturalHeight));
+  const wb = Math.max(1, Math.round(ib.naturalWidth * H / ib.naturalHeight));
+  const gap = Math.max(2, Math.round(H * 0.008));
+  const cv = document.createElement('canvas');
+  cv.width = wa + gap + wb; cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, cv.width, H);
+  ctx.drawImage(ia, 0, 0, wa, H);
+  ctx.drawImage(ib, gap + wa, 0, wb, H);
+  return cv.toDataURL('image/png');
+}
+// 视频拆解：对上游真实视频抽 N 帧（复用反推提示词的均匀抽帧管线），无真实可解码视频返回 null 走占位兜底。
+async function runVideoBreakNode(node) {
+  const vin = (node.inputsData || []).find(d => d && d.type === 'video' && d.value && typeof d.value === 'object' && d.value.src);
+  if (!vin) return null;
+  try {
+    const v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = vin.value.src;
+    const ready = await new Promise((res) => {
+      const t = setTimeout(() => res(false), 15000);
+      v.onloadedmetadata = () => { clearTimeout(t); res(true); };
+      v.onerror = () => { clearTimeout(t); res(false); };
+    });
+    if (!ready) return null;
+    if (v.duration === Infinity || Number.isNaN(v.duration)) {
+      // MediaRecorder 出品的 webm 常无时长元数据（duration=Infinity）：大 seek 强制解析真实时长
+      await new Promise((res) => {
+        const h = () => { v.removeEventListener('timeupdate', h); try { v.currentTime = 0; } catch (e) {} setTimeout(res, 80); };
+        v.addEventListener('timeupdate', h);
+        try { v.currentTime = 1e6; } catch (e) { res(); }
+        setTimeout(() => { v.removeEventListener('timeupdate', h); res(); }, 2500);
+      });
+    }
+    if (!isFinite(v.duration) || v.duration <= 0) return null;
+    const want = Math.max(1, Math.min(12, Number(node.params.frames) || 6));
+    const frames = await extractUniformFrames(v, want, 480);
+    try { v.removeAttribute('src'); v.load(); } catch (e) {}
+    if (!frames || !frames.length) return null;
+    const secs = Math.round(v.duration || 0);
+    const dur = vin.value.duration || ('00:' + String(secs).padStart(2, '0'));
+    node._breakFrames = frames.slice();
+    return {
+      outputsData: [
+        { type: 'image', value: frames[0] },
+        { type: 'video', value: { poster: frames[0], duration: dur, name: vin.value.name || '视频', src: vin.value.src } },
+      ],
+      frames,
+    };
+  } catch (e) { return null; }
+}
+// 字幕：沿连线回溯（最多 3 级）取上游脚本文本（脚本节点/配音文本/文本输入）。
+function collectUpstreamScriptText(node, depth) {
+  depth = depth || 0;
+  if (depth > 3) return '';
+  const srcs = [...workflow.edges.values()].filter(e => e.to && e.to.node === node).map(e => e.from.node);
+  for (const s of srcs) {
+    if (!s || s === node) continue;
+    if (s.type === 'script' && String(s.params && s.params.script || '').trim()) return String(s.params.script).trim();
+    if (s.type === 'voiceover' && String(s.params && s.params.text || '').trim()) return String(s.params.text).trim();
+    if (s.type === 'text') { const t = nodeFullText(s).trim(); if (t && t !== '(空文本)') return t; }
+    const deeper = collectUpstreamScriptText(s, depth + 1);
+    if (deeper) return deeper;
+  }
+  return '';
+}
+// 本地字幕切分：按句读断句，按 ~4.5 字/秒估算时长时间轴（真实生成，替代写死的演示行）。
+function buildSubtitleLines(text) {
+  const parts = String(text).split(/[\n\r。！？!?；;]+/).map(s => s.trim()).filter(Boolean);
+  const fmt = (sec) => String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(Math.floor(sec % 60)).padStart(2, '0');
+  const lines = [];
+  let t = 0;
+  parts.forEach(p => {
+    lines.push({ time: fmt(t), text: p.length > 28 ? Array.from(p).slice(0, 28).join('') : p });
+    t += Math.max(2, Math.round(Array.from(p).length / 4.5));
+  });
+  return lines;
+}
+
 function computeNodeOutput(node) {
   const def = node.def;
   const outDefs = def.outputs || [];
@@ -24941,7 +25047,7 @@ function executeNodeAsync(node, delay) {
         }
 
         // 上游文本输入 → 生成提示词（角色描述在前 + 节点自身视角指令在后拼接；仅一方存在时用其一）
-        if (node.type === 'aiImage' || node.type === 'imageEdit' || node.type === 'aiVideo') {
+        if (node.type === 'aiImage' || node.type === 'imageEdit' || node.type === 'aiVideo' || node.type === 'aiSet' || node.type === 'layout') {
           const textIn = (node.inputsData || []).find(d => d && d.type === 'text');
           const upText = textIn && textIn.value && textIn.value !== '(空文本)' ? String(textIn.value).trim() : '';
           const ownText = (node.prompt || '').trim();
@@ -24976,9 +25082,100 @@ function executeNodeAsync(node, delay) {
           return;
         }
 
+        // 对比节点：真实拼接上游两张图（A 批补齐，替代「原/果」占位图）
+        if (node.type === 'compare') {
+          const cmp = await runCompareNode(node);
+          if (cmp) {
+            node.thumb = cmp;
+            node.outputsData = [{ type: 'image', value: cmp }];
+            node._galleryImages = [cmp];
+            setNodeResultMode(node, 'real');
+            node.status = 'done';
+            captureGenMeta(node, Date.now() - _t0);
+            logRun(node, true, Date.now() - _t0);
+            if (node.el) buildNodeBody(node.el, node);
+            refreshConnectedSavePreviews(node);
+            updateNodeStatus(node);
+            markEdgesDirty();
+            scheduleAutosave();
+            resolve();
+            return;
+          }
+          // 上游不足两张真实图 → 走下方 computeNodeOutput 占位兜底
+        }
+
+        // 视频拆解：真实抽帧（A 批补齐，复用反推提示词抽帧管线）
+        if (node.type === 'videoBreak') {
+          const vb = await runVideoBreakNode(node);
+          if (vb) {
+            node.thumb = vb.frames[0];
+            node.outputsData = vb.outputsData;
+            node._galleryImages = vb.frames;
+            setNodeResultMode(node, 'real');
+            node.status = 'done';
+            captureGenMeta(node, Date.now() - _t0);
+            logRun(node, true, Date.now() - _t0);
+            if (node.el) buildNodeBody(node.el, node);
+            updateNodeStatus(node);
+            markEdgesDirty();
+            scheduleAutosave();
+            resolve();
+            return;
+          }
+        }
+
+        // 字幕：本地按上游脚本真实切分（A 批补齐，替代写死的演示字幕行）
+        if (node.type === 'subtitle') {
+          const scriptText = collectUpstreamScriptText(node);
+          if (scriptText) {
+            node.params.lines = buildSubtitleLines(scriptText);
+            node.outputsData = computeNodeOutput(node);
+            setNodeResultMode(node, 'local');
+            node.status = 'done';
+            logRun(node, true, Date.now() - _t0);
+            if (node.el) buildNodeBody(node.el, node);
+            updateNodeStatus(node);
+            markEdgesDirty();
+            scheduleAutosave();
+            resolve();
+            return;
+          }
+        }
+
+        // AI 图集：有 Key/代理时批量真实生成 N 张（A 批补齐，替代透传占位）
+        if (node.type === 'aiSet') {
+          const setKey = localStorage.getItem(OPENAI_KEY_STORAGE);
+          if (setKey || _fcProxy()) {
+            const want = Math.max(1, Math.min(8, Number(node.params && node.params.count) || 4));
+            const imgs = [];
+            for (let i = 0; i < want; i++) {
+              const img = await generateOpenAIImage(node);
+              if (img) imgs.push(img);
+              if (node.status === 'error') break;
+            }
+            if (imgs.length) {
+              node.thumb = imgs[0];
+              node._galleryImages = imgs;
+              node.outputsData = [{ type: 'image', value: imgs[0] }];
+              setNodeResultMode(node, 'real');
+              node.status = 'done';
+              captureGenMeta(node, Date.now() - _t0);
+              logRun(node, true, Date.now() - _t0);
+              if (node.el) buildNodeBody(node.el, node);
+              refreshConnectedSavePreviews(node);
+              updateNodeStatus(node);
+              markEdgesDirty();
+              scheduleAutosave();
+              resolve();
+              return;
+            }
+            if (node.status === 'error') { resolve(); return; } // 真实失败不伪装成占位成功
+          }
+        }
+
         // 智能超清 / 线稿：基于上游真实图片做图生图（img2img）
         // 有上游图且配置了 OpenAI Key 时调用 images/edits；否则 / 失败时回退到下方 computeNodeOutput（保留原图透传）。
-        if (node.type === 'upscale' || node.type === 'lineart' || node.type === 'imageEdit') {
+        if (node.type === 'upscale' || node.type === 'lineart' || node.type === 'imageEdit' || node.type === 'material' || node.type === 'light' || node.type === 'layout') {
           // 生成节点可能输出远程 URL；先转成 data URL，避免“能预览但图生图接口拿不到源图”。
           const upImg = await materializeImageDataUrl(getNodeInputImage(node));
           const editKey = localStorage.getItem(OPENAI_KEY_STORAGE);
@@ -26251,6 +26448,18 @@ function buildImg2ImgPrompt(node) {
       '严格按照修正说明操作，只修改明确要求的区域；未被要求的脸部、发型、姿势、服装版型、裤子颜色、材质、光线、背景和画面比例必须保持不变。' +
       '如果要求添加腰带上的红绳饰品，请将参考图中的红色绳结、垂坠和金属穗完整添加到源图腰部，匹配源图的视角、遮挡关系、透视、尺度、光影和材质，不要把参考图的整条裤子或人物复制过来。' +
       '输出一张自然、完整、无拼接痕迹的高质量结果，不要额外添加无关元素，不要删除源图已有的细节。';
+  }
+  if (node.type === 'material') {
+    return base + 'Re-render the surface material and texture of the main object in this image according to the material description, ' +
+      'keep composition, shape, lighting relationships and details unchanged, output a realistic high-resolution result.';
+  }
+  if (node.type === 'light') {
+    return base + 'Relight this image according to the lighting description: change only illumination, shadows and mood, ' +
+      'keep subject shapes, composition, materials and colors otherwise consistent, output a natural professional result.';
+  }
+  if (node.type === 'layout') {
+    return base + 'Based on the reference image and the requirement text, generate a clean top-down floor plan layout image ' +
+      'showing functional zones, circulation and furniture placement in a professional architectural diagram style.';
   }
   // lineart：提取为干净黑白线稿
   return base + 'Convert this image into clean black-and-white line art / sketch on a white background. ' +
@@ -33342,17 +33551,17 @@ init();
       },
       upscale: {
         label: "\u667A\u80FD\u8D85\u6E05",
-        tier: "demo",
+        tier: "production",
         runnable: true,
-        note: "\u56FE\u7247\u65E0\u635F\u653E\u5927\uFF08\u6709 Key \u8D70 images/edits\uFF0C\u5426\u5219\u900F\u4F20\u539F\u56FE\uFF09",
+        note: "\u667A\u80FD\u8D85\u6E05\uFF08\u6709 Key/\u4EE3\u7406\u8D70\u56FE\u751F\u56FE\u8D85\u6E05\uFF0C\u65E0 Key \u672C\u5730 2x \u7B97\u6CD5\u8D85\u6E05\uFF09",
         inputs: [{ type: "image", label: "\u56FE\u7247", required: false }],
         outputs: [{ type: "image", label: "\u56FE\u7247" }]
       },
       compare: {
         label: "\u5BF9\u6BD4",
-        tier: "demo",
+        tier: "local",
         runnable: true,
-        note: "\u5DE6\u53F3\u5BF9\u6BD4\u5C55\u793A",
+        note: "\u5BF9\u6BD4\uFF08canvas \u771F\u5B9E\u62FC\u63A5\u4E0A\u6E38\u4E24\u5F20\u56FE\uFF09",
         inputs: [
           { type: "image", label: "\u539F\u56FE", required: false },
           { type: "image", label: "\u7ED3\u679C", required: false }
@@ -33361,9 +33570,9 @@ init();
       },
       videoBreak: {
         label: "\u89C6\u9891\u62C6\u89E3",
-        tier: "demo",
+        tier: "local",
         runnable: true,
-        note: "\u62C6\u89E3\u89C6\u9891\u4E3A\u5173\u952E\u5E27/\u7247\u6BB5",
+        note: "\u62C6\u89E3\u89C6\u9891\u4E3A\u5173\u952E\u5E27/\u7247\u6BB5\uFF08\u771F\u5B9E\u62BD\u5E27\uFF0C\u590D\u7528\u53CD\u63A8\u7BA1\u7EBF\uFF09",
         inputs: [{ type: "video", label: "\u89C6\u9891", required: false }],
         outputs: [
           { type: "image", label: "\u5173\u952E\u5E27" },
@@ -33372,17 +33581,17 @@ init();
       },
       reversePrompt: {
         label: "\u53CD\u63A8\u63D0\u793A\u8BCD",
-        tier: "demo",
+        tier: "production",
         runnable: true,
-        note: "\u89C6\u9891\u53CD\u63A8\u4E2D\u6587\u7535\u5F71\u7EA7\u63D0\u793A\u8BCD\uFF08\u524D\u7AEF\u62BD\u5E27 + AI \u6269\u5199\uFF09",
+        note: "\u89C6\u9891\u53CD\u63A8\u4E2D\u6587\u7535\u5F71\u7EA7\u63D0\u793A\u8BCD\uFF08\u524D\u7AEF\u771F\u5B9E\u62BD\u5E27 + \u89C6\u89C9\u6A21\u578B\u6269\u5199\uFF09",
         inputs: [],
         outputs: [{ type: "text", label: "\u63D0\u793A\u8BCD" }]
       },
       save: {
         label: "\u4FDD\u5B58",
-        tier: "demo",
+        tier: "local",
         runnable: true,
-        note: "\u4E0B\u8F7D\u5230\u672C\u5730",
+        note: "\u4FDD\u5B58\uFF08\u771F\u5B9E\u89E6\u53D1\u672C\u5730\u4E0B\u8F7D\uFF09",
         inputs: [
           { type: "image", label: "\u56FE\u7247", required: false },
           { type: "text", label: "\u6587\u672C", required: false }
@@ -33391,17 +33600,17 @@ init();
       },
       lineart: {
         label: "\u7EBF\u7A3F",
-        tier: "demo",
+        tier: "production",
         runnable: true,
-        note: "\u63D0\u53D6/\u4E0A\u4F20\u7EBF\u7A3F\u56FE",
+        note: "\u7EBF\u7A3F\uFF08\u6709 Key \u6A21\u578B\u7EBF\u7A3F\uFF0C\u65E0 Key \u672C\u5730 Sobel \u8FB9\u7F18\u63D0\u53D6\uFF09",
         inputs: [{ type: "image", label: "\u53C2\u8003\u56FE", required: false }],
         outputs: [{ type: "image", label: "\u7EBF\u7A3F" }]
       },
       aiSet: {
         label: "AI \u56FE\u96C6",
-        tier: "demo",
+        tier: "production",
         runnable: true,
-        note: "\u6279\u91CF\u751F\u6210\u56FE\u7247\u96C6",
+        note: "AI \u56FE\u96C6\uFF08\u6279\u91CF\u771F\u5B9E\u751F\u6210 N \u5F20\uFF0C\u65E0 Key \u56DE\u9000\u5360\u4F4D\uFF09",
         inputs: [
           { type: "image", label: "\u53C2\u8003\u56FE", required: false },
           { type: "text", label: "\u63D0\u793A\u8BCD", required: false }
@@ -33410,25 +33619,25 @@ init();
       },
       material: {
         label: "\u6750\u8D28",
-        tier: "demo",
+        tier: "production",
         runnable: true,
-        note: "\u6750\u8D28\u8D34\u56FE\u4E0E\u53C2\u6570",
+        note: "\u6750\u8D28\uFF08\u56FE\u751F\u56FE\u6362\u6750\u8D28\uFF0C\u65E0 Key \u900F\u4F20\u539F\u56FE\uFF09",
         inputs: [{ type: "image", label: "\u53C2\u8003\u56FE", required: false }],
         outputs: [{ type: "image", label: "\u6750\u8D28" }]
       },
       light: {
         label: "\u706F\u5149",
-        tier: "demo",
+        tier: "production",
         runnable: true,
-        note: "\u706F\u5149\u6548\u679C\u4E0E\u6C1B\u56F4",
+        note: "\u706F\u5149\uFF08\u56FE\u751F\u56FE\u91CD\u6253\u5149\uFF0C\u65E0 Key \u900F\u4F20\u539F\u56FE\uFF09",
         inputs: [{ type: "image", label: "\u53C2\u8003\u56FE", required: false }],
         outputs: [{ type: "image", label: "\u6548\u679C\u56FE" }]
       },
       layout: {
         label: "\u5E03\u5C40\u65B9\u6848",
-        tier: "demo",
+        tier: "production",
         runnable: true,
-        note: "\u751F\u6210\u5E73\u9762\u5E03\u5C40\u65B9\u6848",
+        note: "\u5E03\u5C40\u65B9\u6848\uFF08\u53C2\u8003\u56FE+\u9700\u6C42\u56FE\u751F\u56FE\uFF0C\u65E0 Key \u900F\u4F20\u5360\u4F4D\uFF09",
         inputs: [
           { type: "image", label: "\u53C2\u8003\u56FE", required: false },
           { type: "text", label: "\u9700\u6C42", required: false }
@@ -33493,8 +33702,9 @@ init();
       },
       subtitle: {
         label: "\u5B57\u5E55",
-        tier: "demo",
+        tier: "local",
         runnable: true,
+        note: "\u5B57\u5E55\uFF08\u672C\u5730\u6309\u4E0A\u6E38\u811A\u672C\u5207\u5206\u53E5\u8BFB + \u4F30\u7B97\u65F6\u95F4\u8F74\uFF09",
         note: "\u81EA\u52A8\u751F\u6210\u5B57\u5E55\uFF08\u6F14\u793A\u6570\u636E\uFF09",
         inputs: [{ type: "audio", label: "\u97F3\u9891", required: true }],
         outputs: [{ type: "text", label: "\u5B57\u5E55" }]

@@ -126,6 +126,10 @@
 
 `workflow.selection` 是 **id 字符串** 的 Set，但两处消费方都写成 `[...workflow.selection].map(n => n.id)`，恒得 `[undefined]`——「加入选中(N)」按钮与右键「加入场景」从来没真正把节点加进过场景（`nodeIds:[undefined]`，成员计数按 `workflow.nodes.has(id)` 过滤后恒 0，toast 却报「已加入」）。旧原生 prompt 版与面板按钮同病，属存量潜伏缺陷，与本文件第 7 处的改造无关——是第 70 条用例把断言从「对话框行为」推进到「成员真的入库」才炸出来的。修法：两处直接 `[...workflow.selection]`。教训：**改交互路径时新断言要钉到数据落库那一层**，只测「对话框弹出/关闭」这条老 bug 会原样带走。
 
+### 第 9 处缺陷（2026-09-19 由第 71 条闸门用例连带暴露）：节点库徽标永远吃 fallback，与 registry 脱节
+
+`buildSidebar()` 在 legacy.js 顶层**同步**执行，而 registry 随 compat 打包、脚本排在 legacy 之后——渲染那一刻 `window.FlowCraft.nodes` 还不存在，`getNodeSemanticTier()` 只能回退到手写 fallback 表。此前 fallback 恰好与 registry 全一致所以无人察觉；p75 把 upscale 等 11 类升档后，verify-node-semantics 立即炸出「sidebar 徽标=演示 / 节点徽标=真实」的分裂。修法：`refreshLibraryTierBadges()` 挂 DOMContentLoaded（全部同步脚本之后必触发，registry 必已就绪）刷新一次 lib 徽标。教训：**双份真源（fallback 表 + registry）迟早漂移，凡渲染时机早于数据源就绪的都是潜伏雷**；升档/改 tier 时要检查所有消费方是否同一时刻读同一源。第 71 条用例第 ⑩ 断言 + 第 1 条用例的 upscale 期望共同钉死。
+
 ### 低危（登记不修）
 
 | 项 | 现状 | 判定 |

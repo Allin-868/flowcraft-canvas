@@ -22,7 +22,7 @@ const NODE_TYPES = {
   reversePrompt: { label: '反推提示词', desc: '视频反推中文电影级提示词', color: 'var(--node-video-break)', colorRaw: '#7C5CFF', inputs: [], outputs: [{type:'text',label:'提示词'}], defaultParams: { frameCount: 5, frameMode: 'content', history: [], visionModel: 'gpt-4o-mini' } },
   save:     { label: '保存',     desc: '下载到本地',         color: 'var(--node-save)',     colorRaw: '#9AA0A8', inputs: [{type:'image',label:'图片'},{type:'text',label:'文本'}], outputs: [], defaultParams: { filename: '' } },
   lineart:  { label: '线稿',     desc: '提取/上传线稿图',    color: 'var(--node-lineart)',  colorRaw: '#F2A0E0', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'线稿'}], defaultParams: { aspect: '1:1', resolution: '高清1K' } },
-  aiSet:    { label: 'AI 图集',  desc: '批量生成图片集',     color: 'var(--node-ai-set)',   colorRaw: '#FF8A65', inputs: [{type:'image',label:'参考图'},{type:'text',label:'提示词'}], outputs: [{type:'image',label:'图集'}] },
+  aiSet:    { label: 'AI 图集',  desc: '批量生成图片集',     color: 'var(--node-ai-set)',   colorRaw: '#FF8A65', inputs: [{type:'image',label:'参考图'},{type:'text',label:'提示词'}], outputs: [{type:'image',label:'图集'}], defaultParams: { count: 4 } },
   material: { label: '材质',     desc: '材质贴图与参数',     color: 'var(--node-material)', colorRaw: '#8D6E63', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'材质'}] },
   light:    { label: '灯光',     desc: '灯光效果与氛围',     color: 'var(--node-light)',    colorRaw: '#FFD54F', inputs: [{type:'image',label:'参考图'}], outputs: [{type:'image',label:'效果图'}] },
   layout:   { label: '布局方案', desc: '生成平面布局方案',   color: 'var(--node-layout)',   colorRaw: '#26A69A', inputs: [{type:'image',label:'参考图'},{type:'text',label:'需求'}], outputs: [{type:'image',label:'布局'}] },
@@ -7908,6 +7908,23 @@ function getNodeSemantic(typeOrNode) {
   const type = typeof typeOrNode === 'string' ? typeOrNode : (typeOrNode && typeOrNode.type) || '';
   const tier = getNodeSemanticTier(type);
   return { tier, label: getNodeSemanticLabel(tier), className: getNodeSemanticClass(tier) };
+}
+// 第 9 处缺陷修复：buildSidebar() 在 legacy.js 顶层同步执行时，registry（随 compat 打包）还没运行，
+// getNodeSemanticTier 只能吃 fallback，凡 tier 与 fallback 不一致的节点徽标就与 registry 脱节。
+// DOMContentLoaded 在全部同步脚本之后触发，此时 registry 必已就绪，据此刷新一次节点库徽标。
+function refreshLibraryTierBadges() {
+  document.querySelectorAll('.node-library-item').forEach((item) => {
+    const badge = item.querySelector('.lib-tier-badge');
+    if (!badge) return;
+    const semantic = getNodeSemantic(item.dataset && item.dataset.type);
+    badge.className = 'lib-tier-badge ' + semantic.className;
+    badge.textContent = semantic.label;
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', refreshLibraryTierBadges);
+} else {
+  refreshLibraryTierBadges();
 }
 function getNodeResultLabel(mode) {
   return ({ pending: '未运行', real: '真实', local: '本地', demo: '演示', failed: '失败', unimplemented: '未实现' })[mode] || '未运行';
@@ -16188,6 +16205,95 @@ function loadAudioFile(file, node) {
 }
 
 // 根据节点类型 + 输入 + 参数，计算本节点输出载荷
+//================ A 批节点补齐 · 本地真实能力（2026-09-19） ================
+// 对比节点：把上游两张图真实左右拼接（等高缩放、中间分隔线），少于两张返回 null 走占位兜底。
+async function runCompareNode(node) {
+  const srcs = (node.inputsData || []).filter(d => d && d.type === 'image' && typeof d.value === 'string' && d.value).slice(0, 2);
+  if (srcs.length < 2) return null;
+  const [ma, mb] = await Promise.all([materializeImageDataUrl(srcs[0].value), materializeImageDataUrl(srcs[1].value)]);
+  if (!ma || !mb) return null;
+  const load = (src) => new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  const [ia, ib] = await Promise.all([load(ma), load(mb)]);
+  if (!ia || !ib || !ia.naturalWidth || !ib.naturalWidth) return null;
+  const H = Math.min(ia.naturalHeight, ib.naturalHeight, 1024);
+  const wa = Math.max(1, Math.round(ia.naturalWidth * H / ia.naturalHeight));
+  const wb = Math.max(1, Math.round(ib.naturalWidth * H / ib.naturalHeight));
+  const gap = Math.max(2, Math.round(H * 0.008));
+  const cv = document.createElement('canvas');
+  cv.width = wa + gap + wb; cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, cv.width, H);
+  ctx.drawImage(ia, 0, 0, wa, H);
+  ctx.drawImage(ib, gap + wa, 0, wb, H);
+  return cv.toDataURL('image/png');
+}
+// 视频拆解：对上游真实视频抽 N 帧（复用反推提示词的均匀抽帧管线），无真实可解码视频返回 null 走占位兜底。
+async function runVideoBreakNode(node) {
+  const vin = (node.inputsData || []).find(d => d && d.type === 'video' && d.value && typeof d.value === 'object' && d.value.src);
+  if (!vin) return null;
+  try {
+    const v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = vin.value.src;
+    const ready = await new Promise((res) => {
+      const t = setTimeout(() => res(false), 15000);
+      v.onloadedmetadata = () => { clearTimeout(t); res(true); };
+      v.onerror = () => { clearTimeout(t); res(false); };
+    });
+    if (!ready) return null;
+    if (v.duration === Infinity || Number.isNaN(v.duration)) {
+      // MediaRecorder 出品的 webm 常无时长元数据（duration=Infinity）：大 seek 强制解析真实时长
+      await new Promise((res) => {
+        const h = () => { v.removeEventListener('timeupdate', h); try { v.currentTime = 0; } catch (e) {} setTimeout(res, 80); };
+        v.addEventListener('timeupdate', h);
+        try { v.currentTime = 1e6; } catch (e) { res(); }
+        setTimeout(() => { v.removeEventListener('timeupdate', h); res(); }, 2500);
+      });
+    }
+    if (!isFinite(v.duration) || v.duration <= 0) return null;
+    const want = Math.max(1, Math.min(12, Number(node.params.frames) || 6));
+    const frames = await extractUniformFrames(v, want, 480);
+    try { v.removeAttribute('src'); v.load(); } catch (e) {}
+    if (!frames || !frames.length) return null;
+    const secs = Math.round(v.duration || 0);
+    const dur = vin.value.duration || ('00:' + String(secs).padStart(2, '0'));
+    node._breakFrames = frames.slice();
+    return {
+      outputsData: [
+        { type: 'image', value: frames[0] },
+        { type: 'video', value: { poster: frames[0], duration: dur, name: vin.value.name || '视频', src: vin.value.src } },
+      ],
+      frames,
+    };
+  } catch (e) { return null; }
+}
+// 字幕：沿连线回溯（最多 3 级）取上游脚本文本（脚本节点/配音文本/文本输入）。
+function collectUpstreamScriptText(node, depth) {
+  depth = depth || 0;
+  if (depth > 3) return '';
+  const srcs = [...workflow.edges.values()].filter(e => e.to && e.to.node === node).map(e => e.from.node);
+  for (const s of srcs) {
+    if (!s || s === node) continue;
+    if (s.type === 'script' && String(s.params && s.params.script || '').trim()) return String(s.params.script).trim();
+    if (s.type === 'voiceover' && String(s.params && s.params.text || '').trim()) return String(s.params.text).trim();
+    if (s.type === 'text') { const t = nodeFullText(s).trim(); if (t && t !== '(空文本)') return t; }
+    const deeper = collectUpstreamScriptText(s, depth + 1);
+    if (deeper) return deeper;
+  }
+  return '';
+}
+// 本地字幕切分：按句读断句，按 ~4.5 字/秒估算时长时间轴（真实生成，替代写死的演示行）。
+function buildSubtitleLines(text) {
+  const parts = String(text).split(/[\n\r。！？!?；;]+/).map(s => s.trim()).filter(Boolean);
+  const fmt = (sec) => String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(Math.floor(sec % 60)).padStart(2, '0');
+  const lines = [];
+  let t = 0;
+  parts.forEach(p => {
+    lines.push({ time: fmt(t), text: p.length > 28 ? Array.from(p).slice(0, 28).join('') : p });
+    t += Math.max(2, Math.round(Array.from(p).length / 4.5));
+  });
+  return lines;
+}
+
 function computeNodeOutput(node) {
   const def = node.def;
   const outDefs = def.outputs || [];
@@ -16742,7 +16848,7 @@ function executeNodeAsync(node, delay) {
         }
 
         // 上游文本输入 → 生成提示词（角色描述在前 + 节点自身视角指令在后拼接；仅一方存在时用其一）
-        if (node.type === 'aiImage' || node.type === 'imageEdit' || node.type === 'aiVideo') {
+        if (node.type === 'aiImage' || node.type === 'imageEdit' || node.type === 'aiVideo' || node.type === 'aiSet' || node.type === 'layout') {
           const textIn = (node.inputsData || []).find(d => d && d.type === 'text');
           const upText = textIn && textIn.value && textIn.value !== '(空文本)' ? String(textIn.value).trim() : '';
           const ownText = (node.prompt || '').trim();
@@ -16777,9 +16883,100 @@ function executeNodeAsync(node, delay) {
           return;
         }
 
+        // 对比节点：真实拼接上游两张图（A 批补齐，替代「原/果」占位图）
+        if (node.type === 'compare') {
+          const cmp = await runCompareNode(node);
+          if (cmp) {
+            node.thumb = cmp;
+            node.outputsData = [{ type: 'image', value: cmp }];
+            node._galleryImages = [cmp];
+            setNodeResultMode(node, 'real');
+            node.status = 'done';
+            captureGenMeta(node, Date.now() - _t0);
+            logRun(node, true, Date.now() - _t0);
+            if (node.el) buildNodeBody(node.el, node);
+            refreshConnectedSavePreviews(node);
+            updateNodeStatus(node);
+            markEdgesDirty();
+            scheduleAutosave();
+            resolve();
+            return;
+          }
+          // 上游不足两张真实图 → 走下方 computeNodeOutput 占位兜底
+        }
+
+        // 视频拆解：真实抽帧（A 批补齐，复用反推提示词抽帧管线）
+        if (node.type === 'videoBreak') {
+          const vb = await runVideoBreakNode(node);
+          if (vb) {
+            node.thumb = vb.frames[0];
+            node.outputsData = vb.outputsData;
+            node._galleryImages = vb.frames;
+            setNodeResultMode(node, 'real');
+            node.status = 'done';
+            captureGenMeta(node, Date.now() - _t0);
+            logRun(node, true, Date.now() - _t0);
+            if (node.el) buildNodeBody(node.el, node);
+            updateNodeStatus(node);
+            markEdgesDirty();
+            scheduleAutosave();
+            resolve();
+            return;
+          }
+        }
+
+        // 字幕：本地按上游脚本真实切分（A 批补齐，替代写死的演示字幕行）
+        if (node.type === 'subtitle') {
+          const scriptText = collectUpstreamScriptText(node);
+          if (scriptText) {
+            node.params.lines = buildSubtitleLines(scriptText);
+            node.outputsData = computeNodeOutput(node);
+            setNodeResultMode(node, 'local');
+            node.status = 'done';
+            logRun(node, true, Date.now() - _t0);
+            if (node.el) buildNodeBody(node.el, node);
+            updateNodeStatus(node);
+            markEdgesDirty();
+            scheduleAutosave();
+            resolve();
+            return;
+          }
+        }
+
+        // AI 图集：有 Key/代理时批量真实生成 N 张（A 批补齐，替代透传占位）
+        if (node.type === 'aiSet') {
+          const setKey = localStorage.getItem(OPENAI_KEY_STORAGE);
+          if (setKey || _fcProxy()) {
+            const want = Math.max(1, Math.min(8, Number(node.params && node.params.count) || 4));
+            const imgs = [];
+            for (let i = 0; i < want; i++) {
+              const img = await generateOpenAIImage(node);
+              if (img) imgs.push(img);
+              if (node.status === 'error') break;
+            }
+            if (imgs.length) {
+              node.thumb = imgs[0];
+              node._galleryImages = imgs;
+              node.outputsData = [{ type: 'image', value: imgs[0] }];
+              setNodeResultMode(node, 'real');
+              node.status = 'done';
+              captureGenMeta(node, Date.now() - _t0);
+              logRun(node, true, Date.now() - _t0);
+              if (node.el) buildNodeBody(node.el, node);
+              refreshConnectedSavePreviews(node);
+              updateNodeStatus(node);
+              markEdgesDirty();
+              scheduleAutosave();
+              resolve();
+              return;
+            }
+            if (node.status === 'error') { resolve(); return; } // 真实失败不伪装成占位成功
+          }
+        }
+
         // 智能超清 / 线稿：基于上游真实图片做图生图（img2img）
         // 有上游图且配置了 OpenAI Key 时调用 images/edits；否则 / 失败时回退到下方 computeNodeOutput（保留原图透传）。
-        if (node.type === 'upscale' || node.type === 'lineart' || node.type === 'imageEdit') {
+        if (node.type === 'upscale' || node.type === 'lineart' || node.type === 'imageEdit' || node.type === 'material' || node.type === 'light' || node.type === 'layout') {
           // 生成节点可能输出远程 URL；先转成 data URL，避免“能预览但图生图接口拿不到源图”。
           const upImg = await materializeImageDataUrl(getNodeInputImage(node));
           const editKey = localStorage.getItem(OPENAI_KEY_STORAGE);
@@ -18052,6 +18249,18 @@ function buildImg2ImgPrompt(node) {
       '严格按照修正说明操作，只修改明确要求的区域；未被要求的脸部、发型、姿势、服装版型、裤子颜色、材质、光线、背景和画面比例必须保持不变。' +
       '如果要求添加腰带上的红绳饰品，请将参考图中的红色绳结、垂坠和金属穗完整添加到源图腰部，匹配源图的视角、遮挡关系、透视、尺度、光影和材质，不要把参考图的整条裤子或人物复制过来。' +
       '输出一张自然、完整、无拼接痕迹的高质量结果，不要额外添加无关元素，不要删除源图已有的细节。';
+  }
+  if (node.type === 'material') {
+    return base + 'Re-render the surface material and texture of the main object in this image according to the material description, ' +
+      'keep composition, shape, lighting relationships and details unchanged, output a realistic high-resolution result.';
+  }
+  if (node.type === 'light') {
+    return base + 'Relight this image according to the lighting description: change only illumination, shadows and mood, ' +
+      'keep subject shapes, composition, materials and colors otherwise consistent, output a natural professional result.';
+  }
+  if (node.type === 'layout') {
+    return base + 'Based on the reference image and the requirement text, generate a clean top-down floor plan layout image ' +
+      'showing functional zones, circulation and furniture placement in a professional architectural diagram style.';
   }
   // lineart：提取为干净黑白线稿
   return base + 'Convert this image into clean black-and-white line art / sketch on a white background. ' +
