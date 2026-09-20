@@ -64,6 +64,27 @@ for (const w of [1440, 1024, 760, 390, 320]) {
     const closed = await measure(page);
     ok(w + 'px 再次点击→抽屉收起', closed.sidebarCollapsed === true && closed.sidebar.right <= 4, closed.sidebar);
   }
+
+  // 窄屏打开态：右侧滑入面板不得超出视口（320px 曾左裁：recycle 系 60px / run-log 36px / agent-drawer 68px）
+  // 用 JS 直连 click 打开（避免打开态面板遮挡工具栏导致指针拦截），用移除 .show 确定性关闭
+  if (narrow) {
+    const OPEN_PANELS = [
+      ['#btnWorkflow', '#workflowPanel'], ['#btnAssets', '#assetPanel'], ['#btnRecycle', '#recyclePanel'],
+      ['#btnRunLog', '#runLogPanel'], ['#btnRegen', '#regenPanel'], ['#btnWorkbench', '#workbenchPanel'],
+    ];
+    for (const [btn, sel] of OPEN_PANELS) {
+      const m = await page.evaluate(async ([b, s]) => {
+        const tb = document.querySelector(b); if (!tb) return null;
+        tb.click(); await new Promise((r) => setTimeout(r, 350));
+        const el = document.querySelector(s); if (!el) return null;
+        const r = el.getBoundingClientRect();
+        const fits = r.left >= -2 && r.right <= innerWidth + 2;
+        el.classList.remove('show'); await new Promise((rr) => setTimeout(rr, 250));
+        return { fits, L: Math.round(r.left), R: Math.round(r.right), W: Math.round(r.width) };
+      }, [btn, sel]);
+      if (m) ok(w + 'px 打开态 ' + sel + ' 不超出视口', m.fits === true, m);
+    }
+  }
   try { await page.screenshot({ path: SHOT_DIR + '/resp-' + w + '-2026-09-05.png' }); } catch (_) {}
   await context.close();
 }

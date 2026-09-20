@@ -6945,6 +6945,12 @@ html, body { overflow-x: hidden; }
   .canvas-toolbar { left: 8px; top: 48px; right: 8px; flex-wrap: wrap; max-width: calc(100vw - 16px); }
   /* AI 面板适配窄屏宽度 */
   .ai-panel { left: 8px !important; right: 8px !important; width: auto !important; max-width: calc(100vw - 16px); }
+  /* 右侧滑入面板适配窄屏：宽度不超过视口，避免打开态左侧被裁。
+     320px 实测：.recycle-panel(380px,right:0) 左裁 60px、.run-log-panel(344px,right:12) 左裁 36px、
+     .agent-drawer(380px,right:8) 左裁 68px；.template-panel 已有 max-width:94vw 无需处理。 */
+  .recycle-panel { width: min(380px, 100vw); }
+  .run-log-panel { width: min(344px, calc(100vw - 24px)); }
+  .agent-drawer { width: min(380px, calc(100vw - 16px)); }
 }
 /* ===== 节点库折叠态：显示竖直图标条（可拖拽添加），而非空白细栏 ===== */
 .sidebar.collapsed .sidebar-list { opacity: 1; pointer-events: auto; padding: 44px 4px 8px; }
