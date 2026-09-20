@@ -13188,8 +13188,12 @@ window.addEventListener('keyup', (e) => {
 
 // 滚轮缩放（鼠标位置为锚点），鼠标在 AI 面板内时让面板正常滚动
 var aiPanelEl = document.getElementById('aiPanel');
+var agentDrawerEl = document.getElementById('agentDrawer');
 canvasWrap.addEventListener('wheel', (e) => {
+  // 鼠标在 AI 面板或 Agent 抽屉内时不拦截滚轮：让面板自身滚动；
+  // 否则 preventDefault 会锁死 .agent-chat-list 等列表滚动并误触发画布缩放。
   if (aiPanelEl && aiPanelEl.contains(e.target)) return;
+  if (agentDrawerEl && agentDrawerEl.contains(e.target)) return;
   e.preventDefault();
   const rect = canvasWrap.getBoundingClientRect();
   const sx = e.clientX - rect.left;
