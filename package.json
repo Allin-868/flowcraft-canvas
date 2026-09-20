@@ -57,7 +57,8 @@
     "verify:save-genmeta": "node test/verify-save-genmeta.mjs",
     "verify:genmeta-bottom": "node test/verify-genmeta-bottom.mjs",
     "verify:ui-affordance": "node test/verify-ui-affordance.mjs",
-    "verify:asset-reference-governance": "node test/verify-asset-reference-governance.mjs"
+    "verify:asset-reference-governance": "node test/verify-asset-reference-governance.mjs",
+    "verify:data-reliability": "node test/verify-data-reliability.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2",

@@ -68,6 +68,7 @@ const candidates = requested.length ? requested : [
   'verify-batch-c-compose-publish.mjs',   // 第 73 条：C 批浏览器端真实 compose/publish
   'verify-audio-node-ui.mjs',                 // 第 74 条：D+E 批音频整合节点（audio 单节点配音/配乐 tab+波形预览+Composer+高级设置不虚标+v5→v6 迁移）
   'verify-agent-drawer-scroll.mjs',           // 第 75 条：Agent 抽屉滚轮豁免（#agentDrawer 内滚轮滚动消息列表、不再误触发画布缩放）
+  'verify-data-reliability.mjs',              // 第 76 条：阶段 E 数据可靠性压测（写失败不撒谎/打开失败降级/快照与 ZIP 大图逐字节往返/批量落库/大图刷新存活/孤儿清理可回滚/快照保留策略）
   // 已知欠债（失败未修，暂不入闸门，判定与证据见同目录 DEBT.md）：
   // verify-composer, verify-auto-connect,
   // verify-real-links（需真实 Key）, verify-perf-baseline（性能基线单独跑）,
