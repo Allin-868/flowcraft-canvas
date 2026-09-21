@@ -2,6 +2,8 @@
 
 FlowCraft —— 基于无限画布的 AI 生图工作流编辑器（单文件 HTML，零依赖）。版本口径见 `package.json`，产物由 `build.mjs` 从 `src/` 生成。
 
+> **版本单一真源**：`package.json` 的 `version` 字段是唯一版本来源（当前 `3.11-comfyui`）。`build.mjs` 构建时把它注入产物三处——状态栏 `#statVersion`（`legacy.js` 的 `APP_VERSION`）、`template.html` 的静态占位、以及 `window.FlowCraft.version`（经 esbuild `define: __FLOWCRAFT_VERSION__`，写入导出项目的 `appVersion`）。改版本只动 `package.json` 一处即可，三处自动同步、不再各自漂移。
+
 ## 功能
 
 - 无限画布：拖拽节点、缩放平移（滚轮/触控板）、网格背景

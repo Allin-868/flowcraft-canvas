@@ -12,7 +12,29 @@ const ROOT = __dirname;
 
 const template = readFileSync(join(ROOT, 'src/template.html'), 'utf8');
 const css = readFileSync(join(ROOT, 'src/styles.css'), 'utf8');
-const legacy = readFileSync(join(ROOT, 'src/core/legacy.js'), 'utf8');
+const legacyRaw = readFileSync(join(ROOT, 'src/core/legacy.js'), 'utf8');
+
+// —— 版本单一真源：package.json 的 version 字段。——
+// build.mjs 把它注入产物三处，今后改版本只需改 package.json，三处自动同步、不再各自漂移：
+//   1) legacy.js 的 `const APP_VERSION = '…'`（驱动状态栏 #statVersion 显示，verbatim 内联，用正则替换）
+//   2) template.html 的静态 `<span id="statVersion">v…</span>`（JS 执行前的占位，避免闪现旧值）
+//   3) compat 打包产物的 `window.FlowCraft.version`（经 esbuild define 注入 __FLOWCRAFT_VERSION__，写入导出元数据 appVersion）
+const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
+if (!VERSION || typeof VERSION !== 'string') {
+  console.error('[build] 无法从 package.json 读取 version 字段，版本注入中止。');
+  process.exit(1);
+}
+
+// 注入点 1：legacy.js 的 APP_VERSION 字面量（用函数式替换避免版本串中的 $ 被当作反向引用）。
+let legacyHit = false;
+const legacy = legacyRaw.replace(
+  /const APP_VERSION = '[^']*';/,
+  () => { legacyHit = true; return `const APP_VERSION = ${JSON.stringify(VERSION)};`; },
+);
+if (!legacyHit) {
+  console.error('[build] 未能在 legacy.js 中定位 `const APP_VERSION = …;`，版本注入失败（请检查源码是否改了写法）。');
+  process.exit(1);
+}
 
 /**
  * 优先使用 package API；当 node_modules 中的原生二进制来自其他平台时，
@@ -33,6 +55,8 @@ async function bundleCompat() {
         target: 'es2019',
         write: false,
         logLevel: 'silent',
+        // 注入点 3：把 package.json 版本作为编译期常量替换 __FLOWCRAFT_VERSION__。
+        define: { __FLOWCRAFT_VERSION__: JSON.stringify(VERSION) },
       });
       return result.outputFiles[0].text;
     } catch (err) {
@@ -56,7 +80,7 @@ async function bundleCompat() {
   try {
     for (const binary of candidates) {
       if (!existsSync(binary)) continue;
-      const run = spawnSync(binary, [compatEntry, '--bundle', '--format=iife', '--target=es2019', '--outfile=' + tempOut, '--log-level=error'], {
+      const run = spawnSync(binary, [compatEntry, '--bundle', '--format=iife', '--target=es2019', '--outfile=' + tempOut, '--log-level=error', '--define:__FLOWCRAFT_VERSION__=' + JSON.stringify(VERSION)], {
         cwd: ROOT, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
       });
       if (run.status === 0 && existsSync(tempOut)) return readFileSync(tempOut, 'utf8');
@@ -72,7 +96,19 @@ async function bundleCompat() {
 
 // 打包依赖的许可证注释偶尔带行尾空格；清理后保证提交可通过 git diff --check。
 const compat = (await bundleCompat()).replace(/[\t ]+(?=\r?\n)/g, '');
-const out = template
+
+// 注入点 2：template.html 的静态 #statVersion 占位（JS 执行前显示，避免闪现旧版本号）。
+let spanHit = false;
+const templateWithVersion = template.replace(
+  /(id="statVersion">)[^<]*(<)/,
+  (_m, open, close) => { spanHit = true; return `${open}v${VERSION}${close}`; },
+);
+if (!spanHit) {
+  console.error('[build] 未能在 template.html 中定位 id="statVersion" 占位，版本注入失败。');
+  process.exit(1);
+}
+
+const out = templateWithVersion
   .replace('<!--BUILD_STYLE-->', () => css)
   .replace('<!--BUILD_APP-->', () => legacy)
   .replace('<!--BUILD_COMPAT-->', () => compat);

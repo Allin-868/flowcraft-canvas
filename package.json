@@ -1,6 +1,6 @@
 {
   "name": "flowcraft",
-  "version": "3.2.0-modular",
+  "version": "3.11-comfyui",
   "private": true,
   "type": "module",
   "description": "FlowCraft 无限画布 — 阶段 0.5 模块化构建（src/ → 单文件 index.html）",

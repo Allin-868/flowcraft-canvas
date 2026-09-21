@@ -5,7 +5,9 @@
 //=============================================================================
 
 //================ 1. 节点类型定义 (匹配设计系统规范) ================
-const APP_VERSION = '3.0';
+// 版本单一真源 = package.json；build.mjs 在打包时会用正则把下面这行的字面量替换为 package.json 的 version，
+// 故此处手改不会被采纳，要改版本请改 package.json。
+const APP_VERSION = '3.11-comfyui';
 
 const NODE_TYPES = {
   image:    { label: '图片输入', desc: '上传或拖入图片',     color: 'var(--node-image)',    colorRaw: '#5B8DEF', inputs: [], outputs: [{type:'image',label:'图片'}] },

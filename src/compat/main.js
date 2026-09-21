@@ -20,7 +20,9 @@ window.FlowCraft.fee = FeeModel;
 window.FlowCraft.models = ModelRegistry.init();
 window.FlowCraft.router = ModelRouter.init();
 window.FlowCraft.health = ModelHealth.init();
-window.FlowCraft.version = '3.11-comfyui';
+// 版本单一真源 = package.json，由 build.mjs 经 esbuild define 注入 __FLOWCRAFT_VERSION__。
+// typeof 守卫保证本文件脱离打包（如 node --check / 直接 import）时也不抛 ReferenceError。
+window.FlowCraft.version = (typeof __FLOWCRAFT_VERSION__ !== 'undefined') ? __FLOWCRAFT_VERSION__ : '3.11-comfyui';
 
 /**
  * 在左侧 sidebar 底部创建一个可折叠的「高级设置」分组，并返回其 body 容器。
