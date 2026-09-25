@@ -1,15 +1,15 @@
 # 测试欠债登记簿（test/DEBT.md）
 
 > 本文件随 deploy 仓库发布，是回归闸门外脚本的唯一登记处。
-> 闸门入口 `test/run-regression.mjs`（`npm run verify:regression`）；更新日期 2026-09-19。
+> 闸门入口 `test/run-regression.mjs`（`npm run verify:regression`）；更新日期 2026-09-25。
 
 ## 口径
 
 - 闸门入口：`test/run-regression.mjs`（`npm run verify:regression`）。
-- 当前闸门条目 **69**，2026-09-19 全绿（`test-results/regression-2026-09-19.md`）。
-- `test/` 目录共 **75** 个脚本文件；闸门外 **6** 个 = 设计如此 **3**（性能测量 / 演示物料 / 需真实 Key）
+- 当前闸门 **77 次执行 / 76 个唯一脚本**，2026-09-25 全绿（`test-results/regression-2026-09-25.md`）。`verify-responsive.mjs` 当前在入口中执行两次，故执行次数比唯一脚本数多 1。
+- `test/` 目录共 **82** 个脚本文件；闸门外 **6** 个 = 设计如此 **3**（性能测量 / 演示物料 / 需真实 Key）
   + 单跑入口 **3**（`run-regression.mjs` 是闸门本身、`verify-current-build` 与 `verify-security`
-  由 `npm run verify:build` / `verify:security` 单独调）。**真欠债 0 条**（2026-09-19 结案最后一条 A 类）。
+  由 `npm run verify:build` / `verify:security` 单独调）。**真欠债 0 条**（2026-09-19 结案最后一条 A 类，2026-09-25 通过完整回归复核）。
 - 第 65 条 `verify-ui-affordance.mjs` 是 2026-09-18 新增的「可点性体检」闸门：不再问「控件在不在」，
   而是问「用户鼠标按得到按不到」（`elementFromPoint` 命中 + 祖先链 display/visibility + 自身 pointer-events
   + 尺寸 + 中心点在视口内）。三处产品缺陷都属于前者通过、后者失败的盲区，故固化为常规闸门。
@@ -29,7 +29,7 @@
 | `verify-current-build.mjs` | 构建产物一致性校验，走 `npm run verify:build` 单独调 |
 | `verify-security.mjs` | 生产安全扫描，走 `npm run verify:security --production` 单独调 |
 
-## 真欠债 0 条（2026-09-17 取证的 2 条 A 类已于 2026-09-19 全部结案）
+## 真欠债 0 条（2026-09-17 取证的 2 条 A 类已于 2026-09-19 全部结案；2026-09-25 完整回归复核通过）
 
 ### A 类｜用例过期（产品行为已有意变更，断言写的是旧契约）
 
@@ -163,7 +163,7 @@
 ```bash
 cd 部署仓库根目录
 node test/verify-asset-dedup.mjs      # 单跑某条
-node test/run-regression.mjs          # 全量闸门（67）
+node test/run-regression.mjs          # 全量闸门（77 次执行 / 76 个唯一脚本）
 node test/verify-ui-affordance.mjs    # 单跑可点性体检
 node test/verify-auto-connect.mjs       # 单跑拖动靠近自动连线
 node test/verify-composer.mjs         # 单跑节点下方 Composer（含比例浮层与打桩出图）
